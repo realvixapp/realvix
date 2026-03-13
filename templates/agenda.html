@@ -7,7 +7,8 @@
 
 <!-- Tabs -->
 <div style="display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border);">
-  <button class="tab-btn active" onclick="switchAgendaTab('calendario',this)">📅 Calendario</button>
+  <button class="tab-btn active" onclick="switchAgendaTab('calendario',this)">📅 Calendario CRM</button>
+  <button class="tab-btn" onclick="switchAgendaTab('gcal',this)">🗓️ Google Calendar</button>
   <button class="tab-btn" onclick="switchAgendaTab('tareas',this)">✅ Pendientes</button>
 </div>
 
@@ -25,7 +26,33 @@
   <div id="eventosDia" style="margin-top:16px;"></div>
 </div>
 
-<!-- ── TAREAS KANBAN ── -->
+<!-- ── GOOGLE CALENDAR EMBEBIDO ── -->
+<div id="tabGcal" style="display:none;">
+  <div id="gcalSetupBanner" style="background:var(--rx-blue-light);border:1px solid var(--rx-blue);border-radius:10px;padding:20px 24px;margin-bottom:20px;display:flex;align-items:center;gap:16px;">
+    <div style="font-size:2rem;">🗓️</div>
+    <div style="flex:1;">
+      <div style="font-weight:700;font-size:0.95rem;margin-bottom:4px;color:var(--rx-blue);">Conectar Google Calendar</div>
+      <div style="font-size:0.82rem;color:#555;">Ingresá el ID de tu calendario de Google para verlo embebido aquí. Lo encontrás en Configuración del Calendario → Integrar calendario.</div>
+      <div style="display:flex;gap:8px;margin-top:10px;align-items:center;">
+        <input type="text" id="gcalIdInput" class="input-base" style="max-width:360px;font-size:0.82rem;" placeholder="ejemplo@gmail.com o ID largo del calendario">
+        <button class="btn-primary" onclick="guardarGcalId()" style="white-space:nowrap;">Conectar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="gcalFrame" style="display:none;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div style="font-size:0.82rem;color:#888;">📌 Tu Google Calendar embebido — podés crear y gestionar eventos directamente acá.</div>
+      <button class="btn-secondary" style="font-size:0.75rem;" onclick="desconectarGcal()">Desconectar</button>
+    </div>
+    <iframe id="gcalIframe"
+      style="border:0;border-radius:10px;width:100%;height:680px;box-shadow:0 2px 12px rgba(0,0,0,0.08);"
+      frameborder="0" scrolling="no">
+    </iframe>
+  </div>
+</div>
+
+
 <div id="tabTareas" style="display:none">
   <div style="display:flex;gap:10px;margin-bottom:14px;align-items:center;">
     <button class="btn-primary" onclick="abrirNuevaTarea()">+ Nueva tarea</button>
@@ -129,6 +156,52 @@
     </div>
   </div>
 </div>
+<!-- ── MODAL CONFIRMAR GOOGLE CALENDAR (global) ── -->
+<div class="modal-bg" id="modalConfirmarGcal">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header" style="background:linear-gradient(135deg,#4285F4 0%,#34A853 100%);color:white;border-radius:10px 10px 0 0;">
+      <h3 style="color:white;display:flex;align-items:center;gap:8px;">🗓️ Agregar a Google Calendar</h3>
+      <button class="modal-close" onclick="cerrarModal('modalConfirmarGcal')" style="color:white;">✕</button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
+      <div style="background:#f0f7ff;border-radius:8px;padding:14px;border-left:4px solid #4285F4;">
+        <div style="font-size:0.82rem;color:#555;margin-bottom:4px;">Actividad detectada:</div>
+        <div id="gcalConfirmDesc" style="font-weight:600;font-size:0.92rem;color:#1a1a1a;"></div>
+      </div>
+      <div style="font-size:0.84rem;color:#666;">¿Querés agendar esta actividad en tu Google Calendar?</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="field">
+          <label class="field-label">Fecha</label>
+          <input type="date" id="gcalConfirmFecha" class="input-base">
+        </div>
+        <div class="field">
+          <label class="field-label">Hora</label>
+          <input type="time" id="gcalConfirmHora" class="input-base" value="10:00">
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Duración estimada</label>
+        <select id="gcalConfirmDuracion" class="input-base">
+          <option value="30">30 minutos</option>
+          <option value="60" selected>1 hora</option>
+          <option value="90">1 hora 30 min</option>
+          <option value="120">2 horas</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label">Notas adicionales (opcional)</label>
+        <textarea id="gcalConfirmNotas" class="input-base" rows="2" style="resize:vertical;" placeholder="Detalles del evento..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="cerrarModal('modalConfirmarGcal')">Omitir</button>
+      <button class="btn-primary" style="background:linear-gradient(135deg,#4285F4,#34A853);border:none;" onclick="confirmarAgregarGcal()">
+        🗓️ Agregar al Calendar
+      </button>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
