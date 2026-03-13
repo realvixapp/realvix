@@ -64,9 +64,14 @@ function onPdfSelected(input) {
 function setPdfFile(file) {
   FIRMA.pdfFile = file;
   const short = file.name.length > 38 ? file.name.slice(0, 35) + '...' : file.name;
-  document.getElementById('pdfFileLabel').textContent = short;
+  // pdfFileLabel may not exist in newer layout — safe fallback
+  const lbl = document.getElementById('pdfFileLabel');
+  if (lbl) lbl.textContent = short;
   document.getElementById('pdfBadgeName').textContent = file.name;
   document.getElementById('pdfBadge').style.display   = 'flex';
+  // Ocultar el picker y mostrar badge
+  const picker = document.getElementById('pdfPickerLabel');
+  if (picker) picker.style.display = 'none';
 
   const reader = new FileReader();
   reader.onload = function(ev) {
@@ -486,6 +491,8 @@ function resetPdf() {
   if (lbl) lbl.textContent = '';
   const badge = document.getElementById('pdfBadge');
   if (badge) badge.style.display = 'none';
+  const picker = document.getElementById('pdfPickerLabel');
+  if (picker) picker.style.display = 'flex';
   // Quitar zonas de todos los firmantes (PDF cambió)
   FIRMA.firmantes.forEach(f => { f.sign_zone = null; });
   renderFirmantes();
@@ -501,6 +508,8 @@ function resetFormNueva() {
   if (lbl) lbl.textContent = '';
   const badge = document.getElementById('pdfBadge');
   if (badge) badge.style.display = 'none';
+  const picker = document.getElementById('pdfPickerLabel');
+  if (picker) picker.style.display = 'flex';
   const res = document.getElementById('resultEnvio');
   if (res) res.style.display = 'none';
   FIRMA.firmantes = [];
