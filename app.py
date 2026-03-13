@@ -511,17 +511,34 @@ def forzar_migracion():
 @app.route('/api/init-db', methods=['POST'])
 @admin_required
 def forzar_init_db():
-    """Re-ejecuta init_db() para crear todas las tablas faltantes. Útil si la DB
-    no estaba disponible al arrancar la app en Railway."""
+    """Re-ejecuta init_db() manualmente. Útil cuando la DB no estaba disponible al arrancar."""
     try:
         init_db()
-        return jsonify({'ok': True, 'msg': 'init_db() ejecutado correctamente'})
+        return jsonify({'ok': True, 'msg': 'Tablas creadas correctamente'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 
-# ── Init ──
-init_db()
+# ── Init con reintentos ──
+import threading, time
+
+def _init_with_retry(max_attempts=10, delay=3):
+    for attempt in range(1, max_attempts + 1):
+        try:
+            conn = get_connection()
+            if conn:
+                conn.close()
+                init_db()
+                print(f"[DB] Init OK en intento {attempt}")
+                return
+            else:
+                print(f"[DB] Sin conexion, reintento {attempt}/{max_attempts}...")
+        except Exception as e:
+            print(f"[DB] Error en intento {attempt}: {e}")
+        time.sleep(delay)
+    print("[DB] No se pudo inicializar la DB tras todos los intentos")
+
+threading.Thread(target=_init_with_retry, daemon=True).start()
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
