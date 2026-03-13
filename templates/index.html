@@ -1700,7 +1700,47 @@ function edoCopiarLink(btn, token) {
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="cerrarModal('modalWA')">Cancelar</button>
-      <a id="waBtnAbrir" href="#" target="_blank" class="btn btn-gold" style="text-decoration:none;" onclick="cerrarModal('modalWA')">Abrir WhatsApp →</a>
+      <button id="waBtnAbrir" class="btn btn-gold" onclick="waAbrirLink()">💬 Abrir WhatsApp →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Detalle/Editar Consulta -->
+<div class="modal-bg" id="modalDetalleConsulta">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3 id="detalleConsultaTitle">Consulta</h3>
+      <button class="modal-close" onclick="cerrarModal('modalDetalleConsulta')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="dcId">
+      <div class="form-row">
+        <div class="form-group"><label>Nombre del interesado</label><input type="text" id="dcNombre"></div>
+        <div class="form-group"><label>Teléfono / WhatsApp</label>
+          <div style="display:flex;gap:8px;">
+            <input type="tel" id="dcTel" style="flex:1;">
+            <button class="btn btn-outline btn-sm" onclick="dcEnviarWA()" title="Enviar WhatsApp" style="white-space:nowrap;">💬 WA</button>
+          </div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Email</label><input type="email" id="dcEmail"></div>
+        <div class="form-group"><label>Etapa</label>
+          <select id="dcEtapa"><option value="nuevo">Nuevo lead</option><option value="muestra">Muestra agendada</option><option value="seguimiento">En seguimiento</option><option value="calificado">Calificado</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Propiedad de interés</label><input type="text" id="dcPropiedad" placeholder="Dirección o nombre..."></div>
+        <div class="form-group"><label>Fecha de muestra</label><input type="date" id="dcFechaMuestra"></div>
+      </div>
+      <div class="form-group"><label>Calificación</label>
+        <select id="dcCalificacion"><option value="">Sin calificar</option><option value="caliente">🔥 Caliente</option><option value="tibio">🌡️ Tibio</option><option value="frio">❄️ Frío</option></select>
+      </div>
+      <div class="form-group"><label>Observaciones</label><textarea id="dcObs" rows="3" placeholder="Qué dijo, qué busca, qué le gustó..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="cerrarModal('modalDetalleConsulta')">Cancelar</button>
+      <button class="btn btn-gold" onclick="guardarDetalleConsulta()">Guardar cambios</button>
     </div>
   </div>
 </div>
@@ -2488,9 +2528,23 @@ function guardarConsulta() {
 
 // WhatsApp inteligente — modal selector
 let _waContacto = null;
+let _waUrlActual = '';
+
+function waNormalizarTel(tel) {
+  // Quitar todo lo que no sea número
+  let t = (tel || '').replace(/[^0-9]/g, '');
+  // Argentina: si empieza con 0 sacar el 0, si empieza con 011 → 5411, si empieza con 15 → agregar 549
+  if (t.startsWith('0')) t = t.slice(1);           // 011... → 11...
+  if (t.startsWith('11') && t.length === 10) t = '549' + t;  // 1162... → 5491162...
+  if (!t.startsWith('549') && t.length === 10) t = '549' + t; // cualquier número de 10 dígitos
+  if (!t.startsWith('54') && t.length >= 10) t = '54' + t;
+  return t;
+}
+
 function mostrarBtnWhatsApp(consulta) {
   _waContacto = consulta;
-  // Poblar selector con textos whatsapp
+  _waUrlActual = '';
+  // Poblar selector con textos whatsapp/seguimiento
   const sel = document.getElementById('waSelectorTexto');
   const textos = (LOCAL.textos || []).filter(t => t.canal === 'whatsapp' || t.canal === 'seguimiento');
   sel.innerHTML = '<option value="">— Seleccioná un texto precargado —</option>' +
@@ -2498,8 +2552,6 @@ function mostrarBtnWhatsApp(consulta) {
   // Si hay un solo texto, seleccionarlo automáticamente
   if (textos.length === 1) { sel.value = '0'; waPreviewTexto(); }
   else { document.getElementById('waPreview').style.display = 'none'; }
-  // Actualizar botón con tel
-  waActualizarLink();
   abrirModal('modalWA');
 }
 
@@ -2517,19 +2569,24 @@ function waPreviewTexto() {
   const idx = parseInt(sel.value);
   const textos = (LOCAL.textos || []).filter(t => t.canal === 'whatsapp' || t.canal === 'seguimiento');
   const prev = document.getElementById('waPreview');
-  if (isNaN(idx) || !textos[idx]) { prev.style.display = 'none'; waActualizarLink(''); return; }
+  if (isNaN(idx) || !textos[idx]) {
+    prev.style.display = 'none';
+    _waUrlActual = '';
+    return;
+  }
   const msg = waReemplazarVars(textos[idx].contenido, _waContacto);
   prev.textContent = msg;
   prev.style.display = 'block';
-  waActualizarLink(msg);
+  const tel = waNormalizarTel(_waContacto.tel);
+  _waUrlActual = `https://wa.me/${tel}?text=${encodeURIComponent(msg)}`;
 }
 
-function waActualizarLink(msg) {
-  const btn = document.getElementById('waBtnAbrir');
-  if (!btn || !_waContacto?.tel) return;
-  const tel = _waContacto.tel.replace(/[^0-9]/g, '');
-  const texto = msg !== undefined ? msg : '';
-  btn.href = `https://wa.me/${tel}${texto ? '?text=' + encodeURIComponent(texto) : ''}`;
+function waAbrirLink() {
+  if (!_waContacto?.tel) { showToast('El contacto no tiene teléfono cargado', 'error'); return; }
+  const tel = waNormalizarTel(_waContacto.tel);
+  const url = _waUrlActual || `https://wa.me/${tel}`;
+  cerrarModal('modalWA');
+  window.open(url, '_blank');
 }
 
 function renderConsultas(filtro='todos') {
@@ -2543,7 +2600,7 @@ function renderConsultas(filtro='todos') {
   }
   const calMap = {caliente:'🔥', tibio:'🌡️', frio:'❄️'};
   div.innerHTML = lista.map(c => `
-    <div class="contact-card" style="margin-bottom:8px;">
+    <div class="contact-card" style="margin-bottom:8px;cursor:pointer;" onclick="abrirDetalleConsulta('${c.id}')">
       <div class="avatar" style="background:var(--gold)">${(c.nombre||'?').charAt(0).toUpperCase()}</div>
       <div class="contact-info">
         <div class="contact-name">${c.nombre} ${c.calificacion ? calMap[c.calificacion]||'' : ''}</div>
@@ -2551,8 +2608,8 @@ function renderConsultas(filtro='todos') {
         ${c.obs ? `<div style="font-size:0.77rem;color:#bbb;margin-top:3px;">${c.obs.substring(0,80)}${c.obs.length>80?'...':''}</div>` : ''}
       </div>
       <div class="doc-actions">
-        ${c.tel ? `<button class="btn-sm" onclick="event.stopPropagation();mostrarBtnWhatsApp(${JSON.stringify(c).replace(/"/g,'&quot;')})">💬</button>` : ''}
-        <button class="btn-sm" style="color:var(--rust);" onclick="LOCAL.consultas=LOCAL.consultas.filter(x=>x.id!=='${c.id}');saveLocal('consultas');renderConsultas('todos')">✕</button>
+        ${c.tel ? `<button class="btn-sm" title="Enviar WhatsApp" onclick="event.stopPropagation();mostrarBtnWhatsApp(${JSON.stringify(c).replace(/"/g,'&quot;')})">💬</button>` : ''}
+        <button class="btn-sm" style="color:var(--rust);" title="Eliminar" onclick="event.stopPropagation();LOCAL.consultas=LOCAL.consultas.filter(x=>x.id!=='${c.id}');saveLocal('consultas');renderConsultas();calcularEmbudo()">✕</button>
       </div>
     </div>`).join('');
 }
@@ -3324,16 +3381,17 @@ async function crearUsuario() {
   const pass   = document.getElementById('adminPass').value;
   const rol    = document.getElementById('adminRol').value;
   if (!nombre || !email) { showToast('Nombre y email son obligatorios', 'error'); return; }
-  // Si no pusieron contraseña, usamos un token temporal que luego cambian via link
-  const permisos = Array.from(document.querySelectorAll('.perm-check:checked')).map(cb => cb.value);
+  // Permisos como objeto {seccion: true}
+  const permObj = {};
+  document.querySelectorAll('.perm-check:checked').forEach(cb => permObj[cb.value] = true);
   const body = {
     name: nombre,
     email: email,
     password: pass || ('tmp_' + Math.random().toString(36).slice(2)),
     role: rol,
-    permisos: rol === 'admin' ? [] : permisos,
+    permisos: rol === 'admin' ? {} : permObj,
   };
-  const btn = document.querySelector('#page-admin .btn-gold');
+  const btn = document.querySelector('#page-admin .card .btn-gold');
   if (btn) { btn.textContent = '⏳ Creando...'; btn.disabled = true; }
   try {
     const r = await fetch('/api/admin/users', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
@@ -3342,13 +3400,11 @@ async function crearUsuario() {
     showToast('Usuario creado ✅', 'success');
     ['adminNombre','adminEmail','adminPass'].forEach(id => document.getElementById(id).value = '');
     await cargarUsuariosAdmin();
-    // Si no pusieron contraseña, generar link automáticamente
     if (!pass && data.user_id) {
       const ri = await fetch(`/api/admin/users/${data.user_id}/invite`, {method:'POST'});
       const di = await ri.json();
       if (di.link) {
-        try { await navigator.clipboard.writeText(di.link); }
-        catch {}
+        try { await navigator.clipboard.writeText(di.link); } catch {}
         showToast('🔗 Link de acceso copiado al portapapeles (válido 48hs)', 'success');
       }
     }
@@ -3360,6 +3416,56 @@ async function eliminarUsuario(id) {
   if (!confirm('¿Eliminar usuario?')) return;
   await fetch('/api/admin/users/' + id, {method:'DELETE'});
   showToast('Usuario eliminado'); cargarUsuariosAdmin();
+}
+
+// ── DETALLE / EDICIÓN CONSULTA ──
+function abrirDetalleConsulta(id) {
+  const c = LOCAL.consultas.find(x => x.id === id);
+  if (!c) return;
+  document.getElementById('dcId').value = id;
+  document.getElementById('detalleConsultaTitle').textContent = c.nombre || 'Consulta';
+  document.getElementById('dcNombre').value = c.nombre || '';
+  document.getElementById('dcTel').value = c.tel || '';
+  document.getElementById('dcEmail').value = c.email || '';
+  document.getElementById('dcEtapa').value = c.etapa || 'nuevo';
+  document.getElementById('dcPropiedad').value = c.propiedad || '';
+  document.getElementById('dcFechaMuestra').value = c.fechaMuestra || '';
+  document.getElementById('dcCalificacion').value = c.calificacion || '';
+  document.getElementById('dcObs').value = c.obs || '';
+  abrirModal('modalDetalleConsulta');
+}
+
+function guardarDetalleConsulta() {
+  const id = document.getElementById('dcId').value;
+  const idx = LOCAL.consultas.findIndex(x => x.id === id);
+  if (idx === -1) return;
+  LOCAL.consultas[idx] = {
+    ...LOCAL.consultas[idx],
+    nombre: document.getElementById('dcNombre').value,
+    tel: document.getElementById('dcTel').value,
+    email: document.getElementById('dcEmail').value,
+    etapa: document.getElementById('dcEtapa').value,
+    propiedad: document.getElementById('dcPropiedad').value,
+    fechaMuestra: document.getElementById('dcFechaMuestra').value,
+    calificacion: document.getElementById('dcCalificacion').value,
+    obs: document.getElementById('dcObs').value,
+  };
+  saveLocal('consultas');
+  cerrarModal('modalDetalleConsulta');
+  renderConsultas();
+  calcularEmbudo();
+  showToast('Consulta actualizada ✅', 'success');
+}
+
+function dcEnviarWA() {
+  const id = document.getElementById('dcId').value;
+  const c = LOCAL.consultas.find(x => x.id === id);
+  if (!c) return;
+  // Actualizar tel del input por si lo editaron
+  c.tel = document.getElementById('dcTel').value;
+  if (!c.tel) { showToast('No tiene teléfono cargado', 'error'); return; }
+  cerrarModal('modalDetalleConsulta');
+  mostrarBtnWhatsApp(c);
 }
 
 // ══ #4: DASHBOARD CHART ══
