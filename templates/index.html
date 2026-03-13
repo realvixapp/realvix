@@ -131,11 +131,582 @@ table.planilla td{border:1px solid var(--border);padding:0;}
 .block-editable:hover{border-color:var(--border);background:var(--cream);}
 .block-editable:focus{border-color:var(--gold);background:white;}
 .block-editable:empty::before{content:attr(data-placeholder);color:#ccc;}
+
+/* ══ LISTING (integrado) ══ */
+.lst-toolbar{display:flex;gap:10px;align-items:center;margin-bottom:20px;flex-wrap:wrap;}
+.lst-search{flex:1;min-width:200px;padding:9px 14px 9px 36px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.88rem;outline:none;background:white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23aaa' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 12px center;}
+.lst-search:focus{border-color:var(--gold);}
+.lst-view-title{font-family:'DM Serif Display',serif;font-size:1.3rem;color:var(--ink);}
+.lst-count{background:var(--cream);color:#888;border-radius:20px;padding:2px 10px;font-size:0.75rem;font-weight:600;}
+.lst-sub-sidebar{width:200px;flex-shrink:0;background:var(--cream);border:1px solid var(--border);border-radius:10px;padding:8px 0;align-self:flex-start;position:sticky;top:20px;}
+.lst-layout{display:flex;gap:20px;align-items:flex-start;}
+.lst-main{flex:1;min-width:0;}
+.estado-tag{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:700;white-space:nowrap;}
+.color-purple{background:#f3e8ff;color:#6b21a8;}.color-gray{background:#f0f0f0;color:#555;}
+.color-yellow{background:#fef9c3;color:#854d0e;}.color-green{background:#dcfce7;color:#166534;}
+.color-orange{background:#ffedd5;color:#9a3412;}.color-blue{background:#dbeafe;color:#1e40af;}
+.color-red{background:#fee2e2;color:#991b1b;}.color-pink{background:#fce7f3;color:#9d174d;}
+.estado-inline{border:none;outline:none;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 7px center;padding-right:22px;min-width:80px;transition:opacity 0.15s;}
+.estado-inline:hover{opacity:0.85;}
+.estado-inline.color-purple{background-color:#f3e8ff;color:#6b21a8;}.estado-inline.color-gray{background-color:#f0f0f0;color:#555;}
+.estado-inline.color-yellow{background-color:#fef9c3;color:#854d0e;}.estado-inline.color-green{background-color:#dcfce7;color:#166534;}
+.estado-inline.color-orange{background-color:#ffedd5;color:#9a3412;}.estado-inline.color-blue{background-color:#dbeafe;color:#1e40af;}
+.estado-inline.color-red{background-color:#fee2e2;color:#991b1b;}.estado-inline.color-pink{background-color:#fce7f3;color:#9d174d;}
+.estado-dot-sm{display:inline-block;width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.estado-dot-sm.color-purple{background:#6b21a8;}.estado-dot-sm.color-gray{background:#888;}
+.estado-dot-sm.color-yellow{background:#ca8a04;}.estado-dot-sm.color-green{background:#166534;}
+.estado-dot-sm.color-orange{background:#9a3412;}.estado-dot-sm.color-blue{background:#1e40af;}
+.estado-dot-sm.color-red{background:#991b1b;}.estado-dot-sm.color-pink{background:#9d174d;}
+.tipo-tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:0.7rem;font-weight:600;background:var(--cream);color:#777;}
+.lst-empty{text-align:center;padding:60px 24px;color:#ccc;}
+.lst-empty .ei{font-size:2.5rem;margin-bottom:10px;}
+/* slide-over listing */
+.so-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:500;}
+.so-bg.open{display:block;}
+.slideover{position:fixed;top:0;right:0;height:100vh;width:500px;max-width:96vw;background:white;box-shadow:-4px 0 32px rgba(0,0,0,0.12);z-index:501;transform:translateX(100%);transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);overflow-y:auto;display:flex;flex-direction:column;}
+.slideover.open{transform:translateX(0);}
+.so-header{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:white;z-index:2;flex-shrink:0;}
+.so-title-txt{font-family:'DM Serif Display',serif;font-size:1.15rem;}
+.so-close-btn{background:none;border:none;font-size:1.4rem;cursor:pointer;color:#bbb;line-height:1;padding:0;}
+.so-close-btn:hover{color:var(--ink);}
+.so-body{padding:20px 22px;flex:1;}
+.so-section{margin-bottom:22px;}
+.so-section-title{font-size:0.65rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#bbb;margin-bottom:12px;}
+.so-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.so-field label{font-size:0.7rem;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:#aaa;margin-bottom:5px;display:block;}
+.so-field input,.so-field select,.so-field textarea{width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:0.88rem;outline:none;background:white;color:var(--ink);transition:border-color 0.2s;}
+.so-field input:focus,.so-field select:focus,.so-field textarea:focus{border-color:var(--gold);}
+.so-field textarea{resize:vertical;min-height:80px;}
+.so-footer{padding:16px 22px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:space-between;position:sticky;bottom:0;background:white;flex-shrink:0;}
+.btn-save-so{background:var(--ink);color:white;border:none;border-radius:8px;padding:10px 22px;font-family:inherit;font-size:0.88rem;font-weight:600;cursor:pointer;}
+.btn-save-so:hover{background:#333;}
+.btn-del-so{background:none;border:1px solid #fecaca;color:var(--rust);border-radius:8px;padding:10px 16px;font-family:inherit;font-size:0.82rem;font-weight:600;cursor:pointer;}
+.btn-del-so:hover{background:#fee2e2;}
+/* kanban analisis */
+.lst-analisis-toolbar{background:white;border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin-bottom:20px;}
+.btn-periodo{padding:5px 14px;border-radius:20px;border:1.5px solid var(--border);background:white;color:#777;font-family:inherit;font-size:0.78rem;font-weight:600;cursor:pointer;transition:all 0.15s;}
+.btn-periodo:hover{border-color:var(--gold);color:var(--ink);}
+.btn-periodo.active{background:var(--ink);color:white;border-color:var(--ink);}
+.kanban-wrap{display:flex;gap:14px;overflow-x:auto;padding-bottom:16px;align-items:flex-start;}
+.kanban-col{flex-shrink:0;width:220px;background:#f7f7f5;border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+.kanban-col-header{padding:10px 14px;background:var(--cream);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+.kanban-col-mes{font-family:var(--font-serif);font-size:0.95rem;color:var(--ink);font-weight:600;}
+.kanban-col-cnt{font-size:0.72rem;font-weight:700;background:var(--gold);color:white;border-radius:12px;padding:2px 8px;}
+.kanban-col-body{padding:10px;display:flex;flex-direction:column;gap:8px;}
+.kanban-card{background:white;border:1px solid var(--border);border-radius:8px;padding:10px 12px;cursor:pointer;transition:box-shadow 0.15s;}
+.kanban-card:hover{box-shadow:0 2px 8px rgba(0,0,0,0.08);border-color:var(--gold);}
+.kc-dir{font-weight:600;font-size:0.82rem;color:var(--ink);margin-bottom:3px;}
+.kc-prop{font-size:0.74rem;color:#999;margin-bottom:6px;}
+.kanban-empty{text-align:center;padding:20px 10px;color:#ccc;font-size:0.78rem;}
+/* confirm modal listing */
+.lst-confirm-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:700;align-items:center;justify-content:center;}
+.lst-confirm-bg.open{display:flex;}
+.lst-confirm-box{background:white;border-radius:14px;padding:32px;max-width:360px;width:90%;text-align:center;}
+.lst-confirm-box h3{font-family:'DM Serif Display',serif;font-size:1.1rem;margin-bottom:8px;}
+.lst-confirm-box p{font-size:0.82rem;color:#888;margin-bottom:22px;}
+
+/* ══ ESTADO DOC (integrado) ══ */
+.edo-firmante-card{border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:10px;display:flex;align-items:center;gap:14px;}
+.edo-firmante-card.signed{border-color:var(--sage-light);background:#f6fdf8;}
+.edo-fname{font-weight:700;font-size:0.95rem;}
+.edo-femail{font-size:0.75rem;color:#888;margin-top:2px;}
+.edo-ftime{font-size:0.72rem;color:#666;margin-top:4px;}
+.edo-refresh-note{font-size:0.75rem;color:#aaa;margin-top:12px;}
+.edo-link-row{display:flex;gap:6px;margin-top:8px;align-items:center;}
+.edo-link-row input{flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:0.72rem;font-family:monospace;background:#fafafa;color:#555;width:auto;}
+.btn-copy-edo{padding:6px 12px;background:var(--ink);color:white;border:none;border-radius:6px;font-size:0.72rem;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit;transition:background 0.15s;}
+.btn-copy-edo:hover{background:#333;}
+.btn-copy-edo.copied{background:var(--sage);}
 </style>
 </head>
 <body>
 
-<!-- ══ HEADER ══ -->
+<!-- ══ SLIDE-OVER LISTING ══ -->
+<div class="so-bg" id="lstSoBg" onclick="lstCerrarSO()"></div>
+<div class="slideover" id="lstSlideover">
+  <div class="so-header">
+    <div class="so-title-txt" id="lstSoTitle">Propiedad</div>
+    <button class="so-close-btn" onclick="lstCerrarSO()">✕</button>
+  </div>
+  <div class="so-body">
+    <input type="hidden" id="lstSoId">
+    <div class="so-section">
+      <div class="so-section-title">Ubicación</div>
+      <div class="so-grid">
+        <div class="so-field" style="grid-column:1/-1"><label>Dirección</label><input type="text" id="lstSoDireccion" placeholder="Av. Corrientes 1234"></div>
+        <div class="so-field"><label>Localidad</label><input type="text" id="lstSoLocalidad" placeholder="CABA"></div>
+        <div class="so-field"><label>Zona</label>
+          <select id="lstSoZona"><option value="">— Zona —</option><option>Zona Oeste</option><option>Capital Federal</option><option>Zona Sur</option><option>Zona Norte</option></select>
+        </div>
+      </div>
+    </div>
+    <div class="so-section">
+      <div class="so-section-title">Propiedad</div>
+      <div class="so-grid">
+        <div class="so-field"><label>Tipología</label>
+          <select id="lstSoTipologia"><option value="">— Tipo —</option><option>Casa</option><option>Dpto</option><option>Ph</option><option>Lote</option><option>Local</option></select>
+        </div>
+        <div class="so-field"><label>Estado Tasación</label><select id="lstSoEstado"></select></div>
+        <div class="so-field" style="grid-column:1/-1"><label>Estadio</label>
+          <select id="lstSoEstadio"><option value="">— Estadio —</option><option>Contactado</option><option>Pendiente Respuesta</option><option>Pendiente Prelisting</option><option>Prelisting Realizado</option><option>Directo</option><option>Dueño Vende</option><option>Descartado</option><option>Redes</option></select>
+        </div>
+      </div>
+    </div>
+    <div class="so-section">
+      <div class="so-section-title">Propietario</div>
+      <div class="so-grid">
+        <div class="so-field"><label>Nombre</label><input type="text" id="lstSoNombre" placeholder="Juan García"></div>
+        <div class="so-field"><label>Teléfono</label><input type="tel" id="lstSoTelefono" placeholder="+54 11 ..."></div>
+        <div class="so-field" style="grid-column:1/-1"><label>Email</label><input type="email" id="lstSoEmail" placeholder="juan@email.com"></div>
+        <div class="so-field"><label>Referido</label><input type="text" id="lstSoReferido"></div>
+        <div class="so-field"><label>URL Propiedad</label><input type="url" id="lstSoUrl" placeholder="https://..."></div>
+      </div>
+    </div>
+    <div class="so-section">
+      <div class="so-section-title">Seguimiento</div>
+      <div class="so-grid">
+        <div class="so-field"><label>Último contacto</label><input type="date" id="lstSoUltimo"></div>
+        <div class="so-field"><label>Próximo contacto</label><input type="date" id="lstSoProximo"></div>
+        <div class="so-field"><label>Fecha prelisting</label><input type="date" id="lstSoPrelisting"></div>
+      </div>
+    </div>
+    <div class="so-section">
+      <div class="so-section-title">Observaciones</div>
+      <div class="so-field"><textarea id="lstSoObs" placeholder="Notas, detalles, comentarios..."></textarea></div>
+    </div>
+  </div>
+  <div class="so-footer">
+    <button class="btn-del-so" onclick="lstConfirmarEliminar()">🗑 Eliminar</button>
+    <button class="btn-save-so" onclick="lstGuardarSO()">Guardar cambios</button>
+  </div>
+</div>
+
+<!-- ══ MODAL NUEVA PROPIEDAD ══ -->
+<div class="modal-bg" id="lstModalNueva">
+  <div class="modal">
+    <div class="modal-header"><h3>➕ Nueva propiedad</h3><button class="modal-close" onclick="cerrarModal('lstModalNueva')">✕</button></div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <div style="grid-column:1/-1"><label style="font-size:0.7rem;font-weight:600;text-transform:uppercase;color:#aaa;display:block;margin-bottom:5px;">Dirección *</label><input type="text" id="lstNDireccion" placeholder="Av. Corrientes 1234" style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:0.88rem;outline:none;"></div>
+        <div><label style="font-size:0.7rem;font-weight:600;text-transform:uppercase;color:#aaa;display:block;margin-bottom:5px;">Localidad</label><input type="text" id="lstNLocalidad" placeholder="CABA" style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:0.88rem;outline:none;"></div>
+        <div><label style="font-size:0.7rem;font-weight:600;text-transform:uppercase;color:#aaa;display:block;margin-bottom:5px;">Zona</label><select id="lstNZona" style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:0.88rem;outline:none;"><option value="">— Zona —</option><option>Zona Oeste</option><option>Capital Federal</option><option>Zona Sur</option><option>Zona Norte</option></select></div>
+        <div><label style="font-size:0.7rem;font-weight:600;text-transform:uppercase;color:#aaa;display:block;margin-bottom:5px;">Tipología</label><select id="lstNTipologia" style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:0.88rem;outline:none;"><option value="">— Tipo —</option><option>Casa</option><option>Dpto</option><option>Ph</option><option>Lote</option><option>Local</option></select></div>
+        <div><label style="font-size:0.7rem;font-weight:600;text-transform:uppercase;color:#aaa;display:block;margin-bottom:5px;">Estado Tasación</label><select id="lstNEstado" style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:0.88rem;outline:none;"></select></div>
+        <div><label style="font-size:0.7rem;font-weight:600;text-transform:uppercase;color:#aaa;display:block;margin-bottom:5px;">Nombre Propietario</label><input type="text" id="lstNNombre" placeholder="Juan García" style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:0.88rem;outline:none;"></div>
+        <div><label style="font-size:0.7rem;font-weight:600;text-transform:uppercase;color:#aaa;display:block;margin-bottom:5px;">Teléfono</label><input type="tel" id="lstNTelefono" placeholder="+54 11 ..." style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:0.88rem;outline:none;"></div>
+        <div style="grid-column:1/-1"><label style="font-size:0.7rem;font-weight:600;text-transform:uppercase;color:#aaa;display:block;margin-bottom:5px;">Observaciones</label><input type="text" id="lstNObs" placeholder="Notas iniciales..." style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:0.88rem;outline:none;"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="cerrarModal('lstModalNueva')">Cancelar</button>
+      <button class="btn btn-ink" onclick="lstCrearPropiedad()">Crear propiedad</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL GESTIONAR ESTADOS ══ -->
+<div class="modal-bg" id="lstModalEstados">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-header"><h3>⚙️ Estados de tasación</h3><button class="modal-close" onclick="cerrarModal('lstModalEstados')">✕</button></div>
+    <div class="modal-body">
+      <p style="font-size:0.82rem;color:#888;margin-bottom:16px;">Cada estado crea automáticamente una sección en el panel lateral.</p>
+      <div id="lstEstadosList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;"></div>
+      <div style="border-top:1px solid var(--border);padding-top:16px;">
+        <div style="font-size:0.75rem;font-weight:600;color:#777;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:10px;">Nuevo estado</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input type="text" id="lstNuevoEstadoNombre" placeholder="Ej: En negociación..." style="flex:1;min-width:130px;">
+          <select id="lstNuevoEstadoColor" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.85rem;">
+            <option value="gray">● Gris</option><option value="purple">● Violeta</option><option value="blue">● Azul</option><option value="green">● Verde</option><option value="yellow">● Amarillo</option><option value="orange">● Naranja</option><option value="red">● Rojo</option><option value="pink">● Rosa</option>
+          </select>
+          <select id="lstNuevoEstadoVista" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.85rem;">
+            <option value="listing">Listing</option><option value="seguimiento">Hacer Seguimiento</option><option value="rechazados">Rechazados</option>
+          </select>
+        </div>
+        <button class="btn btn-ink" style="margin-top:12px;width:100%;padding:12px;" onclick="lstCrearEstado()">➕ Crear estado</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CONFIRM DELETE LISTING ══ -->
+<div class="lst-confirm-bg" id="lstConfirmBg">
+  <div class="lst-confirm-box">
+    <div style="font-size:2.5rem;margin-bottom:10px;">🗑️</div>
+    <h3>¿Eliminar propiedad?</h3>
+    <p>Esta acción no se puede deshacer.</p>
+    <div class="confirm-btns">
+      <button class="btn btn-outline" onclick="document.getElementById('lstConfirmBg').classList.remove('open');lstPropiedadAEliminar=null;">Cancelar</button>
+      <button class="btn" style="background:var(--rust);color:white;" onclick="lstEjecutarEliminar()">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════
+//  LISTING — JS integrado en index.html
+// ════════════════════════════════════════
+let lstVistaActual = 'listing';
+let lstPropiedades = [];
+let lstEstados = [];
+let lstAllPropiedades = [];
+let lstPropiedadAEliminar = null;
+let lstPeriodoActual = 'mes';
+let lstRefActual = 'created_at';
+
+const LST_VISTAS = { listing:'Listing', analisis:'Análisis temporal', all:'Todos' };
+
+async function lstCargar() {
+  try {
+    const [resAll, resVista] = await Promise.all([
+      fetch('/api/propiedades?vista=all'),
+      fetch(`/api/propiedades?vista=${encodeURIComponent(lstVistaActual.startsWith('estado:') ? 'all' : lstVistaActual)}`)
+    ]);
+    const dataAll = await resAll.json();
+    const data = await resVista.json();
+    lstEstados = data.estados || dataAll.estados || [];
+    lstAllPropiedades = dataAll.propiedades || [];
+    let props = data.propiedades || [];
+    if (lstVistaActual.startsWith('estado:')) {
+      const nombre = lstVistaActual.replace('estado:', '');
+      props = lstAllPropiedades.filter(p => p.estado_tasacion === nombre);
+    }
+    lstPropiedades = props;
+    lstPoblarSelects();
+    lstRenderSidebar();
+    if (lstVistaActual !== 'analisis') lstRenderTabla(lstPropiedades);
+  } catch(e) { console.error('[LST] cargar:', e); }
+}
+
+function lstPoblarSelects() {
+  ['lstSoEstado','lstNEstado'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const val = sel.value;
+    sel.innerHTML = '<option value="">— Estado —</option>' + lstEstados.map(e => `<option value="${e.nombre}">${e.nombre}</option>`).join('');
+    sel.value = val;
+  });
+}
+
+function lstRenderTabla(props) {
+  const tbody = document.getElementById('lstTablaBody');
+  const empty = document.getElementById('lstEmptyState');
+  const badge = document.getElementById('lstCountBadge');
+  if (badge) badge.textContent = props.length;
+  if (!props.length) { if(tbody) tbody.innerHTML=''; if(empty) empty.style.display='block'; return; }
+  if(empty) empty.style.display='none';
+  tbody.innerHTML = props.map(p => `
+    <tr onclick="lstAbrirSO('${p.id}')">
+      <td><div class="td-dir">${p.direccion||'—'}</div>${p.localidad?`<div class="td-prop">${p.localidad}</div>`:''}</td>
+      <td class="td-prop">${p.localidad||'—'}</td>
+      <td>${p.tipologia?`<span class="tipo-tag">${p.tipologia}</span>`:'—'}</td>
+      <td>${p.nombre_propietario||'—'}</td>
+      <td class="td-tel">${p.telefono?`<a href="https://wa.me/${p.telefono.replace(/\D/g,'')}" target="_blank" onclick="event.stopPropagation()">📱 ${p.telefono}</a>`:'—'}</td>
+      <td onclick="event.stopPropagation()">${lstEstadoSelectHTML(p)}</td>
+      <td>${p.estadio?`<span class="tipo-tag">${p.estadio}</span>`:'—'}</td>
+      <td class="td-prop">${p.ultimo_contacto?lstFormatFecha(p.ultimo_contacto):'—'}</td>
+    </tr>`).join('');
+}
+
+function lstEstadoSelectHTML(p) {
+  const e = lstEstados.find(x => x.nombre === p.estado_tasacion);
+  const color = e ? e.color : 'gray';
+  const opts = lstEstados.map(est => `<option value="${est.nombre}" ${est.nombre===p.estado_tasacion?'selected':''}>${est.nombre}</option>`).join('');
+  return `<select class="estado-inline color-${color}" onchange="lstCambiarEstado('${p.id}',this)">${opts}</select>`;
+}
+
+async function lstCambiarEstado(id, sel) {
+  const nuevoEstado = sel.value;
+  const e = lstEstados.find(x => x.nombre === nuevoEstado);
+  sel.className = 'estado-inline color-' + (e ? e.color : 'gray');
+  const prop = lstPropiedades.find(p => p.id === id);
+  if (!prop) return;
+  await fetch('/api/propiedades/' + id, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({...prop, estado_tasacion:nuevoEstado}) });
+  setTimeout(() => lstCargar(), 500);
+}
+
+function lstFormatFecha(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
+}
+
+function lstSetVista(vista) {
+  lstVistaActual = vista;
+  const label = vista.startsWith('estado:') ? vista.replace('estado:','') : (LST_VISTAS[vista]||vista);
+  const titleEl = document.getElementById('lstViewTitle');
+  if (titleEl) titleEl.textContent = label;
+  const searchEl = document.getElementById('lstSearchBox');
+  if (searchEl) searchEl.value = '';
+  const esAnalisis = vista === 'analisis';
+  const panelA = document.getElementById('lstPanelAnalisis');
+  const tableW = document.getElementById('lstTableWrap');
+  if (panelA) panelA.style.display = esAnalisis ? 'block' : 'none';
+  if (tableW) tableW.style.display = esAnalisis ? 'none' : 'block';
+  if (esAnalisis) lstRenderAnalisis(); else lstCargar();
+}
+
+function lstRenderSidebar() {
+  const sidebar = document.getElementById('lstSidebarVistas');
+  if (!sidebar) return;
+  const counts = {};
+  (lstAllPropiedades||[]).forEach(p => { counts[p.estado_tasacion] = (counts[p.estado_tasacion]||0)+1; });
+  const fijas = [{id:'all',icon:'🗂',label:'Todos'},{id:'listing',icon:'📋',label:'Listing'},{id:'analisis',icon:'📊',label:'Análisis'}];
+  const DOT = {gray:'#999',purple:'#7c3aed',blue:'#2563eb',green:'#16a34a',yellow:'#ca8a04',orange:'#ea580c',red:'#dc2626',pink:'#db2777'};
+  sidebar.innerHTML = fijas.map(v => `
+    <div class="nb-child ${lstVistaActual===v.id?'active':''}" onclick="lstSetVista('${v.id}')">
+      <span style="font-size:0.85rem;flex-shrink:0;">${v.icon}</span><span style="flex:1;">${v.label}</span>
+    </div>`).join('') + '<div class="nb-sep"></div>' +
+    lstEstados.map(e => {
+      const vid='estado:'+e.nombre, cnt=counts[e.nombre]||0, dot=DOT[e.color]||'#999';
+      return `<div class="nb-child ${lstVistaActual===vid?'active':''}" onclick="lstSetVista('estado:${e.nombre.replace(/'/g,"\\'")}')">
+        <span class="nb-estado-dot" style="background:${dot};width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-right:2px;"></span>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;">${e.nombre}</span>
+        ${cnt>0?`<span class="nb-count">${cnt}</span>`:''}
+      </div>`;
+    }).join('');
+}
+
+function lstFiltrar() {
+  const q = (document.getElementById('lstSearchBox')?.value||'').toLowerCase();
+  lstRenderTabla(lstPropiedades.filter(p =>
+    (p.direccion||'').toLowerCase().includes(q)||(p.nombre_propietario||'').toLowerCase().includes(q)||
+    (p.localidad||'').toLowerCase().includes(q)||(p.telefono||'').includes(q)));
+}
+
+// slide-over
+function lstAbrirSO(id) {
+  const p = lstPropiedades.find(x => x.id === id);
+  if (!p) return;
+  document.getElementById('lstSoId').value = p.id;
+  document.getElementById('lstSoTitle').textContent = p.direccion||'Propiedad';
+  document.getElementById('lstSoDireccion').value = p.direccion||'';
+  document.getElementById('lstSoLocalidad').value = p.localidad||'';
+  document.getElementById('lstSoZona').value = p.zona||'';
+  document.getElementById('lstSoTipologia').value = p.tipologia||'';
+  document.getElementById('lstSoEstado').value = p.estado_tasacion||'';
+  document.getElementById('lstSoEstadio').value = p.estadio||'';
+  document.getElementById('lstSoNombre').value = p.nombre_propietario||'';
+  document.getElementById('lstSoTelefono').value = p.telefono||'';
+  document.getElementById('lstSoEmail').value = p.email||'';
+  document.getElementById('lstSoReferido').value = p.referido||'';
+  document.getElementById('lstSoUrl').value = p.url||'';
+  document.getElementById('lstSoUltimo').value = p.ultimo_contacto?p.ultimo_contacto.substring(0,10):'';
+  document.getElementById('lstSoProximo').value = p.proximo_contacto?p.proximo_contacto.substring(0,10):'';
+  document.getElementById('lstSoPrelisting').value = p.fecha_prelisting?p.fecha_prelisting.substring(0,10):'';
+  document.getElementById('lstSoObs').value = p.observaciones||'';
+  document.getElementById('lstSoBg').classList.add('open');
+  document.getElementById('lstSlideover').classList.add('open');
+}
+
+function lstCerrarSO() {
+  document.getElementById('lstSoBg').classList.remove('open');
+  document.getElementById('lstSlideover').classList.remove('open');
+}
+
+async function lstGuardarSO() {
+  const id = document.getElementById('lstSoId').value;
+  const data = {
+    direccion:document.getElementById('lstSoDireccion').value,
+    localidad:document.getElementById('lstSoLocalidad').value,
+    zona:document.getElementById('lstSoZona').value,
+    tipologia:document.getElementById('lstSoTipologia').value,
+    estado_tasacion:document.getElementById('lstSoEstado').value,
+    estadio:document.getElementById('lstSoEstadio').value,
+    nombre_propietario:document.getElementById('lstSoNombre').value,
+    telefono:document.getElementById('lstSoTelefono').value,
+    email:document.getElementById('lstSoEmail').value,
+    referido:document.getElementById('lstSoReferido').value,
+    url:document.getElementById('lstSoUrl').value,
+    ultimo_contacto:document.getElementById('lstSoUltimo').value,
+    proximo_contacto:document.getElementById('lstSoProximo').value,
+    fecha_prelisting:document.getElementById('lstSoPrelisting').value,
+    observaciones:document.getElementById('lstSoObs').value,
+  };
+  const res = await fetch(`/api/propiedades/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  const result = await res.json();
+  if (result.ok) { lstCerrarSO(); lstCargar(); showToast('Propiedad guardada ✅','success'); }
+}
+
+function lstConfirmarEliminar() {
+  lstPropiedadAEliminar = document.getElementById('lstSoId').value;
+  document.getElementById('lstConfirmBg').classList.add('open');
+}
+async function lstEjecutarEliminar() {
+  if (!lstPropiedadAEliminar) return;
+  await fetch(`/api/propiedades/${lstPropiedadAEliminar}`,{method:'DELETE'});
+  document.getElementById('lstConfirmBg').classList.remove('open');
+  lstPropiedadAEliminar = null;
+  lstCerrarSO();
+  lstCargar();
+  showToast('Propiedad eliminada','success');
+}
+
+// nueva propiedad
+function lstAbrirNueva() { abrirModal('lstModalNueva'); }
+async function lstCrearPropiedad() {
+  const dir = document.getElementById('lstNDireccion').value.trim();
+  if (!dir) { showToast('Ingresá la dirección','error'); return; }
+  const data = {
+    direccion:dir, localidad:document.getElementById('lstNLocalidad').value,
+    zona:document.getElementById('lstNZona').value, tipologia:document.getElementById('lstNTipologia').value,
+    estado_tasacion:document.getElementById('lstNEstado').value||'Pendiente Visita',
+    nombre_propietario:document.getElementById('lstNNombre').value,
+    telefono:document.getElementById('lstNTelefono').value,
+    observaciones:document.getElementById('lstNObs').value,
+  };
+  const res = await fetch('/api/propiedades',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  const result = await res.json();
+  if (result.ok) { cerrarModal('lstModalNueva'); lstCargar(); showToast('Propiedad creada ✅','success'); }
+}
+
+// gestionar estados
+function lstAbrirGestionEstados() { lstRenderEstadosList(); abrirModal('lstModalEstados'); }
+function lstRenderEstadosList() {
+  const COLORES={gray:'#888',purple:'#6b21a8',blue:'#1e40af',green:'#166534',yellow:'#ca8a04',orange:'#9a3412',red:'#991b1b',pink:'#9d174d'};
+  const BG={gray:'#f0f0f0',purple:'#f3e8ff',blue:'#dbeafe',green:'#dcfce7',yellow:'#fef9c3',orange:'#ffedd5',red:'#fee2e2',pink:'#fce7f3'};
+  const container=document.getElementById('lstEstadosList');
+  container.innerHTML=lstEstados.map(e=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:${BG[e.color]||'#f5f5f5'};border-radius:8px;">
+      <span style="width:10px;height:10px;border-radius:50%;background:${COLORES[e.color]||'#888'};flex-shrink:0;"></span>
+      <span style="flex:1;font-size:0.88rem;font-weight:600;color:${COLORES[e.color]||'#333'};">${e.nombre}</span>
+      <span style="font-size:0.72rem;color:#aaa;">${e.vista||''}</span>
+    </div>`).join('')||'<p style="color:#bbb;font-size:0.82rem;text-align:center;">Sin estados aún</p>';
+}
+async function lstCrearEstado() {
+  const nombre=document.getElementById('lstNuevoEstadoNombre').value.trim();
+  if (!nombre){showToast('Ingresá el nombre','error');return;}
+  await fetch('/api/estados',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre,color:document.getElementById('lstNuevoEstadoColor').value,vista:document.getElementById('lstNuevoEstadoVista').value})});
+  document.getElementById('lstNuevoEstadoNombre').value='';
+  await lstCargar();
+  lstRenderEstadosList();
+  showToast('Estado creado ✅','success');
+}
+
+// análisis temporal
+function lstSetPeriodo(p) {
+  lstPeriodoActual=p;
+  document.querySelectorAll('[data-periodo]').forEach(b=>b.classList.toggle('active',b.dataset.periodo===p));
+  document.getElementById('lstCustomRango').style.display=p==='custom'?'flex':'none';
+  lstRenderAnalisis();
+}
+function lstSetRef(r) {
+  lstRefActual=r;
+  document.querySelectorAll('[data-ref]').forEach(b=>b.classList.toggle('active',b.dataset.ref===r));
+  lstRenderAnalisis();
+}
+function lstGetRango() {
+  const hoy=new Date(); let desde, hasta;
+  hasta=new Date(hoy.getFullYear(),hoy.getMonth()+1,0);
+  if(lstPeriodoActual==='mes') desde=new Date(hoy.getFullYear(),hoy.getMonth(),1);
+  else if(lstPeriodoActual==='trimestre') desde=new Date(hoy.getFullYear(),hoy.getMonth()-2,1);
+  else if(lstPeriodoActual==='cuatrimestre') desde=new Date(hoy.getFullYear(),hoy.getMonth()-3,1);
+  else if(lstPeriodoActual==='anio'){desde=new Date(hoy.getFullYear()-1,hoy.getMonth()+1,1);hasta=new Date(hoy.getFullYear(),hoy.getMonth()+1,0);}
+  else if(lstPeriodoActual==='custom'){const d=document.getElementById('lstFechaDesde').value,h=document.getElementById('lstFechaHasta').value;if(!d||!h)return null;desde=new Date(d);hasta=new Date(h);}
+  return{desde,hasta};
+}
+function lstRenderAnalisis() {
+  if(!lstAllPropiedades) return;
+  const rango=lstGetRango(); if(!rango) return;
+  const{desde,hasta}=rango;
+  const meses=[];let cur=new Date(desde.getFullYear(),desde.getMonth(),1);
+  const fin=new Date(hasta.getFullYear(),hasta.getMonth(),1);
+  while(cur<=fin){meses.push(new Date(cur));cur.setMonth(cur.getMonth()+1);}
+  const NM=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const BG={gray:'#f0f0f0',purple:'#f3e8ff',blue:'#dbeafe',green:'#dcfce7',yellow:'#fef9c3',orange:'#ffedd5',red:'#fee2e2',pink:'#fce7f3'};
+  const FG={gray:'#555',purple:'#6b21a8',blue:'#1e40af',green:'#166534',yellow:'#854d0e',orange:'#9a3412',red:'#991b1b',pink:'#9d174d'};
+  const kanban=document.getElementById('lstKanbanWrap');
+  kanban.innerHTML=meses.map(mes=>{
+    const y=mes.getFullYear(),m=mes.getMonth();
+    const props=lstAllPropiedades.filter(p=>{
+      const val=lstRefActual==='fecha_prelisting'?p.fecha_prelisting:p.created_at;
+      if(!val) return false;
+      const f=new Date(val); return f.getFullYear()===y&&f.getMonth()===m;
+    });
+    const esHoy=y===new Date().getFullYear()&&m===new Date().getMonth();
+    const cards=props.length?props.map(p=>{
+      const e=lstEstados.find(x=>x.nombre===p.estado_tasacion),color=e?e.color:'gray';
+      return`<div class="kanban-card" onclick="lstAbrirSO('${p.id}')">
+        <div class="kc-dir">${p.direccion||'—'}</div>
+        ${p.nombre_propietario?`<div class="kc-prop">👤 ${p.nombre_propietario}</div>`:''}
+        ${p.telefono?`<div class="kc-prop"><a href="https://wa.me/${p.telefono.replace(/\D/g,'')}" target="_blank" onclick="event.stopPropagation()" style="color:var(--sage);text-decoration:none;font-size:0.73rem;">📱 ${p.telefono}</a></div>`:''}
+        <span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:0.68rem;font-weight:700;background:${BG[color]};color:${FG[color]};">${p.estado_tasacion||'—'}</span>
+      </div>`;
+    }).join(''):`<div class="kanban-empty">Sin propiedades</div>`;
+    return`<div class="kanban-col">
+      <div class="kanban-col-header" ${esHoy?'style="background:var(--ink);border-color:var(--ink);"':''}>
+        <span class="kanban-col-mes" ${esHoy?'style="color:white;"':''}>${NM[m]} ${y}</span>
+        <span class="kanban-col-cnt" ${esHoy?'':'style="background:var(--ink);color:white;"'}>${props.length}</span>
+      </div>
+      <div class="kanban-col-body">${cards}</div>
+    </div>`;
+  }).join('');
+}
+
+// keyboard listing
+document.addEventListener('keydown', e => {
+  if (e.key==='Escape') { lstCerrarSO(); document.getElementById('lstConfirmBg').classList.remove('open'); }
+});
+
+// ════════════════════════════════════════
+//  ESTADO DOCUMENTO — JS integrado
+// ════════════════════════════════════════
+let edoDocId = null;
+let edoIntervalId = null;
+
+function edoInicializar(docId) {
+  edoDocId = docId;
+  const btn = document.getElementById('edoDescargarBtn');
+  if (btn) btn.href = `/api/documento/${docId}/certificado`;
+  edoLoadStatus();
+  if (edoIntervalId) clearInterval(edoIntervalId);
+  edoIntervalId = setInterval(edoLoadStatus, 15000);
+}
+
+async function edoLoadStatus() {
+  if (!edoDocId) return;
+  try {
+    const res = await fetch(`/api/documento/${edoDocId}/estado`);
+    const data = await res.json();
+    if (!res.ok) return;
+    const titleEl = document.getElementById('edoDocTitle');
+    if (titleEl) titleEl.textContent = '📄 ' + (data.title || '—');
+    const signed = data.firmantes.filter(f=>f.signed).length;
+    const total = data.firmantes.length;
+    const pct = total ? Math.round(signed/total*100) : 0;
+    document.getElementById('edoProgressBar').style.width = pct+'%';
+    document.getElementById('edoProgressText').textContent = `${signed} de ${total} firmantes completaron la firma`;
+    const badge = document.getElementById('edoStatusBadge');
+    if (data.all_signed) { badge.className='badge badge-ok'; badge.textContent='✓ Completado'; }
+    else { badge.className='badge badge-pending'; badge.textContent=`${signed}/${total} firmado${signed!==1?'s':''}`; }
+    document.getElementById('edoFirmantesList').innerHTML = data.firmantes.map(f=>`
+      <div class="edo-firmante-card ${f.signed?'signed':''}">
+        <div class="avatar ${f.signed?'signed':'pending'}">${f.name.trim().split(' ').slice(0,2).map(n=>n[0]).join('').toUpperCase()}</div>
+        <div style="flex:1;">
+          <div class="edo-fname">${f.name}</div>
+          <div class="edo-femail">${f.email}</div>
+          ${f.signed&&f.signed_at?`<div class="edo-ftime">✓ Firmado el ${new Date(f.signed_at).toLocaleString('es-AR')}</div>`:`<div class="edo-ftime" style="color:#b8860b;">⏳ Pendiente de firma</div>`}
+          ${!f.signed&&f.sign_url?`<div class="edo-link-row"><input type="text" value="${f.sign_url}" readonly id="edolnk-${f.token}"><button class="btn-copy-edo" onclick="edoCopiarLink(this,'${f.token}')">Copiar</button></div>`:''}
+        </div>
+        <span class="badge ${f.signed?'badge-ok':'badge-pending'}" style="align-self:flex-start;">${f.signed?'Firmado':'Pendiente'}</span>
+      </div>`).join('');
+  } catch(e) { console.error(e); }
+}
+
+function verEstadoDoc(docId) {
+  const titleEl = document.getElementById('edoDocTitle');
+  if (titleEl) titleEl.textContent = '📄 Cargando...';
+  showPage('estado-doc');
+  edoInicializar(docId);
+}
+
+  const input = document.getElementById('edolnk-'+token);
+  if (input) navigator.clipboard.writeText(input.value);
+  btn.textContent='¡Copiado!'; btn.classList.add('copied');
+  setTimeout(()=>{btn.textContent='Copiar';btn.classList.remove('copied');},2000);
+}
+</script>
+
+
 <header>
   <a class="logo-wrap" href="/" onclick="showPage('dashboard');return false;" style="text-decoration:none;display:flex;align-items:center;gap:10px;">
     <div class="logo" style="font-size:1.15rem;">Realvix<span>.</span></div>
@@ -175,7 +746,7 @@ table.planilla td{border:1px solid var(--border);padding:0;}
         <span class="nb-label">Propiedades</span>
       </div>
       <div class="nb-children collapsed" id="grpCRM">
-        <a class="nb-child" href="/listing"><span class="nb-icon-sm">📋</span> Listing</a>
+        <div class="nb-child" onclick="showPage('listing')" id="nav-listing"><span class="nb-icon-sm">📋</span> Listing</div>
         <div class="nb-child" onclick="showPage('estado-props')" id="nav-estado-props">
           <span class="nb-icon-sm">📊</span> Estado de Propiedades
         </div>
@@ -392,7 +963,7 @@ table.planilla td{border:1px solid var(--border);padding:0;}
           <div class="page-title">Estado de Propiedades</div>
           <div class="page-sub">Gestión independiente de tu cartera activa</div>
         </div>
-        <a href="/listing" class="btn btn-gold">+ Nueva propiedad</a>
+        <button class="btn btn-gold" onclick="showPage('listing');setTimeout(lstAbrirNueva,300)">+ Nueva propiedad</button>
       </div>
       <div class="stats" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px;">
         <div class="stat"><div class="stat-label">Total cartera</div><div class="stat-num" id="ep-total">—</div></div>
@@ -411,6 +982,103 @@ table.planilla td{border:1px solid var(--border);padding:0;}
             <tr><td colspan="7" style="text-align:center;color:#bbb;padding:32px;">Cargando propiedades...</td></tr>
           </tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- ════ LISTING ════ -->
+    <div class="page" id="page-listing">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <div>
+          <div class="page-title" id="lstViewTitle">Listing</div>
+          <div class="page-sub">Gestión de tasaciones y propiedades</div>
+        </div>
+        <button class="btn btn-gold" onclick="lstAbrirNueva()">+ Nueva propiedad</button>
+      </div>
+      <div class="lst-layout">
+        <!-- sub-sidebar de estados -->
+        <div class="lst-sub-sidebar">
+          <div id="lstSidebarVistas"></div>
+          <div style="padding:6px 8px;margin-top:4px;border-top:1px solid var(--border);">
+            <div class="nb-child nb-action" onclick="lstAbrirGestionEstados()" style="font-size:0.78rem;color:#aaa;padding:4px 12px;border-radius:6px;cursor:pointer;" onmouseover="this.style.background='rgba(0,0,0,0.04)'" onmouseout="this.style.background=''">⚙ Gestionar estados</div>
+          </div>
+        </div>
+        <div class="lst-main">
+          <div class="lst-toolbar">
+            <input class="lst-search" type="text" id="lstSearchBox" placeholder="Buscar dirección, propietario..." oninput="lstFiltrar()">
+            <span class="lst-count" id="lstCountBadge">0</span>
+          </div>
+          <div class="table-wrap" id="lstTableWrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Dirección</th><th>Localidad</th><th>Tipo</th><th>Propietario</th>
+                  <th>Teléfono</th><th>Estado Tasación</th><th>Estadio</th><th>Último contacto</th>
+                </tr>
+              </thead>
+              <tbody id="lstTablaBody"></tbody>
+            </table>
+            <div class="lst-empty" id="lstEmptyState" style="display:none;">
+              <div class="ei">🏘️</div><p>No hay propiedades en esta vista</p>
+            </div>
+          </div>
+          <!-- panel análisis temporal -->
+          <div id="lstPanelAnalisis" style="display:none;">
+            <div class="lst-analisis-toolbar">
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                <span style="font-size:0.75rem;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.5px;">Período</span>
+                <button class="btn-periodo active" data-periodo="mes" onclick="lstSetPeriodo('mes')">Mes actual</button>
+                <button class="btn-periodo" data-periodo="trimestre" onclick="lstSetPeriodo('trimestre')">Trimestre</button>
+                <button class="btn-periodo" data-periodo="cuatrimestre" onclick="lstSetPeriodo('cuatrimestre')">Cuatrimestre</button>
+                <button class="btn-periodo" data-periodo="anio" onclick="lstSetPeriodo('anio')">Último año</button>
+                <button class="btn-periodo" data-periodo="custom" onclick="lstSetPeriodo('custom')">Personalizado</button>
+              </div>
+              <div id="lstCustomRango" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;">
+                <label style="font-size:0.75rem;color:#999;font-weight:600;text-transform:uppercase;">Desde</label>
+                <input type="date" id="lstFechaDesde" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.82rem;outline:none;" oninput="lstRenderAnalisis()">
+                <label style="font-size:0.75rem;color:#999;font-weight:600;text-transform:uppercase;">Hasta</label>
+                <input type="date" id="lstFechaHasta" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.82rem;outline:none;" oninput="lstRenderAnalisis()">
+              </div>
+              <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap;">
+                <span style="font-size:0.75rem;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.5px;">Referencia</span>
+                <button class="btn-periodo active" data-ref="created_at" onclick="lstSetRef('created_at')">Fecha creación</button>
+                <button class="btn-periodo" data-ref="fecha_prelisting" onclick="lstSetRef('fecha_prelisting')">Fecha prelisting</button>
+              </div>
+            </div>
+            <div id="lstKanbanWrap" class="kanban-wrap"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ ESTADO DOCUMENTO ════ -->
+    <div class="page" id="page-estado-doc">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+        <div>
+          <div class="page-title">Estado del documento</div>
+          <div class="page-sub" id="edoDocTitle">📄 —</div>
+        </div>
+        <button class="btn btn-outline" onclick="showPage('pendientes')">← Volver a documentos</button>
+      </div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div class="card-title" style="margin:0;">Progreso de firmas</div>
+          <span id="edoStatusBadge" class="badge"></span>
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar" id="edoProgressBar" style="width:0%"></div>
+        </div>
+        <div style="font-size:0.82rem;color:#666;margin-top:6px;" id="edoProgressText"></div>
+        <div class="edo-refresh-note">
+          <span class="live-dot"></span>Esta página se actualiza automáticamente cada 15 segundos.
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">✍️ Firmantes</div>
+        <div id="edoFirmantesList"></div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <a id="edoDescargarBtn" href="#" class="btn btn-ink">⬇️ Descargar PDF firmado</a>
+        <button class="btn btn-outline" onclick="edoLoadStatus()">🔄 Actualizar ahora</button>
       </div>
     </div>
 
@@ -672,7 +1340,7 @@ table.planilla td{border:1px solid var(--border);padding:0;}
         <h3>✅ ¡Documento enviado!</h3>
         <p style="font-size:0.82rem;color:#666;margin-bottom:16px;">Copiá el link de cada firmante y compartilo por WhatsApp.</p>
         <div id="linksList"></div>
-        <a href="#" class="view-estado" id="btnEstado">📊 Ver estado del documento →</a>
+        <a href="#" class="view-estado" id="btnEstado" onclick="event.preventDefault();verEstadoDoc(this.dataset.docId)" data-doc-id="">📊 Ver estado del documento →</a>
       </div>
     </div>
 
@@ -1150,6 +1818,8 @@ function showPage(id) {
     'instagram': renderGuiones,
     'ideas': renderIdeas,
     'estado-props': cargarEstadoProps,
+    'listing': () => lstCargar(),
+    'estado-doc': () => { if(edoDocId) edoLoadStatus(); },
   };
   if (loaders[id]) loaders[id]();
 }
@@ -1272,7 +1942,7 @@ function renderList(id, docs, icon, msg) {
       <div class="doc-info"><div class="doc-title">${doc.title}</div><div class="doc-meta">${fecha} · ${firmados}/${total} firma${total!==1?'s':''}</div></div>
       <span class="badge ${doc.completado?'done':'pending'}">${doc.completado?'Completado':'Pendiente'}</span>
       <div class="doc-actions">
-        <a href="/estado/${doc.id}" class="btn-sm">Ver</a>
+        <a href="#" onclick="event.preventDefault();verEstadoDoc('${doc.id}')" class="btn-sm">Ver</a>
         ${doc.completado?`<a href="/api/documento/${doc.id}/certificado" class="btn-sm primary">⬇ PDF</a>`:''}
         <button onclick="confirmarEliminar('${doc.id}','${doc.title}')" class="btn-sm" style="color:var(--rust);border-color:#f5c6c6;" title="Eliminar">🗑</button>
       </div>
@@ -1491,7 +2161,7 @@ async function enviarDocumento() {
             <button class="btn-copy" onclick="copiarLink('${f.token}',this)">Copiar</button>
           </div>
         </div>`).join('');
-      document.getElementById('btnEstado').href = '/estado/' + data.doc_id;
+      document.getElementById('btnEstado').dataset.docId = data.doc_id;
       document.getElementById('resultBox').style.display = 'block';
       showToast('¡Links generados y emails enviados! ✅', 'success');
       cargarDocumentos();
@@ -2141,14 +2811,14 @@ async function cargarEstadoProps() {
     const tbody = document.getElementById('tablaEstadoProps');
     if (!tbody) return;
     if (props.length === 0) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#bbb;padding:32px;">Sin propiedades</td></tr>'; return; }
-    tbody.innerHTML = props.map(p => `<tr onclick="window.location='/listing'" style="cursor:pointer;">
+    tbody.innerHTML = props.map(p => `<tr onclick="showPage('listing')" style="cursor:pointer;">
       <td style="font-weight:600;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.direccion||'—'}</td>
       <td style="color:#888;">${p.nombre_propietario||'—'}</td>
       <td><span class="badge">${p.tipologia||'—'}</span></td>
       <td><span class="badge color-${data.estados?.find(e=>e.nombre===p.estado_tasacion)?.color||'gray'}">${p.estado_tasacion||'—'}</span></td>
       <td style="color:#888;">${p.ultimo_contacto||'—'}</td>
       <td style="color:#888;">${p.proximo_contacto||'—'}</td>
-      <td><a href="/listing" class="btn-sm">Ver →</a></td>
+      <td><button class="btn-sm" onclick="event.stopPropagation();showPage('listing')">Ver →</button></td>
     </tr>`).join('');
   } catch(e) {
     document.getElementById('tablaEstadoProps').innerHTML = '<tr><td colspan="7" style="text-align:center;color:#bbb;">Error al cargar</td></tr>';
@@ -2211,9 +2881,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   calDiaSeleccionado = hoy;
 
   // Handle ?page= param
-  const p = new URLSearchParams(location.search).get('page');
-  if (p) showPage(p);
-  else showPage('dashboard');
+  const params = new URLSearchParams(location.search);
+  const p = params.get('page');
+  const docParam = params.get('doc');
+  if (p === 'estado-doc' && docParam) {
+    showPage('estado-doc');
+    edoInicializar(docParam);
+  } else if (p) {
+    showPage(p);
+  } else {
+    showPage('dashboard');
+  }
 
   // Cerrar modales con click en fondo
   document.querySelectorAll('.modal-bg').forEach(bg => {
