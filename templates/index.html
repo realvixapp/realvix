@@ -146,6 +146,19 @@
 table.planilla { border-collapse: collapse; width: 100%; }
 table.planilla th { padding: 8px 10px; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-tertiary); background: var(--cream); border: 1px solid var(--border); }
 table.planilla td { border: 1px solid var(--border); padding: 0; }
+
+/* ── Zone Picker ── */
+.zone-hint{background:#fff8e6;border:1px solid #f0d080;border-radius:8px;padding:10px 14px;font-size:0.8rem;color:#856404;margin-bottom:14px;}
+.pdf-scroll-container{background:#e8e4dc;border-radius:8px;padding:14px;overflow-y:auto;max-height:55vh;text-align:center;}
+.pdf-page-wrap{position:relative;display:inline-block;margin-bottom:12px;cursor:crosshair;}
+.zone-overlay{position:absolute;border:2px solid #c9a84c;background:rgba(201,168,76,0.15);pointer-events:none;border-radius:2px;}
+.zone-overlay.other{border-color:#888;background:rgba(100,100,100,0.1);}
+.zone-label{position:absolute;top:-20px;left:0;font-size:0.65rem;font-weight:700;background:#c9a84c;color:white;padding:1px 6px;border-radius:4px;white-space:nowrap;}
+.zone-label.other{background:#888;}
+.btn-assign{background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:0.72rem;cursor:pointer;color:var(--text-primary);font-family:inherit;transition:all 0.15s;}
+.btn-assign:hover{border-color:#c9a84c;background:var(--cream);}
+.btn-assign.active{background:#c9a84c;color:white;border-color:#c9a84c;}
+.btn-outline-sm{background:none;border:1px solid var(--border);border-radius:6px;padding:6px 12px;font-size:0.8rem;cursor:pointer;font-family:inherit;}
 </style>
 </head>
 <body>
@@ -1112,6 +1125,24 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
   </div>
 </div>
 
+<!-- Zone Picker Modal -->
+<div class="modal-bg" id="zonePicker">
+  <div class="modal" style="max-width:640px;width:95vw;">
+    <div class="modal-header">
+      <h3 id="zoneModalTitle">Marcá la zona de firma</h3>
+      <button class="modal-close" onclick="closeZonePicker()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="zone-hint">✏️ Arrastrá sobre el PDF para marcar el recuadro donde va la firma de este firmante. Podés hacer scroll para ver todo el documento.</div>
+      <div class="pdf-scroll-container" id="pdfScrollContainer"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-outline-sm" onclick="clearCurrentZone()">✕ Limpiar zona</button>
+      <button class="btn btn-primary" onclick="confirmZone()">✅ Confirmar zona</button>
+    </div>
+  </div>
+</div>
+
 <!-- Confirm modal -->
 <div class="confirm-modal-bg" id="confirmModal">
   <div class="confirm-modal">
@@ -1338,7 +1369,19 @@ async function eliminarDoc(id) {
 }
 
 // ── NUEVA FIRMA ──
+// Variables del zone picker (scope del módulo de firma)
+window.firmaSignZones = {};      // { firmanteIndex: {page,x,y,w,h,canvasW,canvasH} }
+window.firmaPdfDoc    = null;
+window.firmaCurrentZoneIdx = null;
+window.firmaTempZone  = null;
+window.firmaIsDragging = false;
+window.firmaDragStart  = {x:0, y:0};
+const FIRMA_COLORS = ['#c9a84c','#2d6a4f','#c0392b','#2471a3','#8e44ad','#e67e22'];
+
 function renderNuevoFirma() {
+  window.firmaSignZones = {};
+  window.firmaPdfDoc    = null;
+  window.firmantesTmp   = [];
   document.getElementById('nuevoFirmaContainer').innerHTML = `
     <div class="card">
       <div class="card-title">📄 Documento</div>
@@ -1360,7 +1403,8 @@ function renderNuevoFirma() {
       </div>
     </div>
     <div class="card" style="margin-top:14px;">
-      <div class="card-title">👥 Firmantes</div>
+      <div class="card-title">👥 Firmantes y zonas de firma</div>
+      <p style="font-size:0.82rem;color:var(--text-secondary);margin:0 0 12px;">Agregá cada firmante y luego asignale su zona en el PDF.</p>
       <div id="firmantesList"></div>
       <div class="add-row" style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;margin-top:10px;">
         <div class="form-group" style="margin-bottom:0;"><label>Nombre</label><input type="text" id="newFirmanteNombre" placeholder="Juan García"></div>
@@ -1371,18 +1415,23 @@ function renderNuevoFirma() {
     <div style="margin-top:16px;display:flex;gap:10px;">
       <button class="btn btn-primary" onclick="crearFirma()">✉️ Crear y enviar links</button>
     </div>
-    <div class="result-box" id="resultBox">
+    <div class="result-box" id="resultBox" style="display:none;">
       <h3>✅ Links de firma generados</h3>
       <div id="resultLinks"></div>
     </div>`;
-  window.firmantesTmp = [];
   renderFirmantesUI();
 }
 
 function mostrarNombrePdf(input) {
-  if (input.files[0]) {
-    document.getElementById('pdfNombre').textContent = '📄 ' + input.files[0].name;
-  }
+  if (!input.files[0]) return;
+  document.getElementById('pdfNombre').textContent = '📄 ' + input.files[0].name;
+  // Cargar pdfDoc para el zone picker
+  input.files[0].arrayBuffer().then(buf => {
+    pdfjsLib.getDocument({data: buf}).promise.then(pdf => {
+      window.firmaPdfDoc = pdf;
+      renderFirmantesUI(); // Actualizar botones ahora que hay PDF
+    });
+  });
 }
 
 function agregarFirmanteUI() {
@@ -1402,29 +1451,210 @@ function renderFirmantesUI() {
     list.innerHTML = '<div style="color:var(--text-tertiary);font-size:0.83rem;padding:8px 0;">Sin firmantes aún</div>';
     return;
   }
-  list.innerHTML = window.firmantesTmp.map((f,i) => `
+  list.innerHTML = window.firmantesTmp.map((f,i) => {
+    const z     = window.firmaSignZones[i];
+    const color = FIRMA_COLORS[i % FIRMA_COLORS.length];
+    const zBtn  = z
+      ? `<button class="btn-assign active" style="background:${color};border-color:${color};color:white;" onclick="openZonePicker(${i})">✅ Zona asignada</button>`
+      : `<button class="btn-assign" onclick="openZonePicker(${i})">📍 Asignar zona</button>`;
+    return `
     <div class="firmante-row" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--cream);border:1px solid var(--border);border-radius:var(--radius-md);margin-bottom:8px;">
-      <div class="avatar avatar-blue">${f.name.charAt(0)}</div>
-      <div style="flex:1;"><strong style="font-size:0.88rem;">${f.name}</strong><small style="display:block;color:var(--text-secondary);font-size:0.76rem;">${f.email}</small></div>
-      <button class="btn btn-ghost btn-sm" onclick="window.firmantesTmp.splice(${i},1);renderFirmantesUI();" style="color:var(--danger);">✕</button>
-    </div>`).join('');
+      <div class="avatar" style="background:${color};color:white;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">${f.name.charAt(0).toUpperCase()}</div>
+      <div style="flex:1;min-width:0;"><strong style="font-size:0.88rem;">${f.name}</strong><small style="display:block;color:var(--text-secondary);font-size:0.76rem;">${f.email}</small></div>
+      ${zBtn}
+      <button onclick="quitarFirmanteUI(${i})" style="background:none;border:none;cursor:pointer;color:#ccc;font-size:1.1rem;flex-shrink:0;">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function quitarFirmanteUI(i) {
+  window.firmantesTmp.splice(i, 1);
+  // Remap zones
+  const newZ = {};
+  Object.keys(window.firmaSignZones).forEach(k => {
+    const ki = parseInt(k);
+    if (ki < i)      newZ[ki]   = window.firmaSignZones[ki];
+    else if (ki > i) newZ[ki-1] = window.firmaSignZones[ki];
+  });
+  window.firmaSignZones = newZ;
+  renderFirmantesUI();
+}
+
+// ── Zone Picker ──
+async function openZonePicker(idx) {
+  if (!window.firmaPdfDoc) { showToast('Primero subí un PDF','error'); return; }
+  window.firmaCurrentZoneIdx = idx;
+  window.firmaTempZone = window.firmaSignZones[idx] ? {...window.firmaSignZones[idx]} : null;
+
+  const f     = window.firmantesTmp[idx];
+  const color = FIRMA_COLORS[idx % FIRMA_COLORS.length];
+  document.getElementById('zoneModalTitle').textContent = `Zona de firma para: ${f.name}`;
+  document.getElementById('zoneModalTitle').style.color = color;
+
+  const container = document.getElementById('pdfScrollContainer');
+  container.innerHTML = '<div style="padding:20px;color:#999;font-size:0.85rem;">Cargando PDF...</div>';
+  document.getElementById('zonePicker').classList.add('open');
+
+  container.innerHTML = '';
+  const pdf = window.firmaPdfDoc;
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const vp   = page.getViewport({scale:1});
+    const maxW = 560;
+    const scale = Math.min(maxW / vp.width, 1.5);
+    const svp  = page.getViewport({scale});
+    const wrap = document.createElement('div');
+    wrap.className = 'pdf-page-wrap';
+    wrap.dataset.page = i;
+    const cv = document.createElement('canvas');
+    cv.width  = svp.width;
+    cv.height = svp.height;
+    cv.style.maxWidth = '100%';
+    cv.style.display  = 'block';
+    await page.render({canvasContext: cv.getContext('2d'), viewport: svp}).promise;
+    wrap.appendChild(cv);
+    zoneAddDragEvents(wrap, cv, i);
+    container.appendChild(wrap);
+  }
+  setTimeout(() => { zoneRefreshOthers(); zoneRefreshOverlay(); }, 80);
+}
+
+function zoneAddDragEvents(wrap, cv, pageNum) {
+  const getPos = e => {
+    const r = cv.getBoundingClientRect();
+    const sx = cv.width  / r.width;
+    const sy = cv.height / r.height;
+    const cl = e.touches ? e.touches[0] : e;
+    return { x:(cl.clientX-r.left)*sx, y:(cl.clientY-r.top)*sy, cw:cv.width, ch:cv.height };
+  };
+  const onStart = e => {
+    const p = getPos(e);
+    window.firmaDragStart  = p;
+    window.firmaIsDragging = true;
+    window.firmaDragPage   = pageNum;
+    window.firmaDragCv     = cv;
+    e.preventDefault();
+  };
+  const onMove = e => {
+    if (!window.firmaIsDragging || window.firmaDragPage !== pageNum) return;
+    const p = getPos(e);
+    const x = Math.min(window.firmaDragStart.x, p.x);
+    const y = Math.min(window.firmaDragStart.y, p.y);
+    const w = Math.abs(p.x - window.firmaDragStart.x);
+    const h = Math.abs(p.y - window.firmaDragStart.y);
+    window.firmaTempZone = {page:pageNum, x, y, w, h, canvasW:cv.width, canvasH:cv.height};
+    zoneRefreshOverlay();
+    e.preventDefault();
+  };
+  const onEnd = e => {
+    if (!window.firmaIsDragging) return;
+    window.firmaIsDragging = false;
+    if (window.firmaTempZone && window.firmaTempZone.w > 15 && window.firmaTempZone.h > 8) {
+      window.firmaSignZones[window.firmaCurrentZoneIdx] = window.firmaTempZone;
+    }
+    zoneRefreshOverlay();
+  };
+  wrap.addEventListener('mousedown',  onStart);
+  wrap.addEventListener('mousemove',  onMove);
+  wrap.addEventListener('mouseup',    onEnd);
+  wrap.addEventListener('touchstart', onStart, {passive:false});
+  wrap.addEventListener('touchmove',  onMove,  {passive:false});
+  wrap.addEventListener('touchend',   onEnd);
+}
+
+function zoneRefreshOthers() {
+  const container = document.getElementById('pdfScrollContainer');
+  container.querySelectorAll('.pdf-page-wrap').forEach(wrap => {
+    const pageNum = parseInt(wrap.dataset.page);
+    // Remove old other-zone overlays
+    wrap.querySelectorAll('.zone-overlay.other').forEach(el => el.remove());
+    window.firmantesTmp.forEach((f, i) => {
+      if (i === window.firmaCurrentZoneIdx) return;
+      const z = window.firmaSignZones[i];
+      if (!z || z.page !== pageNum) return;
+      const cv = wrap.querySelector('canvas');
+      const sx = cv.offsetWidth  / z.canvasW;
+      const sy = cv.offsetHeight / z.canvasH;
+      const color = FIRMA_COLORS[i % FIRMA_COLORS.length];
+      const ov  = document.createElement('div');
+      ov.className = 'zone-overlay other';
+      ov.style.cssText = `left:${z.x*sx}px;top:${z.y*sy}px;width:${z.w*sx}px;height:${z.h*sy}px;border-color:${color};background:${color}22;`;
+      const lbl = document.createElement('div');
+      lbl.className = 'zone-label other';
+      lbl.style.background = color;
+      lbl.textContent = f.name;
+      ov.appendChild(lbl);
+      wrap.appendChild(ov);
+    });
+  });
+}
+
+function zoneRefreshOverlay() {
+  const container = document.getElementById('pdfScrollContainer');
+  container.querySelectorAll('.zone-overlay.current').forEach(el => el.remove());
+  const z = window.firmaSignZones[window.firmaCurrentZoneIdx] || window.firmaTempZone;
+  if (!z) return;
+  container.querySelectorAll('.pdf-page-wrap').forEach(wrap => {
+    if (parseInt(wrap.dataset.page) !== z.page) return;
+    const cv    = wrap.querySelector('canvas');
+    const sx    = cv.offsetWidth  / z.canvasW;
+    const sy    = cv.offsetHeight / z.canvasH;
+    const color = FIRMA_COLORS[window.firmaCurrentZoneIdx % FIRMA_COLORS.length];
+    const ov    = document.createElement('div');
+    ov.className = 'zone-overlay current';
+    ov.style.cssText = `left:${z.x*sx}px;top:${z.y*sy}px;width:${z.w*sx}px;height:${z.h*sy}px;border-color:${color};background:${color}22;`;
+    const lbl = document.createElement('div');
+    lbl.className = 'zone-label';
+    lbl.style.background = color;
+    lbl.textContent = window.firmantesTmp[window.firmaCurrentZoneIdx].name;
+    ov.appendChild(lbl);
+    wrap.appendChild(ov);
+  });
+}
+
+function clearCurrentZone() {
+  delete window.firmaSignZones[window.firmaCurrentZoneIdx];
+  window.firmaTempZone = null;
+  zoneRefreshOverlay();
+  renderFirmantesUI();
+}
+
+function confirmZone() {
+  closeZonePicker();
+  renderFirmantesUI();
+}
+
+function closeZonePicker() {
+  document.getElementById('zonePicker').classList.remove('open');
+  window.firmaCurrentZoneIdx = null;
+  window.firmaTempZone = null;
 }
 
 async function crearFirma() {
-  const title = document.getElementById('firmaTitle').value.trim();
-  const orgName = document.getElementById('firmaOrgName').value.trim();
+  const title    = document.getElementById('firmaTitle').value.trim();
+  const orgName  = document.getElementById('firmaOrgName').value.trim();
   const orgEmail = document.getElementById('firmaOrgEmail').value.trim();
   if (!title) { showToast('Ingresá el título del documento','error'); return; }
   if (!window.firmantesTmp || window.firmantesTmp.length === 0) { showToast('Agregá al menos un firmante','error'); return; }
+  // Validar zonas si hay PDF
+  const pdf = document.getElementById('firmaPdf').files[0];
+  if (pdf) {
+    const sinZona = window.firmantesTmp.filter((_,i) => !window.firmaSignZones[i]);
+    if (sinZona.length) {
+      showToast('⚠️ Falta zona de firma para: ' + sinZona.map(f=>f.name).join(', '), 'error');
+      return;
+    }
+  }
   const fd = new FormData();
   fd.append('title', title);
   fd.append('organizer_name', orgName);
   fd.append('organizer_email', orgEmail);
-  fd.append('firmantes', JSON.stringify(window.firmantesTmp));
-  const pdf = document.getElementById('firmaPdf').files[0];
+  // Adjuntar zonas a cada firmante
+  const firmantesConZona = window.firmantesTmp.map((f,i) => ({...f, sign_zone: window.firmaSignZones[i] || null}));
+  fd.append('firmantes', JSON.stringify(firmantesConZona));
   if (pdf) fd.append('pdf_file', pdf);
   try {
-    const r = await fetch('/api/documento', { method:'POST', body:fd });
+    const r    = await fetch('/api/documento', { method:'POST', body:fd });
     const data = await r.json();
     if (data.error) { showToast(data.error,'error'); return; }
     showToast('Links generados y emails enviados ✅','success');
@@ -1436,10 +1666,11 @@ async function crearFirma() {
         <small style="display:block;font-size:0.72rem;color:var(--text-tertiary);margin-bottom:6px;">${f.email}</small>
         <div style="display:flex;gap:8px;align-items:center;">
           <input readonly value="${f.sign_url}" style="flex:1;font-size:0.75rem;font-family:monospace;color:var(--text-secondary);background:var(--cream);">
-          <button class="btn btn-sm primary" onclick="navigator.clipboard.writeText('${f.sign_url}');showToast('Copiado ✓')">Copiar</button>
+          <button class="btn btn-sm btn-outline" onclick="navigator.clipboard.writeText('${f.sign_url}');showToast('Copiado ✓')">Copiar</button>
         </div>
       </div>`).join('');
-    window.firmantesTmp = [];
+    window.firmantesTmp  = [];
+    window.firmaSignZones = {};
     renderFirmantesUI();
   } catch(e) { showToast('Error al crear firma','error'); }
 }
@@ -2238,6 +2469,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (el) el.addEventListener('input', calcularCierre);
   });
 });
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 </script>
 </body>
 </html>
