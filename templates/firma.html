@@ -1,10 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Firma Electrónica — Realvix CRM{% endblock %}
 
-{% block extra_head %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-{% endblock %}
-
 {% block content %}
 <div class="page-title">✍️ Firma Electrónica</div>
 <div class="page-sub">Enviá documentos para firmar digitalmente</div>
@@ -16,9 +12,7 @@
   <button class="tab-btn" onclick="switchFirmaTab('completados',this)" id="tabBtnCompletados">✅ Completados</button>
 </div>
 
-<!-- ══════════════════════════════
-     TAB NUEVA FIRMA
-══════════════════════════════ -->
+<!-- ══ TAB NUEVA FIRMA ══ -->
 <div id="tabNueva">
 
   <!-- Card 1: Datos -->
@@ -59,7 +53,7 @@
       </label>
       <span id="pdfFileLabel" style="font-size:0.8rem;color:var(--text-secondary);"></span>
     </div>
-    <div id="pdfBadge" style="display:none;margin-top:10px;background:var(--success-bg);border:1px solid #A7F3D0;border-radius:var(--radius-md);padding:10px 14px;flex-direction:row;align-items:center;gap:8px;font-size:0.84rem;font-weight:500;color:#065F46;">
+    <div id="pdfBadge" style="display:none;margin-top:10px;background:var(--success-bg);border:1px solid #A7F3D0;border-radius:var(--radius-md);padding:10px 14px;align-items:center;gap:8px;font-size:0.84rem;font-weight:500;color:#065F46;">
       <span>✅</span><span id="pdfBadgeName"></span>
     </div>
   </div>
@@ -69,6 +63,7 @@
     <div class="f-card-title">✍️ Firmantes y zonas de firma</div>
     <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:14px;">Agregá cada firmante y luego asignale su zona en el PDF.</div>
     <div id="firmantesContainer" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;"></div>
+    <!-- Agregar firmante -->
     <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;">
       <div>
         <label class="field-label">NOMBRE</label>
@@ -107,9 +102,7 @@
 </div><!-- /tabNueva -->
 
 
-<!-- ══════════════════════════════
-     TAB PENDIENTES
-══════════════════════════════ -->
+<!-- ══ TAB PENDIENTES ══ -->
 <div id="tabPendientes" style="display:none;">
   <div style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:16px;">Documentos esperando firmas</div>
   <div id="listaPendientes"><div class="loading-state">Cargando...</div></div>
@@ -124,7 +117,6 @@
         </div>
         <button class="btn-xs" onclick="cerrarPanelEstado()">✕ Cerrar</button>
       </div>
-
       <!-- Progreso -->
       <div style="background:var(--cream);border:1px solid var(--border);border-radius:var(--radius-md);padding:16px;margin-bottom:14px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
@@ -134,11 +126,9 @@
         <div id="estadoProgresoText" style="font-size:0.82rem;color:var(--text-secondary);"></div>
         <div style="font-size:0.73rem;color:var(--text-tertiary);margin-top:5px;">● Esta página se actualiza automáticamente cada 15 segundos.</div>
       </div>
-
       <!-- Firmantes del doc -->
       <div style="font-weight:600;font-size:0.85rem;margin-bottom:10px;">✍️ Firmantes</div>
       <div id="estadoFirmantesBox" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;"></div>
-
       <!-- Acciones -->
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
         <button class="btn-primary" style="font-size:0.82rem;padding:9px 18px;"
@@ -150,21 +140,16 @@
 </div>
 
 
-<!-- ══════════════════════════════
-     TAB COMPLETADOS
-══════════════════════════════ -->
+<!-- ══ TAB COMPLETADOS ══ -->
 <div id="tabCompletados" style="display:none;">
   <div style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:16px;">Documentos firmados por todos</div>
   <div id="listaCompletados"><div class="loading-state">Cargando...</div></div>
 </div>
 
 
-<!-- ══════════════════════════════
-     MODAL ZONA DE FIRMA
-══════════════════════════════ -->
+<!-- ══ MODAL ZONA DE FIRMA ══ -->
 <div id="zonaModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2000;align-items:center;justify-content:center;">
   <div style="background:var(--paper);border-radius:var(--radius-xl);width:min(780px,96vw);max-height:94vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--shadow-xl);">
-
     <!-- Header -->
     <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
       <div>
@@ -173,27 +158,23 @@
       </div>
       <button class="btn-icon-sm" onclick="cerrarZonaModal()">✕</button>
     </div>
-
     <!-- Hint -->
     <div style="padding:9px 20px;font-size:0.78rem;color:#92400E;background:#FFFBEB;border-bottom:1px solid #FDE68A;flex-shrink:0;">
-      💡 Hacé clic y arrastrá en el PDF para dibujar el recuadro donde irá la firma.
+      💡 Hacé clic y arrastrá en el PDF para marcar dónde irá la firma.
     </div>
-
-    <!-- Nav páginas -->
-    <div id="zonaNavBar" style="display:none;padding:8px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0;">
+    <!-- Nav páginas — oculta por defecto con clase, JS la muestra -->
+    <div id="zonaNavBar" class="zona-nav-hidden" style="padding:8px 20px;border-bottom:1px solid var(--border);align-items:center;gap:10px;flex-shrink:0;">
       <button class="btn-xs" onclick="zonaChangePage(-1)">← Anterior</button>
       <span id="zonaPageInfo" style="font-size:0.8rem;color:var(--text-secondary);">Pág 1 / 1</span>
       <button class="btn-xs" onclick="zonaChangePage(1)">Siguiente →</button>
     </div>
-
     <!-- PDF + overlay -->
-    <div style="flex:1;overflow:auto;background:#d0d0d0;padding:16px;display:flex;justify-content:center;align-items:flex-start;">
+    <div style="flex:1;overflow:auto;background:#c8c8c8;padding:16px;display:flex;justify-content:center;align-items:flex-start;">
       <div style="position:relative;display:inline-block;line-height:0;">
-        <canvas id="zonaPdfCanvas" style="display:block;box-shadow:0 2px 16px rgba(0,0,0,.25);"></canvas>
-        <canvas id="zonaOverlay" style="position:absolute;top:0;left:0;cursor:crosshair;"></canvas>
+        <canvas id="zonaPdfCanvas" style="display:block;box-shadow:0 2px 16px rgba(0,0,0,.3);"></canvas>
+        <canvas id="zonaOverlay"   style="position:absolute;top:0;left:0;cursor:crosshair;"></canvas>
       </div>
     </div>
-
     <!-- Footer -->
     <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;flex-shrink:0;">
       <button class="btn-xs" onclick="limpiarZonaOverlay()">🗑 Borrar zona</button>
@@ -205,24 +186,42 @@
 
 
 <style>
+/* ── Cards ── */
 .f-card{background:var(--paper);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px 22px;margin-bottom:16px;box-shadow:var(--shadow-xs);max-width:700px;}
 .f-card-title{font-weight:700;font-size:.9rem;margin-bottom:16px;}
+
+/* ── Drop zone ── */
 .f-dropzone{border:2px dashed var(--border-hover);border-radius:var(--radius-md);padding:28px 20px;text-align:center;cursor:pointer;background:var(--cream);transition:border-color .2s,background .2s;user-select:none;}
 .f-dropzone:hover,.f-dropzone.drag-over{border-color:var(--rx-blue);background:var(--rx-blue-light);}
+
+/* ── Firmante rows ── */
 .firmante-row{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--cream);border:1px solid var(--border);border-radius:var(--radius-md);}
 .f-avatar{width:32px;height:32px;border-radius:50%;background:var(--rx-blue);color:#fff;font-weight:700;font-size:.78rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.zona-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:.75rem;font-weight:500;border:1px solid var(--border);background:var(--paper);color:var(--text-secondary);cursor:pointer;transition:border-color .15s,color .15s;white-space:nowrap;}
+
+/* ── Zona chip ── */
+.zona-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;font-size:.75rem;font-weight:500;border:1px solid var(--border);background:var(--paper);color:var(--text-secondary);cursor:pointer;transition:border-color .15s,color .15s,background .15s;white-space:nowrap;}
 .zona-chip:hover{border-color:var(--rx-blue);color:var(--rx-blue);}
 .zona-chip.asignada{background:var(--rx-blue-light);border-color:var(--rx-blue);color:var(--rx-blue);}
+.zona-chip.disabled-chip{opacity:.4;cursor:default;pointer-events:none;}
+
+/* ── Doc list rows ── */
 .doc-row{display:flex;align-items:center;gap:12px;padding:11px 14px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--paper);margin-bottom:6px;max-width:700px;transition:background .12s;}
 .doc-row:hover{background:var(--cream);}
 .doc-icon-box{width:36px;height:36px;border-radius:var(--radius-sm);background:var(--rx-blue-light);color:var(--rx-blue);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;}
+
+/* ── Badges ── */
 .badge-pending{background:#FFFBEB;color:#92400E;border:1px solid #FDE68A;border-radius:20px;font-size:.73rem;font-weight:600;padding:3px 10px;white-space:nowrap;}
 .badge-done{background:var(--success-bg);color:#065F46;border:1px solid #A7F3D0;border-radius:20px;font-size:.73rem;font-weight:600;padding:3px 10px;white-space:nowrap;}
+
+/* ── Nav bar modal ── */
+.zona-nav-hidden{display:none;}
+.zona-nav-visible{display:flex;}
 </style>
 {% endblock %}
 
 {% block extra_js %}
+<!-- pdf.js DEBE cargarse antes de firma.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="/static/js/firma.js"></script>
 {% endblock %}
 
