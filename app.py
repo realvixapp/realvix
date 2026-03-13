@@ -188,6 +188,13 @@ def init_db():
         "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS permisos JSONB DEFAULT '{}'",
         "UPDATE propiedades SET user_id='legacy' WHERE user_id IS NULL OR user_id=''",
+        # Nuevos campos — fecha de visita en leads
+        "ALTER TABLE consultas ADD COLUMN IF NOT EXISTS fecha_visita TEXT",
+        # Perfil enriquecido contactos
+        "ALTER TABLE contactos ADD COLUMN IF NOT EXISTS cumpleanos TEXT",
+        "ALTER TABLE contactos ADD COLUMN IF NOT EXISTS hijos TEXT",
+        "ALTER TABLE contactos ADD COLUMN IF NOT EXISTS hobbies TEXT",
+        "ALTER TABLE contactos ADD COLUMN IF NOT EXISTS gustos TEXT",
     ]
     for m in migraciones:
         _exec_sql(m)
