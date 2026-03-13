@@ -65,7 +65,10 @@ function switchLeadsTab(tab, btn) {
   if (btn) btn.classList.add('active');
   document.getElementById('tabConsultas').style.display = tab === 'consultas' ? '' : 'none';
   document.getElementById('tabMuestras').style.display  = tab === 'muestras'  ? '' : 'none';
-  if (tab === 'muestras') renderMuestras();
+  const tabAct = document.getElementById('tabActividad');
+  if (tabAct) tabAct.style.display = tab === 'actividad' ? '' : 'none';
+  if (tab === 'muestras')   renderMuestras();
+  if (tab === 'actividad')  cargarActividadLeads();
 }
 
 function filtrarEstadio(est, btn) {
@@ -287,4 +290,200 @@ async function eliminarConsulta(id) {
     showToast('Lead eliminado');
     await cargarConsultas();
   } catch (e) { showToast(e.message, 'error'); }
+}
+
+// ══════════════════════════════════════════════════════════
+// ── ACTIVIDAD EN LEADS (propiedades + respuesta propietario) ──
+// ══════════════════════════════════════════════════════════
+
+const LACT = { propiedades: [], consultas: [], propFiltro: '' };
+
+async function cargarActividadLeads() {
+  try {
+    const [dataProp, dataLeads] = await Promise.all([
+      apiGet('/api/propiedades'),
+      apiGet('/api/consultas'),
+    ]);
+    LACT.propiedades = dataProp.propiedades || [];
+    LACT.consultas   = dataLeads.consultas  || [];
+    renderActividadLeads();
+  } catch(e) { showToast('Error al cargar actividad', 'error'); }
+}
+
+function renderActividadLeads() {
+  const s = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+
+  // Stats respuesta propietario
+  s('lActRespAcept', LACT.propiedades.filter(p => p.respuesta_listing === 'aceptado').length);
+  s('lActRespRech',  LACT.propiedades.filter(p => p.respuesta_listing === 'rechazado').length);
+  s('lActRespEsp',   LACT.propiedades.filter(p => (p.respuesta_listing||'esperando_respuesta') === 'esperando_respuesta').length);
+
+  // Solo publicadas/reservadas para actividad
+  const props = LACT.propiedades.filter(p => {
+    const est = (p.estado_tasacion || p.estadio || '').toLowerCase().trim();
+    return ['publicado','reservado','publicada','reservada'].includes(est);
+  });
+
+  const conPorProp = (p) => LACT.consultas.filter(c =>
+    c.propiedad_nombre && p.direccion &&
+    c.propiedad_nombre.trim().toLowerCase() === p.direccion.trim().toLowerCase()
+  );
+
+  const todosLeads   = props.flatMap(p => conPorProp(p));
+  const totalVisitas = todosLeads.filter(c => ['visito','visitó'].includes((c.estado||'').toLowerCase())).length;
+  const pendVisita   = todosLeads.filter(c => c.estado === 'pendiente_visita').length;
+  s('lActTotalProps',   props.length);
+  s('lActTotalLeads',   todosLeads.length);
+  s('lActTotalVisitas', totalVisitas);
+  s('lActPendVisita',   pendVisita);
+
+  // Ordenar por consultas
+  const propsConConteo = props.map(p => ({ ...p, consultas: conPorProp(p) }))
+    .sort((a, b) => b.consultas.length - a.consultas.length);
+
+  // Top 5
+  const top5El   = document.getElementById('lTop5Section');
+  const top5Grid = document.getElementById('lTop5Grid');
+  if (top5El && top5Grid && propsConConteo.length > 0) {
+    top5El.style.display = '';
+    const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+    top5Grid.innerHTML = propsConConteo.slice(0,5).map((p,i) => {
+      const visitaron = p.consultas.filter(c => ['visito','visitó'].includes((c.estado||'').toLowerCase())).length;
+      return `<div class="card" style="padding:12px 14px;cursor:pointer;border:2px solid ${LACT.propFiltro===p.direccion?'var(--rx-blue)':'transparent'};"
+        onclick="filtrarPropLead('${escHtml(p.direccion)}')">
+        <div style="font-size:1.2rem;margin-bottom:4px;">${medals[i]}</div>
+        <div style="font-weight:700;font-size:0.85rem;margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(p.direccion)}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <span style="font-size:0.73rem;background:var(--rx-blue-light);color:var(--rx-blue);padding:2px 7px;border-radius:8px;font-weight:600;">${p.consultas.length} consultas</span>
+          <span style="font-size:0.73rem;background:var(--success-bg);color:var(--success);padding:2px 7px;border-radius:8px;font-weight:600;">${visitaron} visitas</span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Índice por nombre de propiedad
+  const indexEl = document.getElementById('lPropNombreIndex');
+  if (indexEl && propsConConteo.length > 0) {
+    indexEl.innerHTML = `<div style="background:var(--cream);border:1px solid var(--border);border-radius:8px;padding:10px 14px;">
+      <div style="font-size:0.72rem;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">Filtrar por propiedad</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+        <button onclick="filtrarPropLead('')"
+          style="padding:4px 12px;border-radius:20px;border:1.5px solid ${!LACT.propFiltro?'var(--rx-blue)':'var(--border)'};
+          background:${!LACT.propFiltro?'var(--rx-blue)':'white'};color:${!LACT.propFiltro?'white':'#666'};
+          font-size:0.75rem;font-weight:600;cursor:pointer;">Todas (${propsConConteo.length})</button>
+        ${propsConConteo.map(p =>
+          `<button onclick="filtrarPropLead('${escHtml(p.direccion)}')"
+            style="padding:4px 12px;border-radius:20px;border:1.5px solid ${LACT.propFiltro===p.direccion?'var(--rx-blue)':'var(--border)'};
+            background:${LACT.propFiltro===p.direccion?'var(--rx-blue)':'white'};
+            color:${LACT.propFiltro===p.direccion?'white':'#444'};
+            font-size:0.75rem;font-weight:600;cursor:pointer;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+            title="${escHtml(p.direccion)}">
+            ${escHtml(p.direccion.length>20?p.direccion.substring(0,20)+'…':p.direccion)} (${p.consultas.length})
+          </button>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  const container = document.getElementById('lActividadGrid');
+  if (!container) return;
+
+  const mostrar = LACT.propFiltro
+    ? propsConConteo.filter(p => p.direccion === LACT.propFiltro)
+    : propsConConteo;
+
+  if (mostrar.length === 0) {
+    container.innerHTML = `<div class="empty-state">No hay propiedades publicadas o reservadas todavía.</div>`; return;
+  }
+
+  const ESTADIO_LABELS = {
+    'nuevo':            { label:'Nuevo',           color:'#6B7280', bg:'#F3F4F6' },
+    'pendiente_visita': { label:'Pend. visita',     color:'#7C3AED', bg:'#F5F3FF' },
+    'contesto':         { label:'Contestó',         color:'#D97706', bg:'#FFFBEB' },
+    'seguimiento':      { label:'Seguimiento',      color:'#2563EB', bg:'#EFF6FF' },
+    'visito':           { label:'Visitó ✓',         color:'#059669', bg:'#ECFDF5' },
+  };
+
+  container.innerHTML = mostrar.map(p => {
+    const est = (p.estado_tasacion||'').toLowerCase();
+    const esP = est.includes('publ');
+    const badgeColor = esP ? '#059669' : '#DC2626';
+    const badgeBg    = esP ? '#ECFDF5' : '#FEF2F2';
+    const nV  = p.consultas.filter(c => ['visito','visitó'].includes((c.estado||'').toLowerCase())).length;
+    const nPV = p.consultas.filter(c => c.estado === 'pendiente_visita').length;
+    const nS  = p.consultas.filter(c => c.estado === 'seguimiento').length;
+    return `
+    <div class="card" style="padding:0;margin-bottom:16px;overflow:hidden;">
+      <div style="padding:14px 18px;background:linear-gradient(135deg,#f8f9ff,#f0f4ff);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+            <span style="font-weight:700;font-size:0.95rem;">${escHtml(p.direccion||'—')}</span>
+            <span style="font-size:0.7rem;padding:2px 9px;border-radius:12px;font-weight:700;background:${badgeBg};color:${badgeColor};">${esP?'🟢 Publicado':'🔴 Reservado'}</span>
+            ${p.tipologia?`<span style="font-size:0.72rem;color:#888;background:#f3f4f6;padding:2px 7px;border-radius:8px;">${escHtml(p.tipologia)}</span>`:''}
+          </div>
+          ${p.nombre_propietario?`<div style="font-size:0.79rem;color:#888;">👤 ${escHtml(p.nombre_propietario)}</div>`:''}
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          ${[['Consultas',p.consultas.length,'var(--rx-blue)'],['Visitaron',nV,'#059669'],['Pend.visita',nPV,'#7C3AED'],['Seguim.',nS,'#2563EB']].map(([lbl,num,col])=>
+            `<div style="text-align:center;padding:6px 10px;background:white;border-radius:8px;border:1px solid var(--border);min-width:50px;">
+              <div style="font-size:1.1rem;font-weight:700;color:${col};">${num}</div>
+              <div style="font-size:0.6rem;color:#888;white-space:nowrap;">${lbl}</div>
+            </div>`).join('')}
+        </div>
+      </div>
+      ${p.consultas.length===0
+        ?`<div style="padding:16px;text-align:center;color:#bbb;font-size:0.82rem;">Sin consultas asociadas todavía</div>`
+        :`<div style="padding:10px 18px 14px;">
+          <div style="font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Consultas (${p.consultas.length})</div>
+          ${p.consultas.map(c=>{
+            const st=ESTADIO_LABELS[c.estado]||{label:c.estado,color:'#888',bg:'#f3f4f6'};
+            return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:${st.bg}22;border:1px solid ${st.color}22;margin-bottom:5px;flex-wrap:wrap;">
+              <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                  <span style="font-weight:600;font-size:0.85rem;">${escHtml(c.nombre||'Sin nombre')}</span>
+                  <span style="font-size:0.68rem;padding:1px 7px;border-radius:10px;font-weight:600;background:${st.bg};color:${st.color};">${st.label}</span>
+                  ${c.fecha_visita?`<span style="font-size:0.68rem;background:#EDE9FE;color:#7C3AED;border-radius:8px;padding:1px 6px;">📅 ${formatFecha(c.fecha_visita)}</span>`:''}
+                </div>
+                <div style="font-size:0.75rem;color:#888;margin-top:2px;display:flex;gap:10px;flex-wrap:wrap;">
+                  ${c.telefono?`<span>📞 ${escHtml(c.telefono)}</span>`:''}
+                  ${c.presupuesto?`<span>💰 ${escHtml(c.presupuesto)}</span>`:''}
+                  <span style="color:#ccc;">${formatFecha(c.created_at)}</span>
+                </div>
+              </div>
+              <div style="display:flex;gap:4px;flex-shrink:0;">
+                ${c.telefono?`<button class="btn-icon-sm" data-tel="${escHtml(c.telefono)}" data-nom="${escHtml(c.nombre||'')}"
+                  onclick="window.open(buildWhatsAppUrl(this.dataset.tel,'Hola '+this.dataset.nom),'_blank')">💬</button>`:''}
+                <select class="input-base" style="font-size:0.72rem;padding:3px 6px;height:auto;width:128px;"
+                  data-cid="${c.id}" onchange="cambiarEstadioActLeads(this.dataset.cid,this.value,this)">
+                  ${Object.entries(ESTADIO_LABELS).map(([k,v])=>`<option value="${k}" ${c.estado===k?'selected':''}>${v.label}</option>`).join('')}
+                </select>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>`}
+    </div>`;
+  }).join('');
+}
+
+function filtrarPropLead(nombre) {
+  LACT.propFiltro = nombre;
+  renderActividadLeads();
+}
+
+async function cambiarEstadioActLeads(id, nuevoEstado, selEl) {
+  const c = LACT.consultas.find(x => x.id === id);
+  if (!c) return;
+  const anterior = c.estado;
+  try {
+    await apiPut(`/api/consultas/${id}`, { ...c, estado: nuevoEstado });
+    c.estado = nuevoEstado;
+    renderActividadLeads();
+    showToast('Estado actualizado ✓');
+    if (nuevoEstado === 'pendiente_visita') {
+      setTimeout(() => pedirAgendarEnCalendar({
+        titulo: `Visita — ${c.nombre||'Lead'}`,
+        descripcion: `🏠 Visita con ${c.nombre||'lead'}${c.propiedad_nombre?' · '+c.propiedad_nombre:''}${c.telefono?' · 📞 '+c.telefono:''}`,
+        fecha: c.fecha_visita||'', hora: '10:00',
+      }), 300);
+    }
+  } catch(e) { if(selEl) selEl.value=anterior; showToast(e.message,'error'); }
 }
