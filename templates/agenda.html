@@ -3,117 +3,66 @@
 
 {% block content %}
 <div class="page-title">Agenda</div>
-<div class="page-sub">Calendario, eventos y pendientes del día</div>
+<div class="page-sub">Google Calendar y pendientes del día</div>
 
 <!-- Tabs -->
 <div style="display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border);">
-  <button class="tab-btn active" onclick="switchAgendaTab('calendario',this)">📅 Calendario CRM</button>
-  <button class="tab-btn" onclick="switchAgendaTab('gcal',this)">🗓️ Google Calendar</button>
+  <button class="tab-btn active" onclick="switchAgendaTab('gcal',this)">🗓️ Google Calendar</button>
   <button class="tab-btn" onclick="switchAgendaTab('tareas',this)">✅ Pendientes</button>
 </div>
 
-<!-- ── CALENDARIO ── -->
-<div id="tabCalendario">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-    <div style="display:flex;align-items:center;gap:12px;">
-      <button class="btn-icon" onclick="mesAnterior()">‹</button>
-      <span id="calTitulo" style="font-size:1rem;font-weight:600;min-width:160px;text-align:center;"></span>
-      <button class="btn-icon" onclick="mesSiguiente()">›</button>
-    </div>
-    <button class="btn-primary" onclick="abrirNuevoEvento()">+ Nuevo evento</button>
-  </div>
-  <div id="calGrid" class="cal-grid"></div>
-  <div id="eventosDia" style="margin-top:16px;"></div>
-</div>
-
 <!-- ── GOOGLE CALENDAR EMBEBIDO ── -->
-<div id="tabGcal" style="display:none;">
+<div id="tabGcal">
   <div id="gcalSetupBanner" style="background:var(--rx-blue-light);border:1px solid var(--rx-blue);border-radius:10px;padding:20px 24px;margin-bottom:20px;display:flex;align-items:center;gap:16px;">
     <div style="font-size:2rem;">🗓️</div>
     <div style="flex:1;">
       <div style="font-weight:700;font-size:0.95rem;margin-bottom:4px;color:var(--rx-blue);">Conectar Google Calendar</div>
-      <div style="font-size:0.82rem;color:#555;">Ingresá el ID de tu calendario de Google para verlo embebido aquí. Lo encontrás en Configuración del Calendario → Integrar calendario.</div>
-      <div style="display:flex;gap:8px;margin-top:10px;align-items:center;">
-        <input type="text" id="gcalIdInput" class="input-base" style="max-width:360px;font-size:0.82rem;" placeholder="ejemplo@gmail.com o ID largo del calendario">
-        <button class="btn-primary" onclick="guardarGcalId()" style="white-space:nowrap;">Conectar</button>
+      <div style="font-size:0.82rem;color:#555;margin-bottom:10px;">Ingresá el ID de tu calendario (Google Calendar → ⚙️ Configuración → Integrar calendario).</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <input type="text" id="gcalIdInput" class="input-base" style="max-width:360px;font-size:0.82rem;" placeholder="ej: tunombre@gmail.com">
+        <button class="btn-primary" onclick="guardarGcalId()">Conectar</button>
       </div>
     </div>
   </div>
-
   <div id="gcalFrame" style="display:none;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-      <div style="font-size:0.82rem;color:#888;">📌 Tu Google Calendar embebido — podés crear y gestionar eventos directamente acá.</div>
-      <button class="btn-secondary" style="font-size:0.75rem;" onclick="desconectarGcal()">Desconectar</button>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+      <div style="font-size:0.82rem;color:#888;">📌 Hacé click en cualquier día o evento para editar directamente en Google.</div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-primary" onclick="abrirNuevoEventoGcal()" style="font-size:0.82rem;">+ Nuevo evento</button>
+        <button class="btn-secondary" style="font-size:0.75rem;" onclick="desconectarGcal()">Desconectar</button>
+      </div>
     </div>
-    <iframe id="gcalIframe"
-      style="border:0;border-radius:10px;width:100%;height:680px;box-shadow:0 2px 12px rgba(0,0,0,0.08);"
-      frameborder="0" scrolling="no">
-    </iframe>
+    <iframe id="gcalIframe" style="border:0;border-radius:10px;width:100%;height:700px;box-shadow:0 2px 12px rgba(0,0,0,0.08);" frameborder="0" scrolling="no"></iframe>
   </div>
 </div>
 
-
+<!-- ── TAREAS KANBAN drag & drop ── -->
 <div id="tabTareas" style="display:none">
   <div style="display:flex;gap:10px;margin-bottom:14px;align-items:center;">
     <button class="btn-primary" onclick="abrirNuevaTarea()">+ Nueva tarea</button>
+    <span style="font-size:0.78rem;color:#aaa;">Arrastrá las tarjetas para moverlas entre columnas</span>
   </div>
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
     <div class="kanban-col">
       <div class="kanban-header" style="background:var(--rx-blue-light);color:var(--rx-blue);">⏳ Pendiente</div>
-      <div id="colPendiente" class="kanban-body"></div>
+      <div id="colPendiente" class="kanban-body" data-estado="pendiente"
+        ondragover="event.preventDefault();this.classList.add('drag-over')"
+        ondragleave="this.classList.remove('drag-over')"
+        ondrop="dropTarea(event,'pendiente')"></div>
     </div>
     <div class="kanban-col">
       <div class="kanban-header" style="background:var(--warning-bg);color:var(--warning);">🔄 En proceso</div>
-      <div id="colProceso" class="kanban-body"></div>
+      <div id="colProceso" class="kanban-body" data-estado="en_proceso"
+        ondragover="event.preventDefault();this.classList.add('drag-over')"
+        ondragleave="this.classList.remove('drag-over')"
+        ondrop="dropTarea(event,'en_proceso')"></div>
     </div>
     <div class="kanban-col">
       <div class="kanban-header" style="background:var(--success-bg);color:var(--success);">✅ Completado</div>
-      <div id="colCompletado" class="kanban-body"></div>
-    </div>
-  </div>
-</div>
-
-<!-- ── MODAL EVENTO ── -->
-<div class="modal-bg" id="modalEvento">
-  <div class="modal" style="max-width:440px;">
-    <div class="modal-header">
-      <h3 id="modalEvTitulo">Nuevo evento</h3>
-      <button class="modal-close" onclick="cerrarModal('modalEvento')">✕</button>
-    </div>
-    <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;">
-      <input type="hidden" id="evId">
-      <div class="field">
-        <label class="field-label">Título *</label>
-        <input type="text" id="evTitulo" class="input-base">
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div class="field">
-          <label class="field-label">Fecha</label>
-          <input type="date" id="evFecha" class="input-base">
-        </div>
-        <div class="field">
-          <label class="field-label">Hora</label>
-          <input type="time" id="evHora" class="input-base">
-        </div>
-      </div>
-      <div class="field">
-        <label class="field-label">Tipo</label>
-        <select id="evTipo" class="input-base">
-          <option value="reunion">Reunión</option>
-          <option value="visita">Visita</option>
-          <option value="firma">Firma</option>
-          <option value="llamada">Llamada</option>
-          <option value="otro">Otro</option>
-        </select>
-      </div>
-      <div class="field">
-        <label class="field-label">Notas</label>
-        <textarea id="evNotas" class="input-base" rows="2" style="resize:vertical;"></textarea>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn-secondary" onclick="cerrarModal('modalEvento')">Cancelar</button>
-      <button class="btn-primary" onclick="guardarEvento()">Guardar</button>
+      <div id="colCompletado" class="kanban-body" data-estado="completado"
+        ondragover="event.preventDefault();this.classList.add('drag-over')"
+        ondragleave="this.classList.remove('drag-over')"
+        ondrop="dropTarea(event,'completado')"></div>
     </div>
   </div>
 </div>
@@ -156,22 +105,22 @@
     </div>
   </div>
 </div>
-<!-- ── MODAL CONFIRMAR GOOGLE CALENDAR (global) ── -->
+
+<!-- ── MODAL GLOBAL: CONFIRMAR GOOGLE CALENDAR ── -->
 <div class="modal-bg" id="modalConfirmarGcal">
-  <div class="modal" style="max-width:420px;">
-    <div class="modal-header" style="background:linear-gradient(135deg,#4285F4 0%,#34A853 100%);color:white;border-radius:10px 10px 0 0;">
-      <h3 style="color:white;display:flex;align-items:center;gap:8px;">🗓️ Agregar a Google Calendar</h3>
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header" style="background:linear-gradient(135deg,#4285F4 0%,#34A853 100%);border-radius:10px 10px 0 0;">
+      <h3 style="color:white;display:flex;align-items:center;gap:8px;">🗓️ ¿Agendás esta actividad?</h3>
       <button class="modal-close" onclick="cerrarModal('modalConfirmarGcal')" style="color:white;">✕</button>
     </div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
       <div style="background:#f0f7ff;border-radius:8px;padding:14px;border-left:4px solid #4285F4;">
-        <div style="font-size:0.82rem;color:#555;margin-bottom:4px;">Actividad detectada:</div>
-        <div id="gcalConfirmDesc" style="font-weight:600;font-size:0.92rem;color:#1a1a1a;"></div>
+        <div style="font-size:0.78rem;color:#555;margin-bottom:4px;">Actividad:</div>
+        <div id="gcalConfirmDesc" style="font-weight:700;font-size:0.95rem;color:#1a1a1a;"></div>
       </div>
-      <div style="font-size:0.84rem;color:#666;">¿Querés agendar esta actividad en tu Google Calendar?</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <div class="field">
-          <label class="field-label">Fecha</label>
+          <label class="field-label">Fecha de visita</label>
           <input type="date" id="gcalConfirmFecha" class="input-base">
         </div>
         <div class="field">
@@ -180,25 +129,37 @@
         </div>
       </div>
       <div class="field">
-        <label class="field-label">Duración estimada</label>
+        <label class="field-label">Duración</label>
         <select id="gcalConfirmDuracion" class="input-base">
           <option value="30">30 minutos</option>
           <option value="60" selected>1 hora</option>
-          <option value="90">1 hora 30 min</option>
+          <option value="90">1h 30min</option>
           <option value="120">2 horas</option>
         </select>
       </div>
       <div class="field">
-        <label class="field-label">Notas adicionales (opcional)</label>
-        <textarea id="gcalConfirmNotas" class="input-base" rows="2" style="resize:vertical;" placeholder="Detalles del evento..."></textarea>
+        <label class="field-label">Notas (opcional)</label>
+        <textarea id="gcalConfirmNotas" class="input-base" rows="2" style="resize:vertical;"></textarea>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn-secondary" onclick="cerrarModal('modalConfirmarGcal')">Omitir</button>
+    <div class="modal-footer" style="justify-content:space-between;">
+      <button class="btn-secondary" onclick="cerrarModal('modalConfirmarGcal');mostrarPanelFlotante()">No ahora — recordármelo</button>
       <button class="btn-primary" style="background:linear-gradient(135deg,#4285F4,#34A853);border:none;" onclick="confirmarAgregarGcal()">
-        🗓️ Agregar al Calendar
+        🗓️ Abrir en Google Calendar
       </button>
     </div>
+  </div>
+</div>
+
+<!-- ── PANEL FLOTANTE DATOS LEAD ── -->
+<div id="panelFlotanteLead" style="display:none;position:fixed;bottom:24px;right:24px;z-index:9999;width:290px;background:white;border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,0.2);border:1px solid var(--border);overflow:hidden;">
+  <div style="background:linear-gradient(135deg,#1B3FE4,#34A853);padding:11px 16px;display:flex;justify-content:space-between;align-items:center;">
+    <span style="color:white;font-weight:700;font-size:0.88rem;">📋 Pendiente de agendar</span>
+    <button onclick="cerrarPanelFlotante()" style="background:none;border:none;color:white;font-size:1.1rem;cursor:pointer;padding:0;line-height:1;opacity:0.85;">✕</button>
+  </div>
+  <div id="panelFlotanteContent" style="padding:12px 16px;font-size:0.81rem;display:flex;flex-direction:column;gap:5px;color:#333;max-height:200px;overflow-y:auto;"></div>
+  <div style="padding:0 14px 14px;">
+    <button class="btn-primary" style="width:100%;font-size:0.8rem;" onclick="abrirGcalDesdePanelFlotante()">🗓️ Agendar ahora</button>
   </div>
 </div>
 
