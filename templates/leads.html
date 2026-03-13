@@ -70,16 +70,14 @@
         </select>
       </div>
 
-      <!-- Propiedad de interés: dropdown de la BD -->
+      <!-- Propiedad de consulta: solo publicadas y reservadas -->
       <div class="field" style="grid-column:span 2">
-        <label class="field-label">Propiedad de interés</label>
-        <div style="display:flex;gap:6px;">
-          <select id="leadPropiedadSelect" class="input-base" style="flex:1;" onchange="onSelectPropiedad(this)">
-            <option value="">— Seleccionar de la cartera —</option>
-          </select>
-          <input type="text" id="leadPropiedad" class="input-base" style="flex:1;" placeholder="O escribí libremente...">
-        </div>
-        <div style="font-size:0.72rem;color:#aaa;margin-top:4px;">Elegí de la cartera o escribí una descripción libre</div>
+        <label class="field-label">Propiedad de consulta</label>
+        <select id="leadPropiedadSelect" class="input-base" onchange="onSelectPropiedad(this)">
+          <option value="">— Seleccionar propiedad publicada/reservada —</option>
+        </select>
+        <div style="font-size:0.72rem;color:#aaa;margin-top:4px;">Solo muestra propiedades <strong>Publicadas</strong> y <strong>Reservadas</strong> de tu cartera</div>
+        <input type="hidden" id="leadPropiedad">
       </div>
 
       <div class="field">
