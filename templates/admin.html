@@ -5,8 +5,9 @@
 <div class="page-title">Administración</div>
 <div class="page-sub">Usuarios, roles y configuración del sistema</div>
 
-<div style="display:flex;gap:10px;margin-bottom:20px;align-items:center;">
+<div style="display:flex;gap:10px;margin-bottom:20px;align-items:center;flex-wrap:wrap;">
   <button class="btn-primary" onclick="abrirNuevoUsuario()">+ Nuevo usuario</button>
+  <button class="btn-secondary" onclick="ejecutarInitDB()">🔧 Inicializar tablas DB</button>
 </div>
 
 <div id="usersTable">
@@ -52,6 +53,23 @@
 
 {% block extra_js %}
 <script src="/static/js/admin.js"></script>
+<script>
+async function ejecutarInitDB() {
+  if (!confirm('¿Crear todas las tablas faltantes en la base de datos?')) return;
+  try {
+    const r = await fetch('/api/init-db', { method: 'POST' });
+    const d = await r.json();
+    if (d.ok) {
+      alert('✅ ' + d.msg + '\n\nRecargá la página para empezar a usar el CRM.');
+      location.reload();
+    } else {
+      alert('❌ Error: ' + (d.error || JSON.stringify(d)));
+    }
+  } catch(e) {
+    alert('❌ Error de red: ' + e.message);
+  }
+}
+</script>
 {% endblock %}
 
 {% block on_ready %}
