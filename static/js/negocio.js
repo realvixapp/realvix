@@ -421,45 +421,46 @@ function renderContactos() {
   container.innerHTML = indiceHtml + listaHtml;
 }
 
-function renderContactoRow(c, TIPO_COLORS) {
-  const tc = TIPO_COLORS[c.tipo] || TIPO_COLORS.otro;
+function renderContactoRow(ct, TIPO_COLORS) {
+  const tc = TIPO_COLORS[ct.tipo] || TIPO_COLORS.otro;
   let cumpleBadge = '';
-  if (c.cumpleanos) {
-    const hoy = new Date(); const cum = new Date(c.cumpleanos);
+  if (ct.cumpleanos) {
+    const hoy = new Date(); const cum = new Date(ct.cumpleanos);
     const proxCum = new Date(hoy.getFullYear(), cum.getMonth(), cum.getDate());
     if (proxCum < hoy) proxCum.setFullYear(hoy.getFullYear() + 1);
     const dias = Math.ceil((proxCum - hoy) / 86400000);
-    if (dias <= 30) cumpleBadge = `<span style="font-size:0.68rem;background:#FFF7ED;color:#F97316;border-radius:8px;padding:1px 6px;font-weight:600;white-space:nowrap;">🎂 ${dias === 0 ? '¡Hoy!' : 'en ' + dias + 'd'}</span>`;
+    if (dias <= 30) cumpleBadge = `<span style="font-size:0.68rem;background:#FFF7ED;color:#F97316;border-radius:8px;padding:1px 6px;font-weight:600;">🎂 ${dias === 0 ? '¡Hoy!' : 'en ' + dias + 'd'}</span>`;
   }
+  // Use data-id attribute to avoid quote nesting issues
   return `
-    <div class="card" style="padding:12px 16px;display:flex;align-items:center;gap:14px;margin-bottom:6px;">
+    <div class="card" style="padding:12px 16px;display:flex;align-items:center;gap:14px;margin-bottom:6px;cursor:pointer;"
+      onclick="editarContacto('${ct.id}')" title="Click para editar">
       <div style="width:38px;height:38px;border-radius:50%;background:${tc.bg};color:${tc.color};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem;flex-shrink:0;">
-        ${escHtml((c.nombre||'?')[0].toUpperCase())}
+        ${escHtml((ct.nombre||'?')[0].toUpperCase())}
       </div>
       <div style="flex:1;min-width:0;">
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-          <span style="font-weight:600;font-size:0.9rem;">${escHtml(c.nombre)}</span>
-          <span style="font-size:0.68rem;padding:1px 7px;border-radius:10px;font-weight:600;background:${tc.bg};color:${tc.color};">${c.tipo||'otro'}</span>
+          <span style="font-weight:600;font-size:0.9rem;color:var(--rx-blue);text-decoration:underline dotted;">${escHtml(ct.nombre)}</span>
+          <span style="font-size:0.68rem;padding:1px 7px;border-radius:10px;font-weight:600;background:${tc.bg};color:${tc.color};">${ct.tipo||'otro'}</span>
           ${cumpleBadge}
         </div>
         <div style="display:flex;gap:14px;margin-top:3px;font-size:0.79rem;color:#666;flex-wrap:wrap;">
-          ${c.profesion ? `<span>💼 ${escHtml(c.profesion)}</span>` : ''}
-          ${c.telefono  ? `<span>📞 ${escHtml(c.telefono)}</span>`  : ''}
-          ${c.email     ? `<span>✉️ ${escHtml(c.email)}</span>`     : ''}
-          ${c.localidad ? `<span>📍 ${escHtml(c.localidad)}</span>` : ''}
+          ${ct.profesion ? `<span>💼 ${escHtml(ct.profesion)}</span>` : ''}
+          ${ct.telefono  ? `<span>📞 ${escHtml(ct.telefono)}</span>`  : ''}
+          ${ct.email     ? `<span>✉️ ${escHtml(ct.email)}</span>`     : ''}
+          ${ct.localidad ? `<span>📍 ${escHtml(ct.localidad)}</span>` : ''}
         </div>
-        ${c.hijos || c.hobbies ? `<div style="font-size:0.75rem;color:#aaa;margin-top:2px;">${c.hijos ? '👨‍👧‍👦 ' + escHtml(c.hijos) : ''}${c.hijos && c.hobbies ? ' · ' : ''}${c.hobbies ? '🎯 ' + escHtml(c.hobbies) : ''}</div>` : ''}
-        ${c.gustos ? `<div style="font-size:0.75rem;color:#aaa;">🏠 ${escHtml(c.gustos)}</div>` : ''}
-        ${c.notas  ? `<div style="font-size:0.74rem;color:#ccc;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:520px;">${escHtml(c.notas)}</div>` : ''}
+        ${ct.hijos || ct.hobbies ? `<div style="font-size:0.75rem;color:#aaa;margin-top:2px;">${ct.hijos ? '👨‍👧‍👦 ' + escHtml(ct.hijos) : ''}${ct.hijos && ct.hobbies ? ' · ' : ''}${ct.hobbies ? '🎯 ' + escHtml(ct.hobbies) : ''}</div>` : ''}
+        ${ct.gustos ? `<div style="font-size:0.75rem;color:#aaa;">🏠 ${escHtml(ct.gustos)}</div>` : ''}
+        ${ct.notas  ? `<div style="font-size:0.74rem;color:#ccc;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:520px;">${escHtml(ct.notas)}</div>` : ''}
       </div>
-      <div style="display:flex;gap:4px;flex-shrink:0;">
-        ${c.telefono ? `<button class="btn-icon-sm" onclick="window.open('${buildWhatsAppUrl(c.telefono,'')}','_blank')" title="WhatsApp">💬</button>` : ''}
-        <button class="btn-icon-sm" onclick="editarContacto('${c.id}')" title="Editar">✏️</button>
-        <button class="btn-icon-sm danger" onclick="eliminarContacto('${c.id}')" title="Eliminar">🗑️</button>
+      <div style="display:flex;gap:4px;flex-shrink:0;" onclick="event.stopPropagation()">
+        ${ct.telefono ? `<button class="btn-icon-sm" data-tel="${escHtml(ct.telefono)}" onclick="event.stopPropagation();window.open(buildWhatsAppUrl(this.dataset.tel,''),'_blank')" title="WhatsApp">💬</button>` : ''}
+        <button class="btn-icon-sm" data-id="${ct.id}" onclick="event.stopPropagation();editarContacto(this.dataset.id)" title="Editar">✏️</button>
+        <button class="btn-icon-sm danger" data-id="${ct.id}" onclick="event.stopPropagation();eliminarContacto(this.dataset.id)" title="Eliminar">🗑️</button>
       </div>
     </div>`;
 }
-
 
 function abrirNuevoContacto() {
   ['ctcId','ctcNombre','ctcTelefono','ctcEmail','ctcLocalidad','ctcNotas',
@@ -552,6 +553,14 @@ async function eliminarContacto(id) {
 // ══════════════════════════════════════════════════════════
 
 const ACT = { consultas: [], propiedades: [] };
+
+
+function abrirWALead(tel, nombre, direccion) {
+  const msg = nombre
+    ? `Hola ${nombre}, te contacto por la propiedad ${direccion}`
+    : `Te contacto por la propiedad ${direccion}`;
+  window.open(buildWhatsAppUrl(tel, msg), '_blank');
+}
 
 async function cargarActividad() {
   try {
@@ -688,7 +697,7 @@ function renderActividad() {
                     </div>
                     <!-- Acciones rápidas -->
                     <div style="display:flex;gap:4px;flex-shrink:0;">
-                      ${c.telefono ? `<button class="btn-icon-sm" onclick="window.open('${buildWhatsAppUrl(c.telefono, c.nombre ? 'Hola ' + c.nombre + ', te contacto por ' + (p.direccion||'la propiedad') : '')}','_blank')" title="WhatsApp">💬</button>` : ''}
+                      ${c.telefono ? `<button class="btn-icon-sm" onclick="abrirWALead('${escHtml(c.telefono)}','${escHtml(c.nombre||'')}','${escHtml(p.direccion||'')}')">💬</button>` : ''}
                       <select class="input-base" style="font-size:0.72rem;padding:3px 6px;height:auto;width:130px;"
                         onchange="cambiarEstadioActividad('${c.id}', this.value, this)">
                         ${Object.entries(ESTADIO_LABELS).map(([k,v]) =>
