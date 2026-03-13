@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/style.css">
 <style>
+/* ── Específico de firmar.html ── */
 .container { max-width: 680px; margin: 0 auto; padding: 28px 20px; }
 
 .info-row { display: flex; gap: 12px; align-items: flex-start; padding: 12px; background: var(--cream); border-radius: 8px; margin-bottom: 10px; }
@@ -14,22 +15,10 @@
 .info-text p { font-size: 0.82rem; color: #555; line-height: 1.5; }
 .info-text strong { color: var(--ink); font-size: 0.9rem; }
 
-.pdf-wrap { background: #e8e4dc; border-radius: 8px; padding: 14px; text-align: center; margin-bottom: 16px; max-height: 520px; overflow-y: auto; }
-.pdf-page-container { position: relative; display: inline-block; margin-bottom: 4px; cursor: crosshair; }
-#pdfCanvas { display: block; max-width: 100%; box-shadow: 0 2px 12px rgba(0,0,0,0.15); border-radius: 4px; }
-#signZoneOverlay {
-  position: absolute;
-  border: 3px dashed #c9a84c;
-  background: rgba(201,168,76,0.15);
-  display: none;
-  pointer-events: none;
-  border-radius: 3px;
-}
+.pdf-wrap { background: #e8e4dc; border-radius: 8px; padding: 14px; text-align: center; margin-bottom: 16px; max-height: 420px; overflow-y: auto; }
+#pdfCanvas { max-width: 100%; box-shadow: 0 2px 12px rgba(0,0,0,0.15); border-radius: 4px; }
 .pdf-nav { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 10px; font-size: 0.8rem; color: #666; }
 .pdf-nav button { background: white; border: 1px solid var(--border); border-radius: 4px; padding: 4px 10px; cursor: pointer; }
-
-.zone-info { margin-top: 10px; padding: 10px 14px; background: #fff8e1; border-left: 4px solid #c9a84c; border-radius: 6px; font-size: 0.82rem; color: #666; }
-.zone-info.ok { background: #f0faf4; border-left-color: #52b788; color: #2d6a4f; }
 
 .pad-label { font-size: 0.78rem; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: #777; margin-bottom: 8px; }
 .sig-wrap { position: relative; }
@@ -46,6 +35,8 @@
 .success-title { font-family: var(--font-serif); font-size: 1.6rem; margin-bottom: 10px; color: var(--sage); }
 .success-sub { font-size: 0.9rem; color: #666; line-height: 1.6; max-width: 380px; margin: 0 auto; }
 .progress-info { background: #f0faf4; border: 1px solid var(--sage-light); border-radius: 10px; padding: 16px; margin-top: 20px; font-size: 0.85rem; }
+
+.firma-data { font-size: 0.75rem; color: #888; margin-top: 6px; }
 
 @media(max-width: 480px) {
   .container { padding: 16px 14px; }
@@ -70,7 +61,7 @@
     <p style="font-size:0.88rem;color:#666;">Tu firma fue registrada correctamente.</p>
   </div>
   {% else %}
-
+  
   <!-- Info del documento -->
   <div class="card">
     <div class="card-title">📄 Documento para firmar</div>
@@ -89,25 +80,17 @@
     </div>
   </div>
 
-  <!-- Vista previa del PDF con selección de zona -->
+  <!-- Vista previa del PDF -->
   {% if doc.pdf_base64 %}
   <div class="card">
-    <div class="card-title">👁 Seleccioná dónde poner tu firma</div>
-    <p style="font-size:0.83rem;color:#666;margin:0 0 12px;">Hacé click y arrastrá sobre el documento para marcar la zona donde va tu firma.</p>
+    <div class="card-title">👁 Vista previa del documento</div>
     <div class="pdf-wrap">
-      <!-- El div de posición relativa envuelve el canvas para el overlay -->
-      <div class="pdf-page-container" id="pdfPageContainer">
-        <canvas id="pdfCanvas"></canvas>
-        <div id="signZoneOverlay"></div>
-      </div>
+      <canvas id="pdfCanvas"></canvas>
     </div>
     <div class="pdf-nav" id="pdfNav" style="display:none;">
       <button onclick="changePage(-1)">← Anterior</button>
       <span id="pageInfo">Pág 1 / 1</span>
       <button onclick="changePage(1)">Siguiente →</button>
-    </div>
-    <div class="zone-info" id="zoneInfo">
-      📌 Todavía no seleccionaste la zona de firma. Arrastrá sobre el documento.
     </div>
   </div>
   {% endif %}
@@ -117,10 +100,10 @@
     <div class="card-title">✍️ Tu firma</div>
     <div class="pad-label">Dibujá tu firma en el recuadro</div>
     <div class="sig-wrap">
-      <!-- IMPORTANTE: id distinto al pdfCanvas para evitar conflictos -->
       <canvas id="sigCanvas" height="180"></canvas>
       <div class="sig-hint" id="sigHint">Dibujá aquí con el dedo o el mouse</div>
     </div>
+    <div class="firma-data" id="firmaData"></div>
     <div class="sig-actions">
       <button class="btn btn-outline" onclick="clearSig()">🗑 Borrar</button>
       <button class="btn btn-sage" id="btnFirmar" onclick="guardarFirma()" disabled>✅ Confirmar firma</button>
@@ -145,336 +128,123 @@
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 const DOC_ID = "{{ doc_id }}";
-const TOKEN  = "{{ token }}";
+const TOKEN = "{{ token }}";
 
-// ─────────────────────────────────────────────────────────────
-//  PDF VIEWER + SELECCIÓN DE ZONA
-//  Todas las variables de PDF están encapsuladas en este bloque
-// ─────────────────────────────────────────────────────────────
+// ── PDF Viewer ──
 {% if doc.pdf_base64 %}
-// signZone es la única variable que necesita ser accesible desde guardarFirma()
-let signZone = null;
-
-(function initPDF() {
+(async () => {
   const b64 = "{{ doc.pdf_base64 }}";
   const binary = atob(b64);
-  const bytes  = new Uint8Array(binary.length);
+  const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-
-  // Referencias al DOM del PDF — nombres locales, sin conflicto con sigCanvas
-  const pdfCanvasEl  = document.getElementById('pdfCanvas');
-  const pdfCtx       = pdfCanvasEl.getContext('2d');
-  const overlay      = document.getElementById('signZoneOverlay');
-  const zoneInfoEl   = document.getElementById('zoneInfo');
-  const container    = document.getElementById('pdfPageContainer');
-
-  let pdfDoc      = null;
+  const pdfDoc = await pdfjsLib.getDocument({ data: bytes }).promise;
   let currentPage = 1;
 
   async function renderPage(num) {
-    const page     = await pdfDoc.getPage(num);
-    const viewport = page.getViewport({ scale: 1.4 });
-    pdfCanvasEl.height = viewport.height;
-    pdfCanvasEl.width  = viewport.width;
-    await page.render({ canvasContext: pdfCtx, viewport }).promise;
-
-    // Si ya había zona seleccionada en esta página, redibujamos el overlay
-    if (signZone && signZone.page === num) {
-      const scaleX = pdfCanvasEl.getBoundingClientRect().width  / signZone.canvasW;
-      const scaleY = pdfCanvasEl.getBoundingClientRect().height / signZone.canvasH;
-      showOverlay(
-        signZone.x * scaleX,
-        signZone.y * scaleY,
-        signZone.w * scaleX,
-        signZone.h * scaleY
-      );
-    } else {
-      overlay.style.display = 'none';
-    }
-
+    const page = await pdfDoc.getPage(num);
+    const viewport = page.getViewport({ scale: 1.2 });
+    const canvas = document.getElementById('pdfCanvas');
+    const ctx = canvas.getContext('2d');
+    canvas.height = viewport.height;
+    canvas.width = viewport.width;
+    await page.render({ canvasContext: ctx, viewport }).promise;
     if (pdfDoc.numPages > 1) {
       document.getElementById('pdfNav').style.display = 'flex';
       document.getElementById('pageInfo').textContent = `Pág ${num} / ${pdfDoc.numPages}`;
     }
   }
 
-  function showOverlay(x, y, w, h) {
-    overlay.style.left    = x + 'px';
-    overlay.style.top     = y + 'px';
-    overlay.style.width   = w + 'px';
-    overlay.style.height  = h + 'px';
-    overlay.style.display = 'block';
-  }
-
-  // Exponer changePage globalmente para los botones del HTML
-  window.changePage = function(dir) {
+  window.changePage = dir => {
     const np = currentPage + dir;
     if (np < 1 || np > pdfDoc.numPages) return;
     currentPage = np;
     renderPage(np);
   };
-
-  // ── Drag para seleccionar zona ──
-  // Usamos el CONTAINER (div relativo) como superficie de arrastre,
-  // no el canvas directamente, para que las coordenadas sean siempre correctas.
-  let isDragging = false;
-  let dragStartX = 0, dragStartY = 0;
-
-  container.addEventListener('mousedown', function(e) {
-    // Solo si el click fue dentro del canvas renderizado
-    const rect = pdfCanvasEl.getBoundingClientRect();
-    const containerRect = container.getBoundingClientRect();
-    const mouseX = e.clientX - containerRect.left;
-    const mouseY = e.clientY - containerRect.top;
-    // Verificar que esté dentro del canvas (puede haber espacio si el container es más grande)
-    if (mouseX < 0 || mouseY < 0 || mouseX > rect.width || mouseY > rect.height) return;
-
-    isDragging  = true;
-    dragStartX  = mouseX;
-    dragStartY  = mouseY;
-    overlay.style.display = 'none';
-    e.preventDefault();
-  });
-
-  container.addEventListener('mousemove', function(e) {
-    if (!isDragging) return;
-    const containerRect = container.getBoundingClientRect();
-    const currX = e.clientX - containerRect.left;
-    const currY = e.clientY - containerRect.top;
-    showOverlay(
-      Math.min(dragStartX, currX),
-      Math.min(dragStartY, currY),
-      Math.abs(currX - dragStartX),
-      Math.abs(currY - dragStartY)
-    );
-  });
-
-  container.addEventListener('mouseup', function(e) {
-    if (!isDragging) return;
-    isDragging = false;
-
-    const containerRect = container.getBoundingClientRect();
-    const endX = e.clientX - containerRect.left;
-    const endY = e.clientY - containerRect.top;
-
-    const x = Math.min(dragStartX, endX);
-    const y = Math.min(dragStartY, endY);
-    const w = Math.abs(endX - dragStartX);
-    const h = Math.abs(endY - dragStartY);
-
-    if (w < 40 || h < 20) {
-      overlay.style.display = 'none';
-      signZone = null;
-      zoneInfoEl.className = 'zone-info';
-      zoneInfoEl.textContent = '📌 Zona muy pequeña, intentá de nuevo arrastrando un área más grande.';
-      return;
-    }
-
-    // Guardar en coordenadas reales del canvas (no del display CSS)
-    const displayRect = pdfCanvasEl.getBoundingClientRect();
-    const scaleX = pdfCanvasEl.width  / displayRect.width;
-    const scaleY = pdfCanvasEl.height / displayRect.height;
-
-    signZone = {
-      page:    currentPage,
-      x:       x * scaleX,
-      y:       y * scaleY,
-      w:       w * scaleX,
-      h:       h * scaleY,
-      canvasW: pdfCanvasEl.width,
-      canvasH: pdfCanvasEl.height,
-    };
-
-    zoneInfoEl.className = 'zone-info ok';
-    zoneInfoEl.textContent = `✅ Zona de firma seleccionada en página ${currentPage}`;
-  });
-
-  // Touch support para mobile
-  container.addEventListener('touchstart', function(e) {
-    e.preventDefault();
-    const touch = e.touches[0];
-    const containerRect = container.getBoundingClientRect();
-    isDragging = true;
-    dragStartX = touch.clientX - containerRect.left;
-    dragStartY = touch.clientY - containerRect.top;
-    overlay.style.display = 'none';
-  }, { passive: false });
-
-  container.addEventListener('touchmove', function(e) {
-    e.preventDefault();
-    if (!isDragging) return;
-    const touch = e.touches[0];
-    const containerRect = container.getBoundingClientRect();
-    const currX = touch.clientX - containerRect.left;
-    const currY = touch.clientY - containerRect.top;
-    showOverlay(
-      Math.min(dragStartX, currX),
-      Math.min(dragStartY, currY),
-      Math.abs(currX - dragStartX),
-      Math.abs(currY - dragStartY)
-    );
-  }, { passive: false });
-
-  container.addEventListener('touchend', function(e) {
-    if (!isDragging) return;
-    isDragging = false;
-    // Simular mouseup con la última posición del touch
-    const touch = e.changedTouches[0];
-    const containerRect = container.getBoundingClientRect();
-    const endX = touch.clientX - containerRect.left;
-    const endY = touch.clientY - containerRect.top;
-
-    const x = Math.min(dragStartX, endX);
-    const y = Math.min(dragStartY, endY);
-    const w = Math.abs(endX - dragStartX);
-    const h = Math.abs(endY - dragStartY);
-
-    if (w < 30 || h < 15) {
-      overlay.style.display = 'none';
-      signZone = null;
-      zoneInfoEl.className = 'zone-info';
-      zoneInfoEl.textContent = '📌 Zona muy pequeña, intentá de nuevo.';
-      return;
-    }
-
-    const displayRect = pdfCanvasEl.getBoundingClientRect();
-    const scaleX = pdfCanvasEl.width  / displayRect.width;
-    const scaleY = pdfCanvasEl.height / displayRect.height;
-
-    signZone = {
-      page:    currentPage,
-      x:       x * scaleX,
-      y:       y * scaleY,
-      w:       w * scaleX,
-      h:       h * scaleY,
-      canvasW: pdfCanvasEl.width,
-      canvasH: pdfCanvasEl.height,
-    };
-
-    zoneInfoEl.className = 'zone-info ok';
-    zoneInfoEl.textContent = `✅ Zona de firma seleccionada en página ${currentPage}`;
-  });
-
-  // Cargar PDF
-  pdfjsLib.getDocument({ data: bytes }).promise.then(function(pdf) {
-    pdfDoc = pdf;
-    renderPage(1);
-  });
-
-})(); // fin initPDF
-{% else %}
-// Sin PDF: signZone siempre null (no se valida al firmar)
-let signZone = null;
+  renderPage(1);
+})();
 {% endif %}
 
+// ── Signature Pad ──
+const canvas = document.getElementById('sigCanvas');
+const ctx = canvas.getContext('2d');
+ctx.strokeStyle = '#0f0f0f';
+ctx.lineWidth = 2.5;
+ctx.lineCap = 'round';
+ctx.lineJoin = 'round';
 
-// ─────────────────────────────────────────────────────────────
-//  SIGNATURE PAD
-//  Variable "canvas" acá es SOLO el sigCanvas
-// ─────────────────────────────────────────────────────────────
-const sigCanvas = document.getElementById('sigCanvas');
-const sigCtx    = sigCanvas.getContext('2d');
-
-function setSigStyle() {
-  sigCtx.strokeStyle = '#0f0f0f';
-  sigCtx.lineWidth   = 2.5;
-  sigCtx.lineCap     = 'round';
-  sigCtx.lineJoin    = 'round';
-}
-setSigStyle();
-
-function resizeSigCanvas() {
-  const rect  = sigCanvas.getBoundingClientRect();
+// Match canvas to display size
+function resizeCanvas() {
+  const rect = canvas.getBoundingClientRect();
   const ratio = window.devicePixelRatio || 1;
-  sigCanvas.width  = rect.width  * ratio;
-  sigCanvas.height = 180 * ratio;
-  sigCanvas.style.height = '180px';
-  sigCtx.scale(ratio, ratio);
-  setSigStyle();
+  canvas.width = rect.width * ratio;
+  canvas.height = 180 * ratio;
+  canvas.style.height = '180px';
+  ctx.scale(ratio, ratio);
+  ctx.strokeStyle = '#0f0f0f';
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
 }
-resizeSigCanvas();
-window.addEventListener('resize', resizeSigCanvas);
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
 
-let sigDrawing = false, hasContent = false;
+let drawing = false, hasContent = false;
 let lastX = 0, lastY = 0;
 
-function getSigPos(e) {
-  const rect = sigCanvas.getBoundingClientRect();
-  const src  = e.touches ? e.touches[0] : e;
+function getPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const src = e.touches ? e.touches[0] : e;
   return [src.clientX - rect.left, src.clientY - rect.top];
 }
 
-sigCanvas.addEventListener('mousedown', e => {
-  sigDrawing = true;
-  [lastX, lastY] = getSigPos(e);
-});
-sigCanvas.addEventListener('mousemove', e => {
-  if (!sigDrawing) return;
-  const [x, y] = getSigPos(e);
-  sigCtx.beginPath(); sigCtx.moveTo(lastX, lastY); sigCtx.lineTo(x, y); sigCtx.stroke();
+canvas.addEventListener('mousedown', e => { drawing = true; [lastX, lastY] = getPos(e); });
+canvas.addEventListener('mousemove', e => {
+  if (!drawing) return;
+  const [x, y] = getPos(e);
+  ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(x, y); ctx.stroke();
   [lastX, lastY] = [x, y];
   setHasContent();
 });
-sigCanvas.addEventListener('mouseup',    () => { sigDrawing = false; });
-sigCanvas.addEventListener('mouseleave', () => { sigDrawing = false; });
-
-sigCanvas.addEventListener('touchstart', e => {
+canvas.addEventListener('mouseup', () => drawing = false);
+canvas.addEventListener('mouseleave', () => drawing = false);
+canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing = true; [lastX, lastY] = getPos(e); }, { passive: false });
+canvas.addEventListener('touchmove', e => {
   e.preventDefault();
-  sigDrawing = true;
-  [lastX, lastY] = getSigPos(e);
-}, { passive: false });
-sigCanvas.addEventListener('touchmove', e => {
-  e.preventDefault();
-  if (!sigDrawing) return;
-  const [x, y] = getSigPos(e);
-  sigCtx.beginPath(); sigCtx.moveTo(lastX, lastY); sigCtx.lineTo(x, y); sigCtx.stroke();
+  if (!drawing) return;
+  const [x, y] = getPos(e);
+  ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(x, y); ctx.stroke();
   [lastX, lastY] = [x, y];
   setHasContent();
 }, { passive: false });
-sigCanvas.addEventListener('touchend', () => { sigDrawing = false; });
+canvas.addEventListener('touchend', () => drawing = false);
 
 function setHasContent() {
   hasContent = true;
-  document.getElementById('sigHint').style.display   = 'none';
+  document.getElementById('sigHint').style.display = 'none';
   document.getElementById('btnFirmar').disabled = false;
 }
 
 function clearSig() {
-  sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+  const rect = canvas.getBoundingClientRect();
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   hasContent = false;
-  document.getElementById('sigHint').style.display   = 'flex';
+  document.getElementById('sigHint').style.display = 'flex';
   document.getElementById('btnFirmar').disabled = true;
 }
 
-
-// ─────────────────────────────────────────────────────────────
-//  GUARDAR FIRMA
-// ─────────────────────────────────────────────────────────────
 async function guardarFirma() {
   if (!hasContent) { toast('Dibujá tu firma primero'); return; }
-
-  {% if doc.pdf_base64 %}
-  // Solo validar zona si hay PDF
-  if (!signZone) {
-    toast('Seleccioná una zona en el documento primero');
-    return;
-  }
-  {% endif %}
-
   const btn = document.getElementById('btnFirmar');
-  btn.disabled    = true;
+  btn.disabled = true;
   btn.textContent = '⏳ Guardando...';
 
-  const signatureDataUrl = sigCanvas.toDataURL('image/png');
+  const signatureDataUrl = canvas.toDataURL('image/png');
 
   try {
-    const body = { signature_dataurl: signatureDataUrl };
-    if (signZone) body.sign_zone = signZone;   // solo si se seleccionó zona
-
     const res = await fetch(`/api/firmar/${DOC_ID}/${TOKEN}`, {
-      method:  'POST',
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(body),
+      body: JSON.stringify({ signature_dataurl: signatureDataUrl }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Error al guardar la firma');
@@ -492,14 +262,11 @@ async function guardarFirma() {
 
   } catch (e) {
     toast('Error: ' + e.message);
-    btn.disabled    = false;
+    btn.disabled = false;
     btn.textContent = '✅ Confirmar firma';
   }
 }
 
-// ─────────────────────────────────────────────────────────────
-//  TOAST
-// ─────────────────────────────────────────────────────────────
 function toast(msg) {
   const el = document.getElementById('toast');
   el.textContent = msg;
