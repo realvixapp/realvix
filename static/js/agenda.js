@@ -7,7 +7,7 @@ let _gcalPendingData = null;
 
 async function initAgenda() {
   await cargarTareas();
-  initGcalTab();
+  initGcalTab(); // always restore saved calendar
 }
 
 function switchAgendaTab(tab, btn) {
@@ -26,7 +26,9 @@ function initGcalTab() {
   const savedId = localStorage.getItem(GCAL_KEY) || '';
   const input   = document.getElementById('gcalIdInput');
   if (input && savedId) input.value = savedId;
-  if (savedId) mostrarGcalFrame(savedId);
+  if (savedId) {
+    mostrarGcalFrame(savedId);
+  }
 }
 
 function guardarGcalId() {
@@ -42,8 +44,12 @@ function mostrarGcalFrame(calId) {
   const frame  = document.getElementById('gcalFrame');
   const iframe = document.getElementById('gcalIframe');
   if (!iframe) return;
+  // Embed URL: include the user's own calendar as src
+  // The user must be logged into Google in the same browser for this to work
   const encoded = encodeURIComponent(calId);
-  iframe.src = `https://calendar.google.com/calendar/embed?src=${encoded}&ctz=America%2FArgentina%2FBuenos_Aires&showTitle=0&showNav=1&showDate=1&showPrint=0&showTabs=1&showCalendars=1&showTz=0&mode=WEEK&hl=es`;
+  const url = `https://calendar.google.com/calendar/embed?src=${encoded}&ctz=America%2FArgentina%2FBuenos_Aires&showTitle=0&showNav=1&showDate=1&showPrint=0&showTabs=1&showCalendars=1&showTz=0&mode=WEEK&hl=es&wkst=2`;
+  // Only reload iframe if URL changed (avoids unnecessary refresh on tab switch)
+  if (iframe.src !== url) iframe.src = url;
   if (banner) banner.style.display = 'none';
   if (frame)  frame.style.display  = '';
 }
