@@ -15,7 +15,7 @@
 <!-- ══ TAB NUEVA FIRMA ══ -->
 <div id="tabNueva">
 
-  <!-- Card 1: Datos -->
+  <!-- Card 1: Datos + PDF inline -->
   <div class="f-card">
     <div class="f-card-title">📋 Datos del documento</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
@@ -29,32 +29,17 @@
       </div>
     </div>
     <div>
-      <label class="field-label">TU EMAIL</label>
-      <input id="docOrgEmail" type="email" class="input-base" placeholder="email@ejemplo.com">
-    </div>
-  </div>
-
-  <!-- Card 2: PDF -->
-  <div class="f-card">
-    <div class="f-card-title">📎 Archivo PDF</div>
-    <div id="pdfDropZone" class="f-dropzone"
-         onclick="document.getElementById('docPdf').click()"
-         ondragover="event.preventDefault();this.classList.add('drag-over')"
-         ondragleave="this.classList.remove('drag-over')"
-         ondrop="onPdfDrop(event)">
-      <div style="font-size:1.8rem;opacity:.3;margin-bottom:6px;">📎</div>
-      <div style="font-size:0.88rem;color:var(--text-secondary);">Hacé clic o arrastrá el PDF aquí</div>
-      <div style="font-size:0.76rem;color:var(--text-tertiary);margin-top:3px;">El documento que todos van a firmar</div>
-    </div>
-    <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-      <label class="btn-xs" style="cursor:pointer;text-transform:uppercase;letter-spacing:.4px;">
-        Seleccionar archivo
-        <input type="file" id="docPdf" accept="application/pdf" style="display:none" onchange="onPdfSelected(this)">
-      </label>
-      <span id="pdfFileLabel" style="font-size:0.8rem;color:var(--text-secondary);"></span>
-    </div>
-    <div id="pdfBadge" style="display:none;margin-top:10px;background:var(--success-bg);border:1px solid #A7F3D0;border-radius:var(--radius-md);padding:10px 14px;align-items:center;gap:8px;font-size:0.84rem;font-weight:500;color:#065F46;">
-      <span>✅</span><span id="pdfBadgeName"></span>
+      <label class="field-label">DOCUMENTO PDF</label>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:4px;">
+        <label class="btn-secondary" style="cursor:pointer;margin:0;font-size:0.82rem;padding:8px 14px;">
+          📎 Seleccionar PDF
+          <input type="file" id="docPdf" accept="application/pdf" style="display:none" onchange="onPdfSelected(this)">
+        </label>
+        <span id="pdfFileLabel" style="font-size:0.82rem;color:var(--text-secondary);"></span>
+      </div>
+      <div id="pdfBadge" style="display:none;margin-top:8px;background:var(--success-bg);border:1px solid #A7F3D0;border-radius:var(--radius-md);padding:8px 14px;align-items:center;gap:8px;font-size:0.83rem;font-weight:500;color:#065F46;">
+        <span>✅</span><span id="pdfBadgeName"></span>
+      </div>
     </div>
   </div>
 
