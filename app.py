@@ -816,71 +816,40 @@ def pagina_listing():
 def listar_propiedades():
     user = get_current_user()
     uid = user['id']
-    vista = request.args.get('vista','listing')
+    vista = request.args.get('vista', 'listing')
     conn = get_connection()
-    if not conn:
-        return jsonify({'propiedades': [], 'estados': []})
+    if not conn: return jsonify({'propiedades': [], 'estados': []})
     try:
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        # Estados: user-specific OR global
-        cur.execute("""
-            SELECT * FROM estado_opciones
-            WHERE user_id=%s OR user_id='global'
-            ORDER BY orden
-        """, (uid,))
-        estados = [dict(r) for r in cur.fetchall()]
-        # Deduplicate: user-specific overrides global
+        # Estados - igual que contactos
+        cur.execute("SELECT * FROM estado_opciones WHERE user_id=%s OR user_id='global' ORDER BY orden", (uid,))
+        todos_estados = [dict(r) for r in cur.fetchall()]
         seen = {}
-        for e in estados:
+        for e in todos_estados:
             n = e['nombre']
             if n not in seen or e['user_id'] == uid:
                 seen[n] = e
         estados = list(seen.values())
-
-        if vista == 'all':
-            try:
-                cur.execute("SELECT * FROM propiedades WHERE user_id=%s ORDER BY updated_at DESC", (uid,))
-            except:
-                conn.rollback()
-                cur.execute("SELECT * FROM propiedades ORDER BY created_at DESC")
-        elif vista == 'listing':
-            try:
-                cur.execute("""
-                    SELECT p.* FROM propiedades p
-                    JOIN estado_opciones e ON p.estado_tasacion = e.nombre
-                    WHERE p.user_id=%s AND (e.user_id=%s OR e.user_id='global') AND e.vista='listing'
-                    ORDER BY p.updated_at DESC
-                """, (uid, uid))
-            except:
-                conn.rollback()
-                cur.execute("SELECT * FROM propiedades ORDER BY created_at DESC")
-        elif vista == 'analisis':
-            try:
-                cur.execute("SELECT * FROM propiedades WHERE user_id=%s ORDER BY updated_at DESC", (uid,))
-            except:
-                conn.rollback()
-                cur.execute("SELECT * FROM propiedades ORDER BY created_at DESC")
-        elif vista.startswith('estado:') or vista in [e['nombre'] for e in estados]:
-            estado_nombre = vista.replace('estado:','') if vista.startswith('estado:') else vista
-            try:
-                cur.execute("SELECT * FROM propiedades WHERE user_id=%s AND estado_tasacion=%s ORDER BY updated_at DESC",
-                    (uid, estado_nombre))
-            except:
-                conn.rollback()
-                cur.execute("SELECT * FROM propiedades WHERE estado_tasacion=%s ORDER BY created_at DESC", (estado_nombre,))
-        else:
-            try:
-                cur.execute("SELECT * FROM propiedades WHERE user_id=%s ORDER BY updated_at DESC", (uid,))
-            except:
-                conn.rollback()
-                cur.execute("SELECT * FROM propiedades ORDER BY created_at DESC")
-
-        props = [dict(r) for r in cur.fetchall()]
+        # Propiedades - igual que contactos, sin JOIN
+        cur.execute("SELECT * FROM propiedades WHERE user_id=%s ORDER BY created_at DESC", (uid,))
+        todas = [dict(r) for r in cur.fetchall()]
         cur.close(); conn.close()
+        # Filtro de vista en Python
+        if vista in ('all', 'analisis'):
+            props = todas
+        elif vista == 'listing':
+            nombres_listing = {e['nombre'] for e in estados if e.get('vista') == 'listing'}
+            props = [p for p in todas if p.get('estado_tasacion') in nombres_listing] if nombres_listing else todas
+        elif vista.startswith('estado:'):
+            en = vista.replace('estado:', '')
+            props = [p for p in todas if p.get('estado_tasacion') == en]
+        else:
+            props = todas
         return jsonify({'propiedades': props, 'estados': estados})
     except Exception as e:
         print(f"[DB ERROR] listar_propiedades: {e}")
         return jsonify({'propiedades': [], 'estados': []})
+
 
 @app.route('/api/propiedades', methods=['POST'])
 @login_required
