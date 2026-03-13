@@ -940,16 +940,17 @@ async function crearPropiedad() {
   if (!dir) { alert('Ingresá la dirección'); return; }
   const btn = document.querySelector('#modalNueva .btn-ink');
   if (btn) { btn.textContent = '⏳ Creando...'; btn.disabled = true; }
+  const val = id => { const el = document.getElementById(id); return el ? el.value : ''; };
   const data = {
     direccion: dir,
-    localidad: document.getElementById('nLocalidad').value,
-    zona: document.getElementById('nZona').value,
-    tipologia: document.getElementById('nTipologia').value,
-    estado_tasacion: document.getElementById('nEstado').value || estados[0]?.nombre || 'Pendiente Visita',
-    nombre_propietario: document.getElementById('nNombre').value,
-    telefono: document.getElementById('nTelefono').value,
-    url: document.getElementById('nLinkFicha').value,
-    observaciones: document.getElementById('nObs').value,
+    localidad: val('nLocalidad'),
+    zona: val('nZona'),
+    tipologia: val('nTipologia'),
+    estado_tasacion: val('nEstado') || (estados[0]?.nombre) || 'Pendiente Visita',
+    nombre_propietario: val('nNombre'),
+    telefono: val('nTelefono'),
+    url: val('nLinkFicha'),
+    observaciones: val('nObs'),
   };
   try {
     const res = await fetch('/api/propiedades', {
