@@ -760,7 +760,6 @@ def crear_documento():
     firmantes = []
     for f in firmantes_data:
         token = secrets.token_urlsafe(20)
-        # Usar BASE_URL si existe, si no, auto-detectar desde request
         base_url = get_env('BASE_URL').rstrip('/') if get_env('BASE_URL') else request.host_url.rstrip('/')
         sign_url = f"{base_url}/firmar/{doc_id}/{token}"
         firmantes.append({
