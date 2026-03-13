@@ -69,6 +69,15 @@ function renderListing() {
     container.innerHTML = `<div class="empty-state">No hay propiedades en el listing</div>`; return;
   }
 
+  const RESP_MAP = {
+    '':                   { label: '— Sin respuesta —',   color:'#9CA3AF', bg:'#F9FAFB' },
+    'aceptado':           { label: '✅ Aceptado',          color:'#059669', bg:'#ECFDF5' },
+    'rechazado':          { label: '❌ Rechazado',         color:'#DC2626', bg:'#FEF2F2' },
+    'pendiente_respuesta':{ label: '⏳ Pendiente resp.',   color:'#D97706', bg:'#FFFBEB' },
+    'decide_esperar':     { label: '🕐 Decide esperar',    color:'#7C3AED', bg:'#F5F3FF' },
+    'vendio_con_otro':    { label: '🔄 Vendió con otro',   color:'#6B7280', bg:'#F3F4F6' },
+  };
+
   container.innerHTML = `
     <table class="table">
       <thead><tr>
@@ -77,11 +86,14 @@ function renderListing() {
         <th>Teléfono</th>
         <th>Tipología</th>
         <th>Estado tasación</th>
+        <th>Respuesta propietario</th>
         <th style="text-align:right">Acciones</th>
       </tr></thead>
       <tbody>
         ${lista.map(p => {
-          const est = ESTADIO_MAP[p.estado_tasacion] || { label: p.estado_tasacion || '—', color: '#888', bg: '#f3f4f6' };
+          const est   = ESTADIO_MAP[p.estado_tasacion] || { label: p.estado_tasacion || '—', color: '#888', bg: '#f3f4f6' };
+          const resp  = p.respuesta_listing || '';
+          const rInfo = RESP_MAP[resp] || RESP_MAP[''];
           return `<tr>
             <td>
               <div style="font-weight:600;">${escHtml(p.direccion || '—')}</div>
@@ -99,6 +111,15 @@ function renderListing() {
                 ${est.label}
               </span>
             </td>
+            <td>
+              <select class="input-base" style="font-size:0.75rem;padding:3px 8px;height:auto;border-radius:12px;border-color:${rInfo.color}44;background:${rInfo.bg};color:${rInfo.color};font-weight:600;"
+                data-pid="${p.id}"
+                onchange="cambiarRespuestaListing(this.dataset.pid, this.value)">
+                ${Object.entries(RESP_MAP).map(([k,v]) =>
+                  `<option value="${k}" ${resp===k?'selected':''}>${v.label}</option>`
+                ).join('')}
+              </select>
+            </td>
             <td style="text-align:right;white-space:nowrap;">
               ${p.url ? `<a class="btn-icon-sm" href="${escHtml(p.url)}" target="_blank" title="Ver portal">🔗</a>` : ''}
               ${p.telefono ? `<button class="btn-icon-sm" title="WhatsApp" onclick="abrirWA('${escHtml(p.telefono)}','${escHtml(p.nombre_propietario||'')}')">💬</button>` : ''}
@@ -111,6 +132,17 @@ function renderListing() {
     </table>`;
 }
 
+
+
+async function cambiarRespuestaListing(pid, valor) {
+  const p = NEG.propiedades.find(x => x.id === pid);
+  if (!p) return;
+  try {
+    await apiPut(`/api/propiedades/${pid}`, { ...p, respuesta_listing: valor });
+    p.respuesta_listing = valor;
+    showToast('Respuesta actualizada ✓');
+  } catch(e) { showToast(e.message, 'error'); }
+}
 function actualizarStatsListing() {
   const total = NEG.propiedades.length;
   const captadas = NEG.propiedades.filter(p => ['captado','publicado','reservado','cerrado'].includes(p.estado_tasacion)).length;
@@ -434,7 +466,7 @@ function renderContactoRow(ct, TIPO_COLORS) {
   // Use data-id attribute to avoid quote nesting issues
   return `
     <div class="card" style="padding:12px 16px;display:flex;align-items:center;gap:14px;margin-bottom:6px;cursor:pointer;"
-      onclick="editarContacto('${ct.id}')" title="Click para editar">
+      data-ctcid="${ct.id}" onclick="editarContacto(this.dataset.ctcid)" title="Click para editar">
       <div style="width:38px;height:38px;border-radius:50%;background:${tc.bg};color:${tc.color};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem;flex-shrink:0;">
         ${escHtml((ct.nombre||'?')[0].toUpperCase())}
       </div>
