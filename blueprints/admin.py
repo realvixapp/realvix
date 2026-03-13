@@ -7,7 +7,7 @@
 
 <div style="display:flex;gap:10px;margin-bottom:20px;align-items:center;flex-wrap:wrap;">
   <button class="btn-primary" onclick="abrirNuevoUsuario()">+ Nuevo usuario</button>
-  <button class="btn-secondary" onclick="ejecutarInitDB()" title="Crea las tablas faltantes en la base de datos">🔧 Inicializar base de datos</button>
+  <button class="btn-secondary" onclick="ejecutarInitDB()">🔧 Inicializar tablas DB</button>
 </div>
 
 <div id="usersTable">
@@ -55,14 +55,15 @@
 <script src="/static/js/admin.js"></script>
 <script>
 async function ejecutarInitDB() {
-  if (!confirm('¿Inicializar la base de datos? Esto crea todas las tablas faltantes sin borrar datos existentes.')) return;
+  if (!confirm('¿Crear todas las tablas faltantes en la base de datos?')) return;
   try {
     const r = await fetch('/api/init-db', { method: 'POST' });
     const d = await r.json();
     if (d.ok) {
-      alert('✅ Base de datos inicializada correctamente. Recargá la página.');
+      alert('✅ ' + d.msg + '\n\nRecargá la página para empezar a usar el CRM.');
+      location.reload();
     } else {
-      alert('❌ Error: ' + (d.error || 'desconocido'));
+      alert('❌ Error: ' + (d.error || JSON.stringify(d)));
     }
   } catch(e) {
     alert('❌ Error de red: ' + e.message);
