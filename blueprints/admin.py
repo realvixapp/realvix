@@ -1,115 +1,76 @@
-"""
-Blueprint: Admin
-Rutas: /api/admin/users
-Tablas: users, user_sessions
-"""
-import json, secrets
-from datetime import datetime, timedelta
-from flask import Blueprint, request, jsonify, abort
+{% extends "base.html" %}
+{% block title %}Admin — Realvix CRM{% endblock %}
 
-bp = Blueprint('admin', __name__)
+{% block content %}
+<div class="page-title">Administración</div>
+<div class="page-sub">Usuarios, roles y configuración del sistema</div>
 
+<div style="display:flex;gap:10px;margin-bottom:20px;align-items:center;flex-wrap:wrap;">
+  <button class="btn-primary" onclick="abrirNuevoUsuario()">+ Nuevo usuario</button>
+  <button class="btn-secondary" onclick="ejecutarInitDB()" title="Crea las tablas faltantes en la base de datos">🔧 Inicializar base de datos</button>
+</div>
 
-@bp.route('/api/admin/users', methods=['GET'])
-def admin_list_users():
-    from app import list_users, get_current_user
-    user = get_current_user()
-    if not user: return jsonify({'error': 'No autenticado'}), 401
-    if user.get('role') != 'admin': abort(403)
-    return jsonify({'users': list_users()})
+<div id="usersTable">
+  <div class="loading-state">Cargando...</div>
+</div>
 
-@bp.route('/api/admin/users', methods=['POST'])
-def admin_create_user():
-    from app import get_connection, get_current_user, get_user_by_email, create_user
-    user = get_current_user()
-    if not user: return jsonify({'error': 'No autenticado'}), 401
-    if user.get('role') != 'admin': abort(403)
-    data = request.json or {}
-    email = data.get('email','').strip()
-    name = data.get('name','').strip()
-    password = data.get('password','').strip()
-    role = data.get('role','member')
-    permisos = data.get('permisos', {})
-    if not email or not name or not password:
-        return jsonify({'error': 'Todos los campos son requeridos'}), 400
-    if get_user_by_email(email):
-        return jsonify({'error': 'Ya existe una cuenta con ese email'}), 409
-    uid = create_user(email, name, password, role, permisos)
-    if not uid: return jsonify({'error': 'Error al crear usuario'}), 500
-    return jsonify({'ok': True, 'user_id': uid})
+<!-- Modal usuario -->
+<div class="modal-bg" id="modalUsuario">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <h3 id="modalUsrTitulo">Nuevo usuario</h3>
+      <button class="modal-close" onclick="cerrarModal('modalUsuario')">✕</button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;">
+      <input type="hidden" id="usrId">
+      <div class="field">
+        <label class="field-label">Nombre</label>
+        <input type="text" id="usrName" class="input-base">
+      </div>
+      <div class="field">
+        <label class="field-label">Email</label>
+        <input type="email" id="usrEmail" class="input-base">
+      </div>
+      <div class="field" id="usrPassField">
+        <label class="field-label">Contraseña</label>
+        <input type="password" id="usrPass" class="input-base" placeholder="Mínimo 6 caracteres">
+      </div>
+      <div class="field">
+        <label class="field-label">Rol</label>
+        <select id="usrRole" class="input-base">
+          <option value="member">Miembro</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="cerrarModal('modalUsuario')">Cancelar</button>
+      <button class="btn-primary" onclick="guardarUsuario()">Guardar</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
 
-@bp.route('/api/admin/users/<user_id>', methods=['PUT'])
-def admin_update_user(user_id):
-    from app import get_connection, get_current_user
-    user = get_current_user()
-    if not user: return jsonify({'error': 'No autenticado'}), 401
-    if user.get('role') != 'admin': abort(403)
-    data = request.json or {}
-    conn = get_connection()
-    if not conn: return jsonify({'error': 'Sin DB'}), 500
-    try:
-        cur = conn.cursor()
-        if 'permisos' in data:
-            cur.execute("UPDATE users SET permisos=%s WHERE id=%s", (json.dumps(data['permisos']), user_id))
-        if 'role' in data:
-            cur.execute("UPDATE users SET role=%s WHERE id=%s", (data['role'], user_id))
-        if 'name' in data:
-            cur.execute("UPDATE users SET name=%s WHERE id=%s", (data['name'], user_id))
-        conn.commit(); cur.close(); conn.close()
-        return jsonify({'ok': True})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+{% block extra_js %}
+<script src="/static/js/admin.js"></script>
+<script>
+async function ejecutarInitDB() {
+  if (!confirm('¿Inicializar la base de datos? Esto crea todas las tablas faltantes sin borrar datos existentes.')) return;
+  try {
+    const r = await fetch('/api/init-db', { method: 'POST' });
+    const d = await r.json();
+    if (d.ok) {
+      alert('✅ Base de datos inicializada correctamente. Recargá la página.');
+    } else {
+      alert('❌ Error: ' + (d.error || 'desconocido'));
+    }
+  } catch(e) {
+    alert('❌ Error de red: ' + e.message);
+  }
+}
+</script>
+{% endblock %}
 
-@bp.route('/api/admin/users/<user_id>', methods=['DELETE'])
-def admin_delete_user(user_id):
-    from app import get_connection, get_current_user
-    curr = get_current_user()
-    if not curr: return jsonify({'error': 'No autenticado'}), 401
-    if curr.get('role') != 'admin': abort(403)
-    if curr['id'] == user_id:
-        return jsonify({'error': 'No podés eliminarte a vos mismo'}), 400
-    conn = get_connection()
-    if not conn: return jsonify({'error': 'Sin DB'}), 500
-    cur = conn.cursor()
-    cur.execute("DELETE FROM users WHERE id=%s", (user_id,))
-    cur.execute("DELETE FROM user_sessions WHERE user_id=%s", (user_id,))
-    conn.commit(); cur.close(); conn.close()
-    return jsonify({'ok': True})
-
-@bp.route('/api/admin/users/<user_id>/password', methods=['POST'])
-def admin_change_password(user_id):
-    from app import get_connection, get_current_user, hash_password
-    user = get_current_user()
-    if not user: return jsonify({'error': 'No autenticado'}), 401
-    if user.get('role') != 'admin': abort(403)
-    data = request.json or {}
-    pw = data.get('password','').strip()
-    if len(pw) < 6: return jsonify({'error': 'Mínimo 6 caracteres'}), 400
-    conn = get_connection()
-    if not conn: return jsonify({'error': 'Sin DB'}), 500
-    cur = conn.cursor()
-    cur.execute("UPDATE users SET password_hash=%s WHERE id=%s", (hash_password(pw), user_id))
-    conn.commit(); cur.close(); conn.close()
-    return jsonify({'ok': True})
-
-@bp.route('/api/admin/users/<user_id>/invite', methods=['POST'])
-def admin_invite_link(user_id):
-    from app import get_connection, get_current_user
-    from flask import request as req
-    user = get_current_user()
-    if not user: return jsonify({'error': 'No autenticado'}), 401
-    if user.get('role') != 'admin': abort(403)
-    token = secrets.token_urlsafe(24)
-    expires = datetime.now() + timedelta(hours=48)
-    conn = get_connection()
-    if not conn: return jsonify({'error': 'Sin DB'}), 500
-    try:
-        cur = conn.cursor()
-        cur.execute("DELETE FROM user_sessions WHERE user_id=%s AND token LIKE 'invite_%'", (user_id,))
-        cur.execute("INSERT INTO user_sessions (token,user_id,expires_at) VALUES (%s,%s,%s)",
-            (f'invite_{token}', user_id, expires))
-        conn.commit(); cur.close(); conn.close()
-        base = req.host_url.rstrip('/')
-        return jsonify({'ok': True, 'link': f'{base}/set-password?token={token}'})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+{% block on_ready %}
+initAdmin();
+{% endblock %}
