@@ -508,6 +508,18 @@ def forzar_migracion():
         return jsonify({'error': str(e), 'resultados': resultados}), 500
 
 
+@app.route('/api/init-db', methods=['POST'])
+@admin_required
+def forzar_init_db():
+    """Re-ejecuta init_db() para crear todas las tablas faltantes. Útil si la DB
+    no estaba disponible al arrancar la app en Railway."""
+    try:
+        init_db()
+        return jsonify({'ok': True, 'msg': 'init_db() ejecutado correctamente'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 # ── Init ──
 init_db()
 
