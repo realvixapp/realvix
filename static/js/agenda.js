@@ -14,8 +14,10 @@ function switchAgendaTab(tab, btn) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
   document.getElementById('tabCalendario').style.display = tab === 'calendario' ? '' : 'none';
-  document.getElementById('tabTareas').style.display = tab === 'tareas' ? '' : 'none';
+  document.getElementById('tabGcal').style.display       = tab === 'gcal'       ? '' : 'none';
+  document.getElementById('tabTareas').style.display     = tab === 'tareas'     ? '' : 'none';
   if (tab === 'tareas') renderKanban();
+  if (tab === 'gcal')   initGcalTab();
 }
 
 // ── EVENTOS ──
@@ -268,4 +270,135 @@ async function eliminarTarea(id) {
     showToast('Tarea eliminada');
     await cargarTareas();
   } catch (e) { showToast(e.message, 'error'); }
+}
+
+// ══════════════════════════════════════════════════════════
+// ── GOOGLE CALENDAR EMBEBIDO ──
+// ══════════════════════════════════════════════════════════
+
+const GCAL_KEY = 'realvix_gcal_id';
+
+function initGcalTab() {
+  const savedId = localStorage.getItem(GCAL_KEY) || '';
+  const banner  = document.getElementById('gcalSetupBanner');
+  const frame   = document.getElementById('gcalFrame');
+  const input   = document.getElementById('gcalIdInput');
+
+  if (savedId) {
+    if (input) input.value = savedId;
+    mostrarGcalFrame(savedId);
+  } else {
+    if (banner) banner.style.display = 'flex';
+    if (frame)  frame.style.display  = 'none';
+  }
+}
+
+function guardarGcalId() {
+  const input = document.getElementById('gcalIdInput');
+  const id    = (input?.value || '').trim();
+  if (!id) { showToast('Ingresá el ID del calendario', 'error'); return; }
+  localStorage.setItem(GCAL_KEY, id);
+  mostrarGcalFrame(id);
+  showToast('Google Calendar conectado ✓', 'success');
+}
+
+function mostrarGcalFrame(calId) {
+  const banner = document.getElementById('gcalSetupBanner');
+  const frame  = document.getElementById('gcalFrame');
+  const iframe = document.getElementById('gcalIframe');
+  if (!iframe) return;
+
+  // Build Google Calendar embed URL
+  const encodedId = encodeURIComponent(calId);
+  const src = `https://calendar.google.com/calendar/embed?src=${encodedId}&ctz=America%2FArgentina%2FBuenos_Aires&showTitle=0&showNav=1&showDate=1&showPrint=0&showTabs=1&showCalendars=1&showTz=0&mode=WEEK&hl=es`;
+  iframe.src = src;
+
+  if (banner) banner.style.display = 'none';
+  if (frame)  frame.style.display  = '';
+}
+
+function desconectarGcal() {
+  localStorage.removeItem(GCAL_KEY);
+  const banner = document.getElementById('gcalSetupBanner');
+  const frame  = document.getElementById('gcalFrame');
+  const iframe = document.getElementById('gcalIframe');
+  if (banner) banner.style.display = 'flex';
+  if (frame)  frame.style.display  = 'none';
+  if (iframe) iframe.src = '';
+  showToast('Calendar desconectado');
+}
+
+// ══════════════════════════════════════════════════════════
+// ── MODAL GLOBAL: PEDIR AGENDAR EN GOOGLE CALENDAR ──
+// Llamar desde cualquier módulo: pedirAgendarEnCalendar(opts)
+// opts: { titulo, descripcion, fecha, hora, tipo }
+// ══════════════════════════════════════════════════════════
+
+let _gcalPendingCallback = null;
+
+function pedirAgendarEnCalendar(opts = {}) {
+  // Verificar que el calendario esté conectado
+  const calId = localStorage.getItem(GCAL_KEY);
+
+  const hoy = new Date().toISOString().split('T')[0];
+  const desc = opts.descripcion || opts.titulo || 'Nueva actividad';
+
+  const descEl  = document.getElementById('gcalConfirmDesc');
+  const fechaEl = document.getElementById('gcalConfirmFecha');
+  const horaEl  = document.getElementById('gcalConfirmHora');
+  const notasEl = document.getElementById('gcalConfirmNotas');
+
+  if (descEl)  descEl.textContent = desc;
+  if (fechaEl) fechaEl.value = opts.fecha || hoy;
+  if (horaEl)  horaEl.value  = opts.hora  || '10:00';
+  if (notasEl) notasEl.value = opts.notas || '';
+
+  _gcalPendingCallback = opts.onConfirm || null;
+
+  abrirModal('modalConfirmarGcal');
+}
+
+function confirmarAgregarGcal() {
+  const calId     = localStorage.getItem(GCAL_KEY);
+  const descEl    = document.getElementById('gcalConfirmDesc');
+  const fechaEl   = document.getElementById('gcalConfirmFecha');
+  const horaEl    = document.getElementById('gcalConfirmHora');
+  const durEl     = document.getElementById('gcalConfirmDuracion');
+  const notasEl   = document.getElementById('gcalConfirmNotas');
+
+  const titulo    = descEl?.textContent  || 'Evento Realvix';
+  const fecha     = fechaEl?.value       || new Date().toISOString().split('T')[0];
+  const hora      = horaEl?.value        || '10:00';
+  const durMin    = parseInt(durEl?.value || '60');
+  const notas     = notasEl?.value       || '';
+
+  // Construir fecha inicio y fin para Google Calendar URL
+  const [y,m,d]   = fecha.split('-');
+  const [hh,mm]   = hora.split(':');
+  const dtInicio  = `${y}${m}${d}T${hh}${mm}00`;
+
+  // Calcular fin sumando duración
+  const finDate   = new Date(parseInt(y), parseInt(m)-1, parseInt(d), parseInt(hh), parseInt(mm) + durMin);
+  const fy = finDate.getFullYear();
+  const fm = String(finDate.getMonth()+1).padStart(2,'0');
+  const fd = String(finDate.getDate()).padStart(2,'0');
+  const fh = String(finDate.getHours()).padStart(2,'0');
+  const fmm= String(finDate.getMinutes()).padStart(2,'0');
+  const dtFin = `${fy}${fm}${fd}T${fh}${fmm}00`;
+
+  const gcalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE`
+    + `&text=${encodeURIComponent(titulo)}`
+    + `&dates=${dtInicio}/${dtFin}`
+    + `&details=${encodeURIComponent(notas)}`
+    + (calId ? `&src=${encodeURIComponent(calId)}` : '');
+
+  window.open(gcalUrl, '_blank');
+
+  cerrarModal('modalConfirmarGcal');
+  showToast('Evento abierto en Google Calendar ✓', 'success');
+
+  if (_gcalPendingCallback) {
+    _gcalPendingCallback({ titulo, fecha, hora, durMin, notas });
+    _gcalPendingCallback = null;
+  }
 }
