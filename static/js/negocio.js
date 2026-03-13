@@ -31,7 +31,8 @@ function switchTab(tab, btn) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
   document.getElementById('tabListing').style.display   = tab === 'listing'   ? '' : 'none';
-  document.getElementById('tabEstado').style.display    = tab === 'estado'    ? '' : 'none';
+  const tabEst = document.getElementById('tabEstado');
+  if (tabEst) tabEst.style.display = 'none'; // removed
   document.getElementById('tabContactos').style.display = tab === 'contactos' ? '' : 'none';
   document.getElementById('tabActividad').style.display = tab === 'actividad' ? '' : 'none';
   if (tab === 'actividad') cargarActividad();
@@ -70,12 +71,11 @@ function renderListing() {
   }
 
   const RESP_MAP = {
-    '':                   { label: '— Sin respuesta —',   color:'#9CA3AF', bg:'#F9FAFB' },
-    'aceptado':           { label: '✅ Aceptado',          color:'#059669', bg:'#ECFDF5' },
-    'rechazado':          { label: '❌ Rechazado',         color:'#DC2626', bg:'#FEF2F2' },
-    'pendiente_respuesta':{ label: '⏳ Pendiente resp.',   color:'#D97706', bg:'#FFFBEB' },
-    'decide_esperar':     { label: '🕐 Decide esperar',    color:'#7C3AED', bg:'#F5F3FF' },
-    'vendio_con_otro':    { label: '🔄 Vendió con otro',   color:'#6B7280', bg:'#F3F4F6' },
+    'esperando_respuesta':{ label: '⏳ Esperando respuesta', color:'#D97706', bg:'#FFFBEB' },
+    'aceptado':           { label: '✅ Aceptado',             color:'#059669', bg:'#ECFDF5' },
+    'rechazado':          { label: '❌ Rechazado',            color:'#DC2626', bg:'#FEF2F2' },
+    'decide_esperar':     { label: '🕐 Decide esperar',       color:'#7C3AED', bg:'#F5F3FF' },
+    'vendio_con_otro':    { label: '🔄 Vendió con otro',      color:'#6B7280', bg:'#F3F4F6' },
   };
 
   container.innerHTML = `
@@ -107,9 +107,13 @@ function renderListing() {
             </td>
             <td>${escHtml(p.tipologia || '—')}</td>
             <td>
-              <span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:0.72rem;font-weight:600;background:${est.bg};color:${est.color};">
-                ${est.label}
-              </span>
+              <select class="estadio-inline-select" data-pid="${p.id}"
+                onchange="cambiarEstadioListing(this.dataset.pid, this.value)"
+                style="font-size:0.75rem;padding:3px 8px;border-radius:12px;border:1px solid ${est.color}44;background:${est.bg};color:${est.color};font-weight:600;cursor:pointer;outline:none;">
+                ${Object.entries(ESTADIO_MAP).map(([k,v]) =>
+                  `<option value="${k}" ${(p.estado_tasacion||'')=== k?'selected':''}>${v.label}</option>`
+                ).join('')}
+              </select>
             </td>
             <td>
               <select class="input-base" style="font-size:0.75rem;padding:3px 8px;height:auto;border-radius:12px;border-color:${rInfo.color}44;background:${rInfo.bg};color:${rInfo.color};font-weight:600;"
@@ -138,9 +142,45 @@ async function cambiarRespuestaListing(pid, valor) {
   const p = NEG.propiedades.find(x => x.id === pid);
   if (!p) return;
   try {
-    await apiPut(`/api/propiedades/${pid}`, { ...p, respuesta_listing: valor });
+    const updates = { ...p, respuesta_listing: valor };
+    // Si acepta → auto-mover a Captado (si no estaba ya en captado/publicado/reservado)
+    if (valor === 'aceptado') {
+      const estActual = (p.estado_tasacion || '').toLowerCase();
+      if (!['captado','publicado','reservado','cerrado'].includes(estActual)) {
+        updates.estado_tasacion = 'captado';
+        updates.estadio = 'captado';
+        showToast('✅ Aceptado → movida automáticamente a Captado', 'success');
+      } else {
+        showToast('Respuesta: Aceptado ✓', 'success');
+      }
+    } else {
+      showToast('Respuesta actualizada ✓');
+    }
+    await apiPut(`/api/propiedades/${pid}`, updates);
     p.respuesta_listing = valor;
-    showToast('Respuesta actualizada ✓');
+    if (updates.estado_tasacion) p.estado_tasacion = updates.estado_tasacion;
+    renderListing();
+    actualizarStatsListing();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+async function cambiarEstadioListing(pid, nuevoEstadio) {
+  const p = NEG.propiedades.find(x => x.id === pid);
+  if (!p) return;
+  try {
+    await apiPut(`/api/propiedades/${pid}`, { ...p, estado_tasacion: nuevoEstadio, estadio: nuevoEstadio });
+    p.estado_tasacion = nuevoEstadio;
+    p.estadio = nuevoEstadio;
+    actualizarStatsListing();
+    showToast('Estado actualizado ✓');
+    if (['en_tasacion','captado'].includes(nuevoEstadio)) {
+      const label = ESTADIO_MAP[nuevoEstadio]?.label || nuevoEstadio;
+      setTimeout(() => pedirAgendarEnCalendar({
+        titulo: `${label} — ${p.direccion||'Propiedad'}`,
+        descripcion: `📋 ${label} · ${p.direccion||''}${p.nombre_propietario ? ' · '+p.nombre_propietario : ''}`,
+        hora: '10:00',
+      }), 300);
+    }
   } catch(e) { showToast(e.message, 'error'); }
 }
 function actualizarStatsListing() {
@@ -306,6 +346,7 @@ async function guardarPropiedad() {
     proximo_contacto:   document.getElementById('propProximo').value,
     fecha_prelisting:   document.getElementById('propPrelisting').value,
     observaciones:      document.getElementById('propObservaciones').value,
+    respuesta_listing:  id ? (NEG.propiedades.find(x=>x.id===id)?.respuesta_listing||'esperando_respuesta') : 'esperando_respuesta',
   };
 
   try {
@@ -617,15 +658,23 @@ function renderActividad() {
   if (filtroEst) props = props.filter(p => (p.estado_tasacion || p.estadio || '').toLowerCase().includes(filtroEst));
 
   // Stats globales
+  const todasProps = ACT.propiedades; // para stats de respuesta (incluye todas)
   const totalLeads   = ACT.consultas.filter(c => props.some(p => p.direccion && c.propiedad_nombre === p.direccion)).length;
   const totalVisitas = ACT.consultas.filter(c => ['visito','visitó'].includes((c.estado||'').toLowerCase()) && props.some(p => p.direccion && c.propiedad_nombre === p.direccion)).length;
   const pendVisita   = ACT.consultas.filter(c => c.estado === 'pendiente_visita' && props.some(p => p.direccion && c.propiedad_nombre === p.direccion)).length;
+  // Respuesta propietario stats
+  const nAceptadas  = todasProps.filter(p => p.respuesta_listing === 'aceptado').length;
+  const nRechazadas = todasProps.filter(p => p.respuesta_listing === 'rechazado').length;
+  const nEsperando  = todasProps.filter(p => (p.respuesta_listing||'esperando_respuesta') === 'esperando_respuesta').length;
 
   const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   setEl('actTotalProps',  props.length);
   setEl('actTotalLeads',  totalLeads);
   setEl('actTotalVisitas',totalVisitas);
   setEl('actPendVisita',  pendVisita);
+  setEl('actRespAcept',   nAceptadas);
+  setEl('actRespRech',    nRechazadas);
+  setEl('actRespEsp',     nEsperando);
 
   const container = document.getElementById('actividadGrid');
   if (!container) return;
