@@ -21,15 +21,11 @@
     </div>
     <button class="btn-primary" onclick="abrirNuevaPropiedad()">+ Nueva propiedad</button>
   </div>
-
-  <!-- Stats -->
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;">
     <div class="stat-mini"><div class="stat-mini-label">Total cartera</div><div class="stat-mini-num" id="lsTotalCartera">—</div></div>
     <div class="stat-mini"><div class="stat-mini-label">Captadas</div><div class="stat-mini-num" id="lsCaptadas">—</div></div>
     <div class="stat-mini"><div class="stat-mini-label">En seguimiento</div><div class="stat-mini-num" id="lsSeguimiento">—</div></div>
   </div>
-
-  <!-- Filtros listing -->
   <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;">
     <input type="text" id="filtroListing" placeholder="Buscar dirección, propietario..." class="input-base" style="max-width:280px;" oninput="filtrarListing()">
     <select id="filtroTipoListing" class="input-base" style="max-width:150px;" onchange="filtrarListing()">
@@ -38,8 +34,6 @@
       <option>Local</option><option>Terreno</option><option>Oficina</option>
     </select>
   </div>
-
-  <!-- Tabla: dirección, propietario, teléfono, tipología, estado tasación -->
   <div id="listingTable"><div class="loading-state">Cargando...</div></div>
 </div>
 
@@ -48,12 +42,10 @@
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
     <div>
       <div style="font-size:1rem;font-weight:700;">Estado de Propiedades</div>
-      <div style="font-size:0.78rem;color:var(--text-secondary);">Seguimiento post-captación — estadio, próximo contacto, observaciones</div>
+      <div style="font-size:0.78rem;color:var(--text-secondary);">Seguimiento post-captación</div>
     </div>
     <button class="btn-primary" onclick="abrirNuevaPropiedad()">+ Nueva propiedad</button>
   </div>
-
-  <!-- Filtro por estadio -->
   <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;">
     <button class="estadio-btn active" onclick="filtrarEstadioEstado('todos',this)">Todos</button>
     <button class="estadio-btn" onclick="filtrarEstadioEstado('nuevo',this)">Nuevo</button>
@@ -63,12 +55,9 @@
     <button class="estadio-btn" onclick="filtrarEstadioEstado('reservado',this)">Reservado</button>
     <button class="estadio-btn" onclick="filtrarEstadioEstado('cerrado',this)">Cerrado ✓</button>
   </div>
-
   <div style="display:flex;gap:8px;margin-bottom:14px;">
     <input type="text" id="filtroEstadoBuscar" placeholder="Buscar propiedad..." class="input-base" style="max-width:280px;" oninput="filtrarEstado()">
   </div>
-
-  <!-- Tabla: dirección, estadio, próximo contacto, último contacto, observaciones -->
   <div id="estadoTable"><div class="loading-state">Cargando...</div></div>
 </div>
 
@@ -95,7 +84,7 @@
 </div>
 
 
-<!-- ══ MODAL PROPIEDAD (campos completos) ══ -->
+<!-- ══ MODAL PROPIEDAD ══ -->
 <div class="modal-bg" id="modalPropiedad">
   <div class="modal" style="max-width:580px;">
     <div class="modal-header">
@@ -103,7 +92,6 @@
       <button class="modal-close" onclick="cerrarModal('modalPropiedad')">✕</button>
     </div>
     <div class="modal-body">
-
       <div class="modal-section-title">📍 Datos del inmueble</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
         <input type="hidden" id="propId">
@@ -180,16 +168,16 @@
           </select>
         </div>
         <div class="field">
-          <label class="field-label">Próximo contacto</label>
-          <input type="date" id="propProximo" class="input-base">
+          <label class="field-label" style="color:#7C3AED;font-weight:700;">📅 Próximo contacto</label>
+          <input type="date" id="propProximo" class="input-base" style="border-color:#7C3AED44;">
         </div>
         <div class="field">
           <label class="field-label">Último contacto</label>
           <input type="date" id="propUltimo" class="input-base">
         </div>
         <div class="field">
-          <label class="field-label">Fecha prelisting</label>
-          <input type="date" id="propPrelisting" class="input-base">
+          <label class="field-label" style="color:#7C3AED;font-weight:700;">🏷️ Fecha prelisting</label>
+          <input type="date" id="propPrelisting" class="input-base" style="border-color:#7C3AED44;">
         </div>
         <div class="field" style="grid-column:span 2">
           <label class="field-label">Observaciones</label>
@@ -204,45 +192,82 @@
   </div>
 </div>
 
-<!-- ══ MODAL CONTACTO ══ -->
+
+<!-- ══ MODAL CONTACTO ENRIQUECIDO ══ -->
 <div class="modal-bg" id="modalContacto">
-  <div class="modal" style="max-width:480px;">
+  <div class="modal" style="max-width:560px;">
     <div class="modal-header">
       <h3 id="modalCtcTitulo">Nuevo contacto</h3>
       <button class="modal-close" onclick="cerrarModal('modalContacto')">✕</button>
     </div>
-    <div class="modal-body" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-      <input type="hidden" id="ctcId">
-      <div class="field" style="grid-column:span 2">
-        <label class="field-label">Nombre *</label>
-        <input type="text" id="ctcNombre" class="input-base">
+    <div class="modal-body">
+
+      <!-- Datos básicos -->
+      <div class="modal-section-title">👤 Datos básicos</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
+        <input type="hidden" id="ctcId">
+        <div class="field" style="grid-column:span 2">
+          <label class="field-label">Nombre *</label>
+          <input type="text" id="ctcNombre" class="input-base">
+        </div>
+        <div class="field">
+          <label class="field-label">Tipo</label>
+          <select id="ctcTipo" class="input-base">
+            <option value="propietario">Propietario</option>
+            <option value="cliente">Cliente</option>
+            <option value="broker">Broker</option>
+            <option value="proveedor">Proveedor</option>
+            <option value="otro">Otro</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label">Teléfono</label>
+          <input type="text" id="ctcTelefono" class="input-base">
+        </div>
+        <div class="field">
+          <label class="field-label">Email</label>
+          <input type="email" id="ctcEmail" class="input-base">
+        </div>
+        <div class="field">
+          <label class="field-label">Localidad</label>
+          <input type="text" id="ctcLocalidad" class="input-base">
+        </div>
+        <div class="field">
+          <label class="field-label" style="color:#F97316;font-weight:700;">🎂 Fecha de cumpleaños</label>
+          <input type="date" id="ctcCumple" class="input-base" style="border-color:#F9731644;">
+        </div>
+        <div class="field">
+          <label class="field-label">Profesión / trabaja de</label>
+          <input type="text" id="ctcProfesion" class="input-base" placeholder="Ej: Arquitecto, comerciante...">
+        </div>
       </div>
-      <div class="field">
-        <label class="field-label">Tipo</label>
-        <select id="ctcTipo" class="input-base">
-          <option value="propietario">Propietario</option>
-          <option value="cliente">Cliente</option>
-          <option value="broker">Broker</option>
-          <option value="proveedor">Proveedor</option>
-          <option value="otro">Otro</option>
-        </select>
+
+      <!-- Perfil personal -->
+      <div class="modal-section-title">🧑‍🤝‍🧑 Perfil personal</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
+        <div class="field">
+          <label class="field-label">Hijos (cantidad / edades)</label>
+          <input type="text" id="ctcHijos" class="input-base" placeholder="Ej: 2 hijos, 5 y 8 años">
+        </div>
+        <div class="field">
+          <label class="field-label">Hobbies / intereses</label>
+          <input type="text" id="ctcHobbies" class="input-base" placeholder="Ej: golf, viajes, cocina...">
+        </div>
+        <div class="field" style="grid-column:span 2">
+          <label class="field-label">Gustos / preferencias inmobiliarias</label>
+          <input type="text" id="ctcGustos" class="input-base" placeholder="Ej: le gustan plantas bajas, zonas tranquilas...">
+        </div>
       </div>
-      <div class="field">
-        <label class="field-label">Teléfono</label>
-        <input type="text" id="ctcTelefono" class="input-base">
+
+      <!-- Historial y notas -->
+      <div class="modal-section-title">📝 Historial y notas</div>
+      <div style="display:grid;grid-template-columns:1fr;gap:12px;">
+        <div class="field">
+          <label class="field-label">Notas generales</label>
+          <textarea id="ctcNotas" class="input-base" rows="3" style="resize:vertical;" placeholder="Contexto del contacto, cómo se conocieron, detalles importantes..."></textarea>
+        </div>
       </div>
-      <div class="field">
-        <label class="field-label">Email</label>
-        <input type="email" id="ctcEmail" class="input-base">
-      </div>
-      <div class="field">
-        <label class="field-label">Localidad</label>
-        <input type="text" id="ctcLocalidad" class="input-base">
-      </div>
-      <div class="field" style="grid-column:span 2">
-        <label class="field-label">Notas</label>
-        <textarea id="ctcNotas" class="input-base" rows="2" style="resize:vertical;"></textarea>
-      </div>
+
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="cerrarModal('modalContacto')">Cancelar</button>
@@ -250,6 +275,7 @@
     </div>
   </div>
 </div>
+
 {% endblock %}
 
 {% block extra_js %}
