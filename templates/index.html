@@ -233,6 +233,10 @@ table.planilla td{border:1px solid var(--border);padding:0;}
 .cierres-charts-grid{margin-bottom:16px;}
 @media(max-width:680px){.cierres-charts-grid{grid-template-columns:1fr !important;}}
 
+/* ── DRAG & DROP TAREAS ── */
+.checklist-col.drag-over{background:var(--cream);border-radius:8px;outline:2px dashed var(--gold);}
+.checklist-drop-hint{color:#ccc;font-size:0.8rem;text-align:center;padding:20px 0;border:1.5px dashed #eee;border-radius:8px;}
+.checklist-item[draggable="true"]:active{opacity:0.6;}
 /* ── ANIMATIONS ── */
 @keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
 </style>
@@ -1532,12 +1536,17 @@ function edoCopiarLink(btn, token) {
           <div class="form-group"><label>Email</label><input type="email" id="adminEmail" placeholder="email@ejemplo.com"></div>
         </div>
         <div class="form-row">
-          <div class="form-group"><label>Contraseña</label><input type="password" id="adminPass" placeholder="Mínimo 6 caracteres"></div>
+          <div class="form-group">
+            <label>Contraseña <span style="font-weight:400;color:#aaa;font-size:0.75rem;">(opcional si usás link de acceso)</span></label>
+            <div style="position:relative;">
+              <input type="password" id="adminPass" placeholder="Dejar vacío para invitar por link" style="padding-right:38px;">
+              <button type="button" onclick="togglePassVis('adminPass',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#bbb;font-size:0.9rem;" title="Ver contraseña">👁</button>
+            </div>
+          </div>
           <div class="form-group"><label>Rol</label>
             <select id="adminRol" onchange="togglePermisosPanel(this)"><option value="member">Miembro</option><option value="admin">Admin</option></select>
           </div>
         </div>
-        <!-- #15: Permisos granulares -->
         <div id="permisosPanel" style="margin-top:12px;">
           <div style="font-size:0.82rem;font-weight:600;margin-bottom:8px;color:#666;">Acceso a secciones <button type="button" onclick="checkAllPermisos(true)" style="background:none;border:none;color:var(--gold);font-size:0.75rem;cursor:pointer;font-family:inherit;">Todos</button> / <button type="button" onclick="checkAllPermisos(false)" style="background:none;border:none;color:#aaa;font-size:0.75rem;cursor:pointer;font-family:inherit;">Ninguno</button></div>
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px 12px;font-size:0.8rem;">
@@ -1557,6 +1566,36 @@ function edoCopiarLink(btn, token) {
       <div class="card" style="margin-top:14px;">
         <div class="card-title">Usuarios activos</div>
         <div id="listaUsuarios">Cargando...</div>
+      </div>
+    </div>
+
+    <!-- Modal editar usuario -->
+    <div class="modal-bg" id="modalEditUser">
+      <div class="modal" style="max-width:440px;">
+        <div class="modal-header">
+          <h3>✏️ Editar usuario</h3>
+          <button class="modal-close" onclick="cerrarModal('modalEditUser')">✕</button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="editUserId">
+          <div class="form-group"><label>Nombre</label><input type="text" id="editUserNombre"></div>
+          <div class="form-group"><label>Email</label><input type="email" id="editUserEmail" disabled style="opacity:0.5;"></div>
+          <div class="form-group"><label>Rol</label>
+            <select id="editUserRol"><option value="member">Miembro</option><option value="admin">Admin</option></select>
+          </div>
+          <hr style="border:none;border-top:1px solid var(--border);margin:16px 0;">
+          <div class="form-group">
+            <label>Nueva contraseña <span style="font-weight:400;color:#aaa;font-size:0.75rem;">(dejá vacío para no cambiar)</span></label>
+            <div style="position:relative;">
+              <input type="password" id="editUserPass" placeholder="Nueva contraseña..." style="padding-right:38px;">
+              <button type="button" onclick="togglePassVis('editUserPass',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#bbb;font-size:0.9rem;">👁</button>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="cerrarModal('modalEditUser')">Cancelar</button>
+          <button class="btn btn-gold" onclick="guardarEdicionUsuario()">Guardar cambios</button>
+        </div>
       </div>
     </div>
 
@@ -1638,6 +1677,30 @@ function edoCopiarLink(btn, token) {
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="cerrarModal('modalConsulta')">Cancelar</button>
       <button class="btn btn-gold" onclick="guardarConsulta()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal WhatsApp selector -->
+<div class="modal-bg" id="modalWA">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h3>💬 Enviar WhatsApp</h3>
+      <button class="modal-close" onclick="cerrarModal('modalWA')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Elegí el texto a enviar</label>
+        <select id="waSelectorTexto" onchange="waPreviewTexto()" style="width:100%;">
+          <option value="">— Seleccioná un texto precargado —</option>
+        </select>
+      </div>
+      <div id="waPreview" style="display:none;background:var(--cream);border-radius:8px;padding:12px 14px;font-size:0.83rem;line-height:1.6;color:#444;white-space:pre-wrap;max-height:160px;overflow-y:auto;margin-top:4px;"></div>
+      <div style="font-size:0.72rem;color:#bbb;margin-top:8px;">Variables disponibles: {nombre}, {propiedad}, {link_ficha}</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="cerrarModal('modalWA')">Cancelar</button>
+      <a id="waBtnAbrir" href="#" target="_blank" class="btn btn-gold" style="text-decoration:none;" onclick="cerrarModal('modalWA')">Abrir WhatsApp →</a>
     </div>
   </div>
 </div>
@@ -2358,7 +2421,20 @@ function eliminarContacto(id) {
 
 // ── CONSULTAS ──
 async function abrirModalConsulta() {
+  // Limpiar todos los campos antes de abrir
+  ['consNombre','consTel','consEmail','consObs'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value = '';
+  });
+  const etapa = document.getElementById('consEtapa');
+  if(etapa) etapa.value = 'nuevo';
+  const cal = document.getElementById('consCalificacion');
+  if(cal) cal.value = '';
+  const fecha = document.getElementById('consFechaMuestra');
+  if(fecha) fecha.value = '';
+
   abrirModal('modalConsulta');
+
+  // Cargar propiedades en el selector
   try {
     const r = await fetch('/api/propiedades?vista=all');
     const data = await r.json();
@@ -2366,7 +2442,7 @@ async function abrirModalConsulta() {
     if (sel) {
       sel.innerHTML = '<option value="">— Sin propiedad específica —</option>' +
         (data.propiedades || []).map(p =>
-          `<option value="${p.id}" data-nombre="${p.direccion||''}">[${p.tipologia||'Prop'}] ${p.direccion}${p.localidad?' - '+p.localidad:''}</option>`
+          `<option value="${p.id}" data-nombre="${p.direccion||''}" data-link="${p.url||''}">[${p.tipologia||'Prop'}] ${p.direccion}${p.localidad?' - '+p.localidad:''}</option>`
         ).join('');
     }
   } catch(e) {
@@ -2383,7 +2459,9 @@ function filtrarConsultas(etapa, el) {
 function guardarConsulta() {
   const propSel = document.getElementById('consPropiedadId');
   const propId = propSel?.value || '';
-  const propNombre = propSel?.options[propSel.selectedIndex]?.dataset.nombre || '';
+  const propOpt = propSel?.options[propSel?.selectedIndex];
+  const propNombre = propOpt?.dataset.nombre || '';
+  const linkFicha = propOpt?.dataset.link || '';
   const obj = {
     id: Date.now().toString(),
     nombre: document.getElementById('consNombre').value,
@@ -2392,6 +2470,7 @@ function guardarConsulta() {
     etapa: document.getElementById('consEtapa').value,
     propiedad_id: propId,
     propiedad: propNombre,
+    link_ficha: linkFicha,
     fechaMuestra: document.getElementById('consFechaMuestra').value,
     calificacion: document.getElementById('consCalificacion').value,
     obs: document.getElementById('consObs').value,
@@ -2404,31 +2483,53 @@ function guardarConsulta() {
   showToast('Consulta guardada ✅', 'success');
   renderConsultas('todos');
   document.getElementById('badge-consultas').textContent = LOCAL.consultas.length;
-  // #3: WhatsApp button
   if (obj.tel) mostrarBtnWhatsApp(obj);
 }
 
-// #3: Toast flotante con link WA post-consulta
+// WhatsApp inteligente — modal selector
+let _waContacto = null;
 function mostrarBtnWhatsApp(consulta) {
-  const textoWA = LOCAL.textos?.find(t => t.canal === 'whatsapp');
-  let mensaje = textoWA?.contenido || 'Hola {nombre}, te contacto por la propiedad 👋';
-  mensaje = mensaje.replace('{nombre}', consulta.nombre || '').replace('{propiedad}', consulta.propiedad || '');
-  const tel = consulta.tel.replace(/[^0-9]/g, '');
-  const url = `https://wa.me/${tel}?text=${encodeURIComponent(mensaje)}`;
-  const div = document.createElement('div');
-  div.id = 'waToast';
-  div.style.cssText = 'position:fixed;bottom:24px;right:24px;background:white;border:1.5px solid #25D366;border-radius:12px;padding:14px 18px;box-shadow:0 4px 20px rgba(0,0,0,0.15);z-index:9999;display:flex;align-items:center;gap:12px;max-width:300px;animation:fadeIn 0.3s ease;';
-  div.innerHTML = `
-    <span style="font-size:1.4rem;">💬</span>
-    <div style="flex:1;">
-      <div style="font-weight:600;font-size:0.85rem;">¿Enviar WhatsApp?</div>
-      <div style="font-size:0.75rem;color:#888;">${consulta.nombre}</div>
-    </div>
-    <a href="${url}" target="_blank" style="background:#25D366;color:white;border:none;border-radius:8px;padding:7px 12px;font-size:0.78rem;font-weight:600;text-decoration:none;white-space:nowrap;">Abrir →</a>
-    <button onclick="document.getElementById('waToast')?.remove()" style="background:none;border:none;cursor:pointer;color:#bbb;font-size:1rem;">✕</button>`;
-  document.getElementById('waToast')?.remove();
-  document.body.appendChild(div);
-  setTimeout(() => div.remove(), 15000);
+  _waContacto = consulta;
+  // Poblar selector con textos whatsapp
+  const sel = document.getElementById('waSelectorTexto');
+  const textos = (LOCAL.textos || []).filter(t => t.canal === 'whatsapp' || t.canal === 'seguimiento');
+  sel.innerHTML = '<option value="">— Seleccioná un texto precargado —</option>' +
+    textos.map((t,i) => `<option value="${i}">${t.titulo}</option>`).join('');
+  // Si hay un solo texto, seleccionarlo automáticamente
+  if (textos.length === 1) { sel.value = '0'; waPreviewTexto(); }
+  else { document.getElementById('waPreview').style.display = 'none'; }
+  // Actualizar botón con tel
+  waActualizarLink();
+  abrirModal('modalWA');
+}
+
+function waReemplazarVars(texto, consulta) {
+  const linkFicha = consulta.link_ficha || '';
+  return texto
+    .replace(/\{nombre\}/gi, consulta.nombre || '')
+    .replace(/\{propiedad\}/gi, consulta.propiedad || '')
+    .replace(/\{link_ficha\}/gi, linkFicha);
+}
+
+function waPreviewTexto() {
+  if (!_waContacto) return;
+  const sel = document.getElementById('waSelectorTexto');
+  const idx = parseInt(sel.value);
+  const textos = (LOCAL.textos || []).filter(t => t.canal === 'whatsapp' || t.canal === 'seguimiento');
+  const prev = document.getElementById('waPreview');
+  if (isNaN(idx) || !textos[idx]) { prev.style.display = 'none'; waActualizarLink(''); return; }
+  const msg = waReemplazarVars(textos[idx].contenido, _waContacto);
+  prev.textContent = msg;
+  prev.style.display = 'block';
+  waActualizarLink(msg);
+}
+
+function waActualizarLink(msg) {
+  const btn = document.getElementById('waBtnAbrir');
+  if (!btn || !_waContacto?.tel) return;
+  const tel = _waContacto.tel.replace(/[^0-9]/g, '');
+  const texto = msg !== undefined ? msg : '';
+  btn.href = `https://wa.me/${tel}${texto ? '?text=' + encodeURIComponent(texto) : ''}`;
 }
 
 function renderConsultas(filtro='todos') {
@@ -2447,10 +2548,10 @@ function renderConsultas(filtro='todos') {
       <div class="contact-info">
         <div class="contact-name">${c.nombre} ${c.calificacion ? calMap[c.calificacion]||'' : ''}</div>
         <div class="contact-sub">${c.etapa||''} ${c.propiedad?'· '+c.propiedad:''} ${c.fechaMuestra?'· Muestra: '+c.fechaMuestra:''}</div>
-        ${c.obs ? `<div style="font-size:0.77rem;color:#bbb;margin-top:3px;">${c.obs.substring(0,80)}...</div>` : ''}
+        ${c.obs ? `<div style="font-size:0.77rem;color:#bbb;margin-top:3px;">${c.obs.substring(0,80)}${c.obs.length>80?'...':''}</div>` : ''}
       </div>
       <div class="doc-actions">
-        ${c.tel ? `<a href="https://wa.me/${c.tel.replace(/[^0-9]/g,'')}" target="_blank" class="btn-sm" onclick="event.stopPropagation()">💬</a>` : ''}
+        ${c.tel ? `<button class="btn-sm" onclick="event.stopPropagation();mostrarBtnWhatsApp(${JSON.stringify(c).replace(/"/g,'&quot;')})">💬</button>` : ''}
         <button class="btn-sm" style="color:var(--rust);" onclick="LOCAL.consultas=LOCAL.consultas.filter(x=>x.id!=='${c.id}');saveLocal('consultas');renderConsultas('todos')">✕</button>
       </div>
     </div>`).join('');
@@ -2760,33 +2861,56 @@ function guardarTarea() {
 
 function renderTareas() {
   const MOTIV = ['¡Tarea completada! 🔥 Seguís sumando','¡Excelente! Cada paso cuenta 💪','¡Hecho! La constancia hace al campeón ⭐','¡Completado! Tu disciplina es tu ventaja 🏆','¡Genial! Un paso más hacia tu objetivo 🎯'];
+  const PCOLOR = { alta:'#c0392b', media:'#e67e22', baja:'#27ae60', red:'#c0392b', orange:'#e67e22', green:'#27ae60', blue:'#2980b9' };
   ['pendiente','proceso','finalizado'].forEach(estado => {
     const col = document.getElementById('col-' + estado);
     if (!col) return;
     const lista = LOCAL.tareas.filter(t => t.estado === estado);
     if (lista.length === 0) {
-      col.innerHTML = '<div style="color:#bbb;font-size:0.82rem;padding:12px 0 4px;">Sin tareas en este estado</div>';
+      col.innerHTML = '<div class="checklist-drop-hint">Arrastrá tareas acá</div>';
     } else {
-      const PCOLOR = { alta:'#c0392b', media:'#e67e22', baja:'#27ae60', red:'#c0392b', orange:'#e67e22', green:'#27ae60', blue:'#2980b9' };
       col.innerHTML = lista.map(t => {
         const pc = PCOLOR[t.prioridad||t.color||'media']||'#e67e22';
         const vencida = t.fecha && new Date(t.fecha) < new Date() && estado !== 'finalizado';
-        return `<div class="checklist-item ${estado==='finalizado'?'done':''}" style="border-left:3px solid ${pc};">
+        return `<div class="checklist-item ${estado==='finalizado'?'done':''}" 
+          draggable="true" id="tarea-drag-${t.id}"
+          ondragstart="tareaDragStart(event,'${t.id}')"
+          style="border-left:3px solid ${pc};cursor:grab;">
           <div style="display:flex;align-items:flex-start;gap:10px;">
-            <span onclick="toggleTareaCheck('${t.id}','${estado}')" style="cursor:pointer;font-size:1.1rem;flex-shrink:0;margin-top:1px;">${estado==='finalizado'?'✅':'⭕'}</span>
+            <span onclick="toggleTareaCheck('${t.id}','${estado}')" style="cursor:pointer;font-size:1.1rem;flex-shrink:0;margin-top:1px;" title="Cambiar estado">${estado==='finalizado'?'✅':'⭕'}</span>
             <div style="flex:1;">
               <div style="font-weight:600;font-size:0.88rem;${estado==='finalizado'?'text-decoration:line-through;opacity:0.6;':''}">${t.titulo}</div>
-              ${t.fecha ? `<div style="font-size:0.74rem;color:${vencida?'#c0392b':'#bbb'};">📅 ${t.fecha}${vencida?' ⚠️ Vencida':''}</div>` : ''}
+              ${t.fecha ? `<div style="font-size:0.74rem;color:${vencida?'#c0392b':'#bbb'};">📅 ${t.fecha}${vencida?' ⚠️':''}</div>` : ''}
               ${t.nota ? `<div style="font-size:0.78rem;color:#999;margin-top:2px;">${t.nota}</div>` : ''}
             </div>
-            <button onclick="LOCAL.tareas=LOCAL.tareas.filter(x=>x.id!=='${t.id}');saveLocal('tareas');renderTareas()" style="background:none;border:none;cursor:pointer;color:#ddd;font-size:0.9rem;" title="Eliminar">✕</button>
+            <button onclick="LOCAL.tareas=LOCAL.tareas.filter(x=>x.id!=='${t.id}');saveLocal('tareas');renderTareas()" 
+              style="background:none;border:none;cursor:pointer;color:#ddd;font-size:0.9rem;" title="Eliminar">✕</button>
           </div>
-          ${estado==='pendiente'?`<div style="margin-top:6px;"><button class="btn-sm" onclick="moverTarea('${t.id}','proceso')" style="font-size:0.72rem;">→ Iniciar</button></div>`:''}
         </div>`;
       }).join('');
     }
+    // Drop zone handlers
+    col.ondragover = e => { e.preventDefault(); col.classList.add('drag-over'); };
+    col.ondragleave = () => col.classList.remove('drag-over');
+    col.ondrop = e => {
+      e.preventDefault();
+      col.classList.remove('drag-over');
+      const id = e.dataTransfer.getData('tareaId');
+      if (!id) return;
+      const nuevoEstado = col.id.replace('col-','');
+      const t = LOCAL.tareas.find(x => x.id === id);
+      if (t && t.estado !== nuevoEstado) {
+        t.estado = nuevoEstado;
+        saveLocal('tareas');
+        renderTareas();
+        if (nuevoEstado === 'finalizado') {
+          const div = document.getElementById('motivMessage');
+          if (div) { div.textContent = MOTIV[Math.floor(Math.random()*MOTIV.length)]; div.style.display='block'; setTimeout(()=>div.style.display='none',3000); }
+        }
+      }
+    };
   });
-  // Ideas en sección tareas
+  // Ideas
   const ip = document.getElementById('col-ideas-pendientes');
   const ir = document.getElementById('col-ideas-realizadas');
   if (ip) {
@@ -2798,6 +2922,11 @@ function renderTareas() {
     ir.innerHTML = r.length ? r.map(i=>`<div class="checklist-item done"><span>✅</span> <span style="font-size:0.82rem;text-decoration:line-through;opacity:0.6;">${i.texto}</span></div>`).join('') : '<div style="color:#bbb;font-size:0.82rem;">Sin ideas realizadas aún</div>';
   }
   document.getElementById('badge-pendientes-agenda').textContent = LOCAL.tareas.filter(t=>t.estado==='pendiente').length;
+}
+
+function tareaDragStart(e, id) {
+  e.dataTransfer.setData('tareaId', id);
+  e.dataTransfer.effectAllowed = 'move';
 }
 
 async function toggleTareaCheck(id, estadoActual) {
@@ -3098,16 +3227,86 @@ async function cargarUsuariosAdmin() {
     const data = await r.json();
     const div = document.getElementById('listaUsuarios');
     if (!div) return;
+    if (!data.users?.length) { div.innerHTML = '<div style="color:#bbb;font-size:0.85rem;padding:10px 0;">Sin usuarios aún</div>'; return; }
     div.innerHTML = data.users.map(u => `
-      <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
-        <div class="avatar" style="background:var(--gold)">${u.name.charAt(0)}</div>
-        <div style="flex:1;">
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);">
+        <div class="avatar" style="background:var(--gold);flex-shrink:0;">${(u.name||'?').charAt(0).toUpperCase()}</div>
+        <div style="flex:1;min-width:0;">
           <div style="font-weight:600;font-size:0.88rem;">${u.name}</div>
-          <div style="font-size:0.75rem;color:#888;">${u.email} · ${u.role}</div>
+          <div style="font-size:0.75rem;color:#888;">${u.email} · <span style="text-transform:capitalize;">${u.role}</span></div>
+          ${u.last_login ? `<div style="font-size:0.72rem;color:#bbb;">Último acceso: ${new Date(u.last_login).toLocaleDateString('es-AR')}</div>` : '<div style="font-size:0.72rem;color:#bbb;">Nunca ingresó</div>'}
         </div>
-        ${u.id!==currentUser?.id ? `<button class="btn-sm" style="color:var(--rust);" onclick="eliminarUsuario('${u.id}')">✕</button>` : ''}
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          <button class="btn-sm" onclick="abrirEditUser('${u.id}','${u.name.replace(/'/g,"\\'")}','${u.email}','${u.role}')" title="Editar">✏️</button>
+          <button class="btn-sm" onclick="generarLinkInvitacion('${u.id}',this)" title="Generar link de acceso">🔗</button>
+          ${u.id !== currentUser?.id ? `<button class="btn-sm" style="color:var(--rust);" onclick="eliminarUsuario('${u.id}')" title="Eliminar">✕</button>` : ''}
+        </div>
       </div>`).join('');
-  } catch(e) {}
+  } catch(e) { console.error('cargarUsuariosAdmin error:', e); }
+}
+
+function abrirEditUser(id, nombre, email, rol) {
+  document.getElementById('editUserId').value = id;
+  document.getElementById('editUserNombre').value = nombre;
+  document.getElementById('editUserEmail').value = email;
+  document.getElementById('editUserRol').value = rol;
+  document.getElementById('editUserPass').value = '';
+  abrirModal('modalEditUser');
+}
+
+async function guardarEdicionUsuario() {
+  const id = document.getElementById('editUserId').value;
+  const body = {
+    name: document.getElementById('editUserNombre').value.trim(),
+    role: document.getElementById('editUserRol').value,
+  };
+  if (!body.name) { showToast('El nombre no puede estar vacío', 'error'); return; }
+  const r = await fetch('/api/admin/users/' + id, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+  const data = await r.json();
+  if (data.error) { showToast(data.error, 'error'); return; }
+  // Cambiar contraseña si se escribió
+  const newPass = document.getElementById('editUserPass').value.trim();
+  if (newPass) {
+    if (newPass.length < 6) { showToast('Contraseña mínimo 6 caracteres', 'error'); return; }
+    const rp = await fetch(`/api/admin/users/${id}/password`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password: newPass}) });
+    const dp = await rp.json();
+    if (dp.error) { showToast(dp.error, 'error'); return; }
+  }
+  cerrarModal('modalEditUser');
+  showToast('Usuario actualizado ✅', 'success');
+  cargarUsuariosAdmin();
+}
+
+async function generarLinkInvitacion(userId, btn) {
+  const orig = btn.textContent;
+  btn.textContent = '⏳'; btn.disabled = true;
+  try {
+    const r = await fetch(`/api/admin/users/${userId}/invite`, { method:'POST' });
+    const data = await r.json();
+    if (data.error) { showToast(data.error, 'error'); return; }
+    // Copiar al portapapeles y mostrar
+    try { await navigator.clipboard.writeText(data.link); showToast('✅ Link copiado al portapapeles', 'success'); }
+    catch { showToast('Link: ' + data.link, 'success'); }
+    // Mostrar link debajo del usuario
+    const container = btn.closest('[style*="border-bottom"]');
+    let linkDiv = container?.querySelector('.invite-link-div');
+    if (!linkDiv && container) {
+      linkDiv = document.createElement('div');
+      linkDiv.className = 'invite-link-div';
+      linkDiv.style.cssText = 'grid-column:1/-1;margin-top:6px;font-size:0.75rem;background:#f0faf0;border:1px solid #b7e4b7;border-radius:6px;padding:7px 10px;word-break:break-all;color:#2a6e2a;';
+      container.appendChild(linkDiv);
+    }
+    if (linkDiv) linkDiv.innerHTML = `🔗 <strong>Link de acceso (válido 48hs):</strong><br>${data.link} <button onclick="navigator.clipboard.writeText('${data.link}');showToast('Copiado')" style="background:none;border:none;cursor:pointer;color:#2a6e2a;font-size:0.8rem;" title="Copiar">📋</button>`;
+  } catch(e) { showToast('Error al generar link', 'error'); }
+  finally { btn.textContent = orig; btn.disabled = false; }
+}
+
+function togglePassVis(inputId, btn) {
+  const inp = document.getElementById(inputId);
+  if (!inp) return;
+  const showing = inp.type === 'text';
+  inp.type = showing ? 'password' : 'text';
+  btn.textContent = showing ? '👁' : '🙈';
 }
 
 function togglePermisosPanel(sel) {
@@ -3120,21 +3319,41 @@ function checkAllPermisos(val) {
 }
 
 async function crearUsuario() {
+  const nombre = document.getElementById('adminNombre').value.trim();
+  const email  = document.getElementById('adminEmail').value.trim();
+  const pass   = document.getElementById('adminPass').value;
+  const rol    = document.getElementById('adminRol').value;
+  if (!nombre || !email) { showToast('Nombre y email son obligatorios', 'error'); return; }
+  // Si no pusieron contraseña, usamos un token temporal que luego cambian via link
   const permisos = Array.from(document.querySelectorAll('.perm-check:checked')).map(cb => cb.value);
   const body = {
-    name: document.getElementById('adminNombre').value.trim(),
-    email: document.getElementById('adminEmail').value.trim(),
-    password: document.getElementById('adminPass').value,
-    role: document.getElementById('adminRol').value,
-    permisos: document.getElementById('adminRol').value === 'admin' ? [] : permisos,
+    name: nombre,
+    email: email,
+    password: pass || ('tmp_' + Math.random().toString(36).slice(2)),
+    role: rol,
+    permisos: rol === 'admin' ? [] : permisos,
   };
-  if (!body.name || !body.email || !body.password) { showToast('Completá todos los campos', 'error'); return; }
-  const r = await fetch('/api/admin/users', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
-  const data = await r.json();
-  if (data.error) { showToast(data.error, 'error'); return; }
-  showToast('Usuario creado ✅', 'success');
-  ['adminNombre','adminEmail','adminPass'].forEach(id => document.getElementById(id).value = '');
-  cargarUsuariosAdmin();
+  const btn = document.querySelector('#page-admin .btn-gold');
+  if (btn) { btn.textContent = '⏳ Creando...'; btn.disabled = true; }
+  try {
+    const r = await fetch('/api/admin/users', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    const data = await r.json();
+    if (data.error) { showToast(data.error, 'error'); return; }
+    showToast('Usuario creado ✅', 'success');
+    ['adminNombre','adminEmail','adminPass'].forEach(id => document.getElementById(id).value = '');
+    await cargarUsuariosAdmin();
+    // Si no pusieron contraseña, generar link automáticamente
+    if (!pass && data.user_id) {
+      const ri = await fetch(`/api/admin/users/${data.user_id}/invite`, {method:'POST'});
+      const di = await ri.json();
+      if (di.link) {
+        try { await navigator.clipboard.writeText(di.link); }
+        catch {}
+        showToast('🔗 Link de acceso copiado al portapapeles (válido 48hs)', 'success');
+      }
+    }
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+  finally { if (btn) { btn.textContent = 'Crear usuario'; btn.disabled = false; } }
 }
 
 async function eliminarUsuario(id) {
