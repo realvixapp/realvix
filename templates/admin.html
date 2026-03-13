@@ -3,10 +3,10 @@
 
 {% block content %}
 <div class="page-title">Administración</div>
-<div class="page-sub">Usuarios, roles y configuración del sistema</div>
+<div class="page-sub">Usuarios, roles y permisos del sistema</div>
 
 <div style="display:flex;gap:10px;margin-bottom:20px;align-items:center;flex-wrap:wrap;">
-  <button class="btn-primary" onclick="abrirNuevoUsuario()">+ Nuevo usuario</button>
+  <button class="btn-primary" onclick="abrirNuevoUsuario()">+ Invitar usuario</button>
   <button class="btn-secondary" onclick="ejecutarInitDB()">🔧 Inicializar tablas DB</button>
 </div>
 
@@ -14,26 +14,23 @@
   <div class="loading-state">Cargando...</div>
 </div>
 
-<!-- Modal usuario -->
+<!-- ═══ MODAL: Nuevo / Editar usuario ═══ -->
 <div class="modal-bg" id="modalUsuario">
-  <div class="modal" style="max-width:440px;">
+  <div class="modal" style="max-width:500px;">
     <div class="modal-header">
-      <h3 id="modalUsrTitulo">Nuevo usuario</h3>
+      <h3 id="modalUsrTitulo">Invitar usuario</h3>
       <button class="modal-close" onclick="cerrarModal('modalUsuario')">✕</button>
     </div>
-    <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;">
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
       <input type="hidden" id="usrId">
+
       <div class="field">
         <label class="field-label">Nombre</label>
-        <input type="text" id="usrName" class="input-base">
+        <input type="text" id="usrName" class="input-base" placeholder="Ej: María González">
       </div>
       <div class="field">
         <label class="field-label">Email</label>
-        <input type="email" id="usrEmail" class="input-base">
-      </div>
-      <div class="field" id="usrPassField">
-        <label class="field-label">Contraseña</label>
-        <input type="password" id="usrPass" class="input-base" placeholder="Mínimo 6 caracteres">
+        <input type="email" id="usrEmail" class="input-base" placeholder="correo@ejemplo.com">
       </div>
       <div class="field">
         <label class="field-label">Rol</label>
@@ -42,13 +39,63 @@
           <option value="admin">Admin</option>
         </select>
       </div>
+
+      <!-- Checklist de secciones -->
+      <div class="field">
+        <label class="field-label" style="margin-bottom:10px;">Secciones habilitadas</label>
+        <div id="permisosChecklist" style="
+          display:grid;grid-template-columns:1fr 1fr;gap:8px;
+          background:#f7f5f0;border-radius:10px;padding:14px;
+          border:1.5px solid #e0dbd0;">
+          <div style="color:#aaa;font-size:0.82rem;">Cargando secciones…</div>
+        </div>
+        <p style="font-size:0.75rem;color:#aaa;margin-top:6px;">
+          Los admins tienen acceso a todo. Para miembros, solo verán las secciones tildadas.
+        </p>
+      </div>
+
+      <!-- Zona del link de invitación (solo edición) -->
+      <div id="inviteLinkZone" style="display:none;background:#EEF2FF;border-radius:10px;padding:14px;border:1.5px solid #c7d2fe;">
+        <div style="font-size:0.78rem;font-weight:600;color:#1B3FE4;margin-bottom:8px;">🔗 Link de invitación</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="text" id="inviteLink" class="input-base" readonly
+            style="font-size:0.78rem;background:white;flex:1;">
+          <button class="btn-secondary" onclick="copiarLink()" style="white-space:nowrap;font-size:0.8rem;padding:8px 12px;">
+            Copiar
+          </button>
+        </div>
+        <div style="font-size:0.72rem;color:#6366f1;margin-top:6px;">Válido por 72 horas. El usuario crea su propia contraseña.</div>
+      </div>
+
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="cerrarModal('modalUsuario')">Cancelar</button>
-      <button class="btn-primary" onclick="guardarUsuario()">Guardar</button>
+      <button class="btn-primary" id="btnGuardarUsr" onclick="guardarUsuario()">Guardar y generar link</button>
     </div>
   </div>
 </div>
+
+<!-- ═══ MODAL: Cambiar contraseña ═══ -->
+<div class="modal-bg" id="modalPass">
+  <div class="modal" style="max-width:360px;">
+    <div class="modal-header">
+      <h3>Cambiar contraseña</h3>
+      <button class="modal-close" onclick="cerrarModal('modalPass')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="passUserId">
+      <div class="field">
+        <label class="field-label">Nueva contraseña</label>
+        <input type="password" id="newPass" class="input-base" placeholder="Mínimo 6 caracteres">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="cerrarModal('modalPass')">Cancelar</button>
+      <button class="btn-primary" onclick="confirmarCambioPass()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
