@@ -207,6 +207,9 @@ function cerrarZonaModal() {
   FIRMA.zonaRect        = null;
 }
 
+// Colores por firmante (zona actual = azul sólido, otros = colores suaves)
+const ZONA_COLORS = ['#1B3FE4','#E4461B','#1BE48A','#E4C21B','#9B1BE4','#1BE4D4'];
+
 async function zonaRenderPage(num) {
   FIRMA.zonaPage = num;
   const page     = await FIRMA.pdfDoc.getPage(num);
@@ -231,61 +234,87 @@ async function zonaRenderPage(num) {
     navBar.style.display = 'none';
   }
 
-  // Redibujar zona previa
-  const ctx = overlay.getContext('2d');
-  ctx.clearRect(0, 0, overlay.width, overlay.height);
-  if (FIRMA.zonaRect && FIRMA.zonaRect.page === num) {
-    dibujarZonaRect(ctx, FIRMA.zonaRect.x, FIRMA.zonaRect.y, FIRMA.zonaRect.w, FIRMA.zonaRect.h);
-  }
+  // Dibujar TODAS las zonas ya asignadas en esta página (con su color)
+  // El firmante actual (FIRMA.zonaFirmanteIdx) usa FIRMA.zonaRect (puede estar editando)
+  zonaRedibujarTodo();
 
+  // Configurar interacción del overlay (sin clonar — clonar borra el canvas)
   setupZonaOverlay(overlay);
 }
 
+// Dibuja todas las zonas en el overlay, respetando la página actual
+function zonaRedibujarTodo() {
+  const overlay = document.getElementById('zonaOverlay');
+  if (!overlay) return;
+  const ctx = overlay.getContext('2d');
+  ctx.clearRect(0, 0, overlay.width, overlay.height);
+
+  const currentIdx = FIRMA.zonaFirmanteIdx;
+
+  // Primero dibujar las zonas de otros firmantes (grisadas/con su color)
+  FIRMA.firmantes.forEach(function(f, i) {
+    if (i === currentIdx) return; // el actual se dibuja al final, encima
+    const zona = f.sign_zone;
+    if (!zona || zona.page !== FIRMA.zonaPage) return;
+    // Escalar coords si el canvas tiene distinto tamaño al guardado
+    const sx = overlay.width  / (zona.canvasW || overlay.width);
+    const sy = overlay.height / (zona.canvasH || overlay.height);
+    const color = ZONA_COLORS[i % ZONA_COLORS.length];
+    dibujarZonaRect(ctx, zona.x * sx, zona.y * sy, zona.w * sx, zona.h * sy, color, 0.35, f.name || f.email, true);
+  });
+
+  // Luego la zona del firmante actual (por encima, color azul sólido)
+  if (FIRMA.zonaRect && FIRMA.zonaRect.page === FIRMA.zonaPage) {
+    const z  = FIRMA.zonaRect;
+    const sx = overlay.width  / (z.canvasW || overlay.width);
+    const sy = overlay.height / (z.canvasH || overlay.height);
+    const f  = FIRMA.firmantes[currentIdx];
+    const color = ZONA_COLORS[currentIdx % ZONA_COLORS.length];
+    dibujarZonaRect(ctx, z.x * sx, z.y * sy, z.w * sx, z.h * sy, color, 0.18, f ? (f.name || f.email) : '', false);
+  }
+}
+
+// AbortController para limpiar listeners sin clonar el canvas
+let _zonaAbort = null;
+
 function setupZonaOverlay(overlay) {
-  // Clonar para limpiar listeners previos
-  const fresh = overlay.cloneNode(true);
-  overlay.parentNode.replaceChild(fresh, overlay);
+  // Cancelar listeners anteriores
+  if (_zonaAbort) _zonaAbort.abort();
+  _zonaAbort = new AbortController();
+  const sig = { signal: _zonaAbort.signal };
 
   let drawing = false, startX = 0, startY = 0;
 
-  // ── FIX: usar offsetX/offsetY que son relativos al canvas, no al viewport ──
   function getPosFromEvent(e) {
-    if (e.touches || e.changedTouches) {
-      const src  = e.touches ? e.touches[0] : e.changedTouches[0];
-      const rect = fresh.getBoundingClientRect();
-      // Escalar por si el canvas tiene pixel ratio distinto al CSS
-      const scaleX = fresh.width  / rect.width;
-      const scaleY = fresh.height / rect.height;
-      return [
-        (src.clientX - rect.left) * scaleX,
-        (src.clientY - rect.top)  * scaleY,
-      ];
-    }
-    // Mouse: también getBoundingClientRect para consistencia con el scroll del modal
-    const rect   = fresh.getBoundingClientRect();
-    const scaleX = fresh.width  / rect.width;
-    const scaleY = fresh.height / rect.height;
+    const src = (e.touches && e.touches.length) ? e.touches[0]
+      : (e.changedTouches && e.changedTouches.length ? e.changedTouches[0] : e);
+    const rect   = overlay.getBoundingClientRect();
+    const scaleX = overlay.width  / rect.width;
+    const scaleY = overlay.height / rect.height;
     return [
-      (e.clientX - rect.left) * scaleX,
-      (e.clientY - rect.top)  * scaleY,
+      (src.clientX - rect.left) * scaleX,
+      (src.clientY - rect.top)  * scaleY,
     ];
   }
 
-  fresh.addEventListener('mousedown', function(e) {
+  overlay.addEventListener('mousedown', function(e) {
     e.preventDefault();
     drawing = true;
     [startX, startY] = getPosFromEvent(e);
-  });
+  }, sig);
 
-  fresh.addEventListener('mousemove', function(e) {
+  overlay.addEventListener('mousemove', function(e) {
     if (!drawing) return;
     const [cx, cy] = getPosFromEvent(e);
-    const ctx = fresh.getContext('2d');
-    ctx.clearRect(0, 0, fresh.width, fresh.height);
-    dibujarZonaRect(ctx, startX, startY, cx - startX, cy - startY);
-  });
+    // Redibujar todas las otras zonas + la que se está arrastrando
+    zonaRedibujarTodo();
+    const ctx = overlay.getContext('2d');
+    const color = ZONA_COLORS[FIRMA.zonaFirmanteIdx % ZONA_COLORS.length];
+    const f = FIRMA.firmantes[FIRMA.zonaFirmanteIdx];
+    dibujarZonaRect(ctx, startX, startY, cx - startX, cy - startY, color, 0.18, f ? (f.name || f.email) : '', false);
+  }, sig);
 
-  fresh.addEventListener('mouseup', function(e) {
+  overlay.addEventListener('mouseup', function(e) {
     if (!drawing) return;
     drawing = false;
     const [ex, ey] = getPosFromEvent(e);
@@ -295,29 +324,32 @@ function setupZonaOverlay(overlay) {
       x: Math.min(startX, ex), y: Math.min(startY, ey),
       w: Math.abs(w),          h: Math.abs(h),
       page:    FIRMA.zonaPage,
-      canvasW: fresh.width,
-      canvasH: fresh.height,
+      canvasW: overlay.width,
+      canvasH: overlay.height,
     };
-  });
+    zonaRedibujarTodo(); // redibujar con la zona final guardada
+  }, sig);
 
-  fresh.addEventListener('mouseleave', function() { drawing = false; });
+  overlay.addEventListener('mouseleave', function() { drawing = false; }, sig);
 
-  fresh.addEventListener('touchstart', function(e) {
+  overlay.addEventListener('touchstart', function(e) {
     e.preventDefault();
     drawing = true;
     [startX, startY] = getPosFromEvent(e);
-  }, { passive: false });
+  }, { ...sig, passive: false });
 
-  fresh.addEventListener('touchmove', function(e) {
+  overlay.addEventListener('touchmove', function(e) {
     e.preventDefault();
     if (!drawing) return;
     const [cx, cy] = getPosFromEvent(e);
-    const ctx = fresh.getContext('2d');
-    ctx.clearRect(0, 0, fresh.width, fresh.height);
-    dibujarZonaRect(ctx, startX, startY, cx - startX, cy - startY);
-  }, { passive: false });
+    zonaRedibujarTodo();
+    const ctx = overlay.getContext('2d');
+    const color = ZONA_COLORS[FIRMA.zonaFirmanteIdx % ZONA_COLORS.length];
+    const f = FIRMA.firmantes[FIRMA.zonaFirmanteIdx];
+    dibujarZonaRect(ctx, startX, startY, cx - startX, cy - startY, color, 0.18, f ? (f.name || f.email) : '', false);
+  }, { ...sig, passive: false });
 
-  fresh.addEventListener('touchend', function(e) {
+  overlay.addEventListener('touchend', function(e) {
     if (!drawing) return;
     drawing = false;
     const [ex, ey] = getPosFromEvent(e);
@@ -327,27 +359,54 @@ function setupZonaOverlay(overlay) {
       x: Math.min(startX, ex), y: Math.min(startY, ey),
       w: Math.abs(w),          h: Math.abs(h),
       page:    FIRMA.zonaPage,
-      canvasW: fresh.width,
-      canvasH: fresh.height,
+      canvasW: overlay.width,
+      canvasH: overlay.height,
     };
-  }, { passive: false });
+    zonaRedibujarTodo();
+  }, { ...sig, passive: false });
 }
 
-function dibujarZonaRect(ctx, x, y, w, h) {
+function dibujarZonaRect(ctx, x, y, w, h, color, fillAlpha, label, isOther) {
+  color     = color     || '#1B3FE4';
+  fillAlpha = fillAlpha !== undefined ? fillAlpha : 0.15;
   ctx.save();
-  ctx.setLineDash([6, 3]);
-  ctx.strokeStyle = '#1B3FE4';
-  ctx.lineWidth   = 2;
-  ctx.fillStyle   = 'rgba(27,63,228,0.10)';
+  ctx.setLineDash(isOther ? [4, 4] : [6, 3]);
+  ctx.strokeStyle = color;
+  ctx.lineWidth   = isOther ? 1.5 : 2.5;
+  // Relleno semitransparente
+  ctx.fillStyle = color.replace('#', 'rgba(').replace(/(..)(..)(..)/, function(_, r, g, b) {
+    return parseInt(r,16)+','+parseInt(g,16)+','+parseInt(b,16);
+  }) + ',' + fillAlpha + ')';
+  // Fallback sencillo para el fill
+  ctx.globalAlpha = fillAlpha;
+  ctx.fillStyle   = color;
   ctx.fillRect(x, y, w, h);
+  ctx.globalAlpha = 1;
   ctx.strokeRect(x, y, w, h);
+  // Etiqueta con el nombre del firmante
+  if (label) {
+    ctx.setLineDash([]);
+    ctx.font         = 'bold ' + (isOther ? '11px' : '12px') + ' sans-serif';
+    ctx.fillStyle    = color;
+    ctx.globalAlpha  = isOther ? 0.7 : 1;
+    const labelX = x + 4;
+    const labelY = y < 18 ? y + Math.abs(h) - 4 : y - 4;
+    // Fondo blanco detrás del texto
+    const tw = ctx.measureText(label).width;
+    ctx.globalAlpha = 0.75;
+    ctx.fillStyle   = '#ffffff';
+    ctx.fillRect(labelX - 2, labelY - 12, tw + 6, 16);
+    ctx.globalAlpha = isOther ? 0.8 : 1;
+    ctx.fillStyle   = color;
+    ctx.fillText(label, labelX, labelY);
+    ctx.globalAlpha = 1;
+  }
   ctx.restore();
 }
 
 function limpiarZonaOverlay() {
   FIRMA.zonaRect = null;
-  const overlay = document.getElementById('zonaOverlay');
-  if (overlay) overlay.getContext('2d').clearRect(0, 0, overlay.width, overlay.height);
+  zonaRedibujarTodo(); // redibuja otras zonas, borra la del firmante actual
 }
 
 async function zonaChangePage(dir) {
