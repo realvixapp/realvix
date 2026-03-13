@@ -2686,30 +2686,7 @@ async function crearEstadio() {
 
 function guardarConfiguracion() { showToast('Configuración guardada ✅', 'success'); }
 
-// ── ESTADO PROPS ──
-async function cargarEstadoProps() {
-  try {
-    const r = await fetch('/api/propiedades');
-    const data = await r.json();
-    const props = data.propiedades || [];
-    document.getElementById('ep-total').textContent = props.length;
-    document.getElementById('ep-captadas').textContent = props.filter(p=>p.estado_tasacion==='Aceptada').length;
-    document.getElementById('ep-seguimiento').textContent = props.filter(p=>!['Aceptada','Rechazada','Vendio con Otro'].includes(p.estado_tasacion)).length;
-    const tbody = document.getElementById('tablaEstadoProps');
-    if (!tbody) return;
-    if (props.length === 0) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#bbb;padding:32px;">Sin propiedades</td></tr>'; return; }
-      <td style="font-weight:600;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.direccion||'—'}</td>
-      <td style="color:#888;">${p.nombre_propietario||'—'}</td>
-      <td><span class="badge">${p.tipologia||'—'}</span></td>
-      <td><span class="badge color-${data.estados?.find(e=>e.nombre===p.estado_tasacion)?.color||'gray'}">${p.estado_tasacion||'—'}</span></td>
-      <td style="color:#888;">${p.ultimo_contacto||'—'}</td>
-      <td style="color:#888;">${p.proximo_contacto||'—'}</td>
-      <td></td>
-    </tr>`).join('');
-  } catch(e) {
-    document.getElementById('tablaEstadoProps').innerHTML = '<tr><td colspan="7" style="text-align:center;color:#bbb;">Error al cargar</td></tr>';
-  }
-}
+
 
 // ── ADMIN ──
 async function cargarUsuariosAdmin() {
