@@ -441,10 +441,19 @@ async function lstCambiarEstado(id, sel) {
   const nuevoEstado = sel.value;
   const e = lstEstados.find(x => x.nombre === nuevoEstado);
   sel.className = 'estado-inline color-' + (e ? e.color : 'gray');
-  const prop = lstPropiedades.find(p => p.id === id);
-  if (!prop) return;
-  await fetch('/api/propiedades/' + id, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({...prop, estado_tasacion:nuevoEstado}) });
-  setTimeout(() => lstCargar(), 500);
+  try {
+    const r = await fetch('/api/propiedades/' + id, {
+      method: 'PUT',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ estado_tasacion: nuevoEstado })
+    });
+    const data = await r.json();
+    if (data.error) { showToast('Error al cambiar estado: ' + data.error, 'error'); lstCargar(); return; }
+    setTimeout(() => lstCargar(), 300);
+  } catch(e) {
+    showToast('Error de conexión', 'error');
+    lstCargar();
+  }
 }
 
 function lstFormatFecha(iso) {
