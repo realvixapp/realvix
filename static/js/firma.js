@@ -27,9 +27,7 @@ function initFirma() {
   }
   if (typeof RX !== 'undefined' && RX.user) {
     const n = document.getElementById('docOrgNombre');
-    const e = document.getElementById('docOrgEmail');
-    if (n) n.value = RX.user.name  || '';
-    if (e) e.value = RX.user.email || '';
+    if (n) n.value = RX.user.name || '';
   }
 }
 
@@ -44,6 +42,8 @@ function switchFirmaTab(tab, btn) {
   document.getElementById('tabCompletados').style.display = tab === 'completados' ? '' : 'none';
   if (tab === 'pendientes')  cargarLista('pendientes');
   if (tab === 'completados') cargarLista('completados');
+  // Blanquear formulario al salir del tab nueva
+  if (tab !== 'nueva') resetFormNueva();
 }
 
 /* ══════════════════════════════════════════
@@ -446,16 +446,16 @@ async function enviarDocumento() {
     if (!res.ok) throw new Error(await res.text());
     const data = await res.json();
 
-    mostrarResultadoEnvio(data);
     showToast('Documento enviado a ' + FIRMA.firmantes.length + ' firmante(s) ✓', 'success');
-
-    // Reset (mantener datos organizador)
-    document.getElementById('docTitulo').value          = '';
-    document.getElementById('docPdf').value             = '';
-    document.getElementById('pdfFileLabel').textContent = '';
-    document.getElementById('pdfBadge').style.display   = 'none';
-    FIRMA.firmantes = []; FIRMA.pdfFile = null; FIRMA.pdfBase64 = null; FIRMA.pdfDoc = null;
-    renderFirmantes();
+    resetFormNueva();
+    // Ir a pendientes y mostrar estado del doc recién creado
+    const docId    = data.doc_id;
+    const docTitle = document.getElementById('docTitulo')?.value || '';
+    switchFirmaTab('pendientes', document.getElementById('tabBtnPendientes'));
+    // Abrir estado del doc luego de que cargue la lista
+    setTimeout(function() {
+      abrirEstadoModal(docId, docTitle);
+    }, 600);
 
   } catch(e) {
     console.error(e);
@@ -463,6 +463,27 @@ async function enviarDocumento() {
   } finally {
     btn.disabled = false; btn.textContent = '🚀 Enviar para firma';
   }
+}
+
+/* ══════════════════════════════════════════
+   RESET FORMULARIO NUEVA FIRMA
+══════════════════════════════════════════ */
+function resetFormNueva() {
+  const t = document.getElementById('docTitulo');
+  if (t) t.value = '';
+  const p = document.getElementById('docPdf');
+  if (p) p.value = '';
+  const lbl = document.getElementById('pdfFileLabel');
+  if (lbl) lbl.textContent = '';
+  const badge = document.getElementById('pdfBadge');
+  if (badge) badge.style.display = 'none';
+  const res = document.getElementById('resultEnvio');
+  if (res) res.style.display = 'none';
+  FIRMA.firmantes = [];
+  FIRMA.pdfFile   = null;
+  FIRMA.pdfBase64 = null;
+  FIRMA.pdfDoc    = null;
+  renderFirmantes();
 }
 
 function mostrarResultadoEnvio(data) {
