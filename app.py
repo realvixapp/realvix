@@ -30,142 +30,169 @@ def get_connection():
         print(f"[DB ERROR] connect: {e}")
         return None
 
+def _exec_sql(sql, params=None):
+    """Ejecuta un SQL en su propia conexión/transacción para evitar rollbacks en cadena."""
+    conn = get_connection()
+    if not conn:
+        print("[DB] Sin conexión")
+        return False
+    try:
+        cur = conn.cursor()
+        cur.execute(sql, params)
+        conn.commit()
+        cur.close()
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"[DB] Error: {e} | SQL: {sql[:80]}")
+        try: conn.rollback(); conn.close()
+        except: pass
+        return False
+
 def init_db():
     conn = get_connection()
     if not conn:
         print("[DB] No DATABASE_URL")
         return
-    try:
-        cur = conn.cursor()
+    conn.close()
 
-        cur.execute("""CREATE TABLE IF NOT EXISTS documents (
-            id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMP DEFAULT NOW())""")
+    tablas = [
+        """CREATE TABLE IF NOT EXISTS documents (
+            id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMP DEFAULT NOW())""",
 
-        cur.execute("""CREATE TABLE IF NOT EXISTS users (
+        """CREATE TABLE IF NOT EXISTS users (
             id TEXT PRIMARY KEY, email TEXT UNIQUE NOT NULL, name TEXT NOT NULL,
             password_hash TEXT NOT NULL, role TEXT DEFAULT 'member',
             created_at TIMESTAMP DEFAULT NOW(), last_login TIMESTAMP,
-            permisos JSONB DEFAULT '{}')""")
+            permisos JSONB DEFAULT '{}')""",
 
-        cur.execute("""CREATE TABLE IF NOT EXISTS user_sessions (
+        """CREATE TABLE IF NOT EXISTS user_sessions (
             token TEXT PRIMARY KEY, user_id TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT NOW(), expires_at TIMESTAMP NOT NULL)""")
+            created_at TIMESTAMP DEFAULT NOW(), expires_at TIMESTAMP NOT NULL)""",
 
-        cur.execute("""CREATE TABLE IF NOT EXISTS propiedades (
+        """CREATE TABLE IF NOT EXISTS propiedades (
             id TEXT PRIMARY KEY, user_id TEXT NOT NULL DEFAULT 'legacy',
             direccion TEXT, localidad TEXT, zona TEXT, tipologia TEXT,
             nombre_propietario TEXT, telefono TEXT, email TEXT,
             estado_tasacion TEXT DEFAULT 'Pendiente Visita', estadio TEXT,
             observaciones TEXT, referido TEXT, url TEXT,
             ultimo_contacto TEXT, proximo_contacto TEXT, fecha_prelisting TEXT,
-            created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())""")
+            created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())""",
 
-        cur.execute("""CREATE TABLE IF NOT EXISTS estado_opciones (
+        """CREATE TABLE IF NOT EXISTS estado_opciones (
             id SERIAL PRIMARY KEY, user_id TEXT NOT NULL DEFAULT 'global',
             nombre TEXT NOT NULL, color TEXT DEFAULT 'gray',
             vista TEXT DEFAULT 'listing', orden INTEGER DEFAULT 99,
-            UNIQUE(user_id, nombre))""")
+            UNIQUE(user_id, nombre))""",
 
-        cur.execute("SELECT COUNT(*) FROM estado_opciones WHERE user_id='global'")
-        if cur.fetchone()[0] == 0:
-            estados = [
-                ('Pendiente Visita','purple','listing',1),
-                ('A Realizar','gray','listing',2),
-                ('Pendiente Respuesta','yellow','listing',3),
-                ('Aceptada','green','listing',4),
-                ('No contesta hacer seguimiento','orange','seguimiento',5),
-                ('Decide Esperar','blue','seguimiento',6),
-                ('Rechazada','red','rechazados',7),
-                ('Vendio con Otro','red','rechazados',8),
-            ]
-            for e in estados:
-                cur.execute(
-                    "INSERT INTO estado_opciones (user_id,nombre,color,vista,orden) VALUES ('global',%s,%s,%s,%s) ON CONFLICT DO NOTHING", e)
-
-        cur.execute("""CREATE TABLE IF NOT EXISTS contactos (
+        """CREATE TABLE IF NOT EXISTS contactos (
             id TEXT PRIMARY KEY, user_id TEXT NOT NULL, nombre TEXT NOT NULL,
             tipo TEXT DEFAULT 'otro', telefono TEXT, email TEXT, localidad TEXT,
             referido TEXT, profesion TEXT, familia TEXT, operacion TEXT, notas TEXT,
-            created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())""")
+            created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())""",
 
-        cur.execute("""CREATE TABLE IF NOT EXISTS consultas (
+        """CREATE TABLE IF NOT EXISTS consultas (
             id TEXT PRIMARY KEY, user_id TEXT NOT NULL, nombre TEXT, telefono TEXT,
             email TEXT, propiedad_id TEXT, propiedad_nombre TEXT, mensaje TEXT,
             estado TEXT DEFAULT 'nuevo', canal TEXT DEFAULT 'whatsapp',
             presupuesto TEXT, zona_interes TEXT, operacion TEXT DEFAULT 'compra',
-            notas TEXT, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())""")
+            notas TEXT, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())""",
 
-        cur.execute("""CREATE TABLE IF NOT EXISTS cierres (
+        """CREATE TABLE IF NOT EXISTS cierres (
             id TEXT PRIMARY KEY, user_id TEXT NOT NULL, propiedad TEXT,
             propiedad_id TEXT, comprador TEXT, vendedor TEXT,
             valor_operacion NUMERIC DEFAULT 0, moneda TEXT DEFAULT 'USD',
             comision_pct NUMERIC DEFAULT 3, comision_bruta NUMERIC DEFAULT 0,
             comision_neta NUMERIC DEFAULT 0, fecha TEXT, tipo TEXT DEFAULT 'venta',
-            notas TEXT, created_at TIMESTAMP DEFAULT NOW())""")
+            notas TEXT, created_at TIMESTAMP DEFAULT NOW())""",
 
-        cur.execute("""CREATE TABLE IF NOT EXISTS gastos (
+        """CREATE TABLE IF NOT EXISTS gastos (
             id TEXT PRIMARY KEY, user_id TEXT NOT NULL, descripcion TEXT,
             monto NUMERIC DEFAULT 0, moneda TEXT DEFAULT 'ARS',
             tipo TEXT DEFAULT 'egreso', categoria TEXT DEFAULT 'general',
             proveedor TEXT, fecha TEXT, notas TEXT,
-            created_at TIMESTAMP DEFAULT NOW())""")
+            created_at TIMESTAMP DEFAULT NOW())""",
 
-        cur.execute("""CREATE TABLE IF NOT EXISTS eventos (
+        """CREATE TABLE IF NOT EXISTS eventos (
             id TEXT PRIMARY KEY, user_id TEXT NOT NULL, titulo TEXT NOT NULL,
             fecha TEXT NOT NULL, hora TEXT, tipo TEXT DEFAULT 'reunion',
             notas TEXT, contacto_id TEXT, propiedad_id TEXT,
-            created_at TIMESTAMP DEFAULT NOW())""")
+            created_at TIMESTAMP DEFAULT NOW())""",
 
-        cur.execute("""CREATE TABLE IF NOT EXISTS tareas (
+        """CREATE TABLE IF NOT EXISTS tareas (
             id TEXT PRIMARY KEY, user_id TEXT NOT NULL, titulo TEXT NOT NULL,
             descripcion TEXT, estado TEXT DEFAULT 'pendiente',
             prioridad TEXT DEFAULT 'media', fecha_venc TEXT, propiedad_id TEXT,
-            created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())""")
+            created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())""",
 
-        cur.execute("""CREATE TABLE IF NOT EXISTS textos (
+        """CREATE TABLE IF NOT EXISTS textos (
             id TEXT PRIMARY KEY, user_id TEXT NOT NULL, titulo TEXT NOT NULL,
             contenido TEXT, tipo TEXT DEFAULT 'whatsapp',
-            categoria TEXT DEFAULT 'general', created_at TIMESTAMP DEFAULT NOW())""")
+            categoria TEXT DEFAULT 'general', created_at TIMESTAMP DEFAULT NOW())""",
 
-        cur.execute("""CREATE TABLE IF NOT EXISTS guiones (
+        """CREATE TABLE IF NOT EXISTS guiones (
             id TEXT PRIMARY KEY, user_id TEXT NOT NULL, titulo TEXT, hook TEXT,
             desarrollo TEXT, cta TEXT, grabado BOOLEAN DEFAULT FALSE,
-            fecha_grabacion TEXT, tema TEXT, created_at TIMESTAMP DEFAULT NOW())""")
+            fecha_grabacion TEXT, tema TEXT, created_at TIMESTAMP DEFAULT NOW())""",
 
-        cur.execute("""CREATE TABLE IF NOT EXISTS ideas (
+        """CREATE TABLE IF NOT EXISTS ideas (
             id TEXT PRIMARY KEY, user_id TEXT NOT NULL, texto TEXT NOT NULL,
-            estado TEXT DEFAULT 'pendiente', created_at TIMESTAMP DEFAULT NOW())""")
+            estado TEXT DEFAULT 'pendiente', created_at TIMESTAMP DEFAULT NOW())""",
 
-        cur.execute("""CREATE TABLE IF NOT EXISTS objetivos (
+        """CREATE TABLE IF NOT EXISTS objetivos (
             id TEXT PRIMARY KEY, user_id TEXT UNIQUE NOT NULL,
-            data JSONB NOT NULL DEFAULT '{}', updated_at TIMESTAMP DEFAULT NOW())""")
+            data JSONB NOT NULL DEFAULT '{}', updated_at TIMESTAMP DEFAULT NOW())""",
 
-        cur.execute("""CREATE TABLE IF NOT EXISTS planilla (
+        """CREATE TABLE IF NOT EXISTS planilla (
             id TEXT PRIMARY KEY, user_id TEXT UNIQUE NOT NULL,
-            data JSONB NOT NULL DEFAULT '[]', updated_at TIMESTAMP DEFAULT NOW())""")
+            data JSONB NOT NULL DEFAULT '[]', updated_at TIMESTAMP DEFAULT NOW())""",
+    ]
 
-        # Migraciones seguras
-        migraciones = [
-            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT 'legacy'",
-            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS email TEXT",
-            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS estadio TEXT",
-            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS referido TEXT",
-            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS url TEXT",
-            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS ultimo_contacto TEXT",
-            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS proximo_contacto TEXT",
-            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS fecha_prelisting TEXT",
-            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()",
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS permisos JSONB DEFAULT '{}'",
-        ]
-        for m in migraciones:
-            try: cur.execute(m)
-            except Exception as me: print(f"[MIGRATE] {me}")
+    for sql in tablas:
+        _exec_sql(sql)
 
-        cur.execute("UPDATE propiedades SET user_id='legacy' WHERE user_id IS NULL OR user_id=''")
-        conn.commit(); cur.close(); conn.close()
-        print("[DB] Todas las tablas listas")
-    except Exception as e:
-        print(f"[DB ERROR] init: {e}")
+    # Insertar estados por defecto si no existen
+    conn2 = get_connection()
+    if conn2:
+        try:
+            cur2 = conn2.cursor()
+            cur2.execute("SELECT COUNT(*) FROM estado_opciones WHERE user_id='global'")
+            if cur2.fetchone()[0] == 0:
+                estados = [
+                    ('Pendiente Visita','purple','listing',1),
+                    ('A Realizar','gray','listing',2),
+                    ('Pendiente Respuesta','yellow','listing',3),
+                    ('Aceptada','green','listing',4),
+                    ('No contesta hacer seguimiento','orange','seguimiento',5),
+                    ('Decide Esperar','blue','seguimiento',6),
+                    ('Rechazada','red','rechazados',7),
+                    ('Vendio con Otro','red','rechazados',8),
+                ]
+                for e in estados:
+                    cur2.execute(
+                        "INSERT INTO estado_opciones (user_id,nombre,color,vista,orden) VALUES ('global',%s,%s,%s,%s) ON CONFLICT DO NOTHING", e)
+            conn2.commit(); cur2.close(); conn2.close()
+        except Exception as e:
+            print(f"[DB] estados: {e}")
+
+    # Migraciones seguras (cada una en su propia transacción)
+    migraciones = [
+        "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT 'legacy'",
+        "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS email TEXT",
+        "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS estadio TEXT",
+        "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS referido TEXT",
+        "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS url TEXT",
+        "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS ultimo_contacto TEXT",
+        "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS proximo_contacto TEXT",
+        "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS fecha_prelisting TEXT",
+        "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS permisos JSONB DEFAULT '{}'",
+        "UPDATE propiedades SET user_id='legacy' WHERE user_id IS NULL OR user_id=''",
+    ]
+    for m in migraciones:
+        _exec_sql(m)
+
+    print("[DB] Todas las tablas listas")
 
 
 # ── AUTH helpers ──
