@@ -217,6 +217,24 @@ table.planilla td{border:1px solid var(--border);padding:0;}
 .btn-copy-edo{padding:6px 12px;background:var(--ink);color:white;border:none;border-radius:6px;font-size:0.72rem;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit;transition:background 0.15s;}
 .btn-copy-edo:hover{background:#333;}
 .btn-copy-edo.copied{background:var(--sage);}
+
+/* ── CHECKLIST TAREAS (#8) ── */
+.checklist-col{display:flex;flex-direction:column;gap:8px;}
+.checklist-item{background:white;border:1px solid var(--border);border-radius:8px;padding:10px 14px;transition:box-shadow 0.15s;}
+.checklist-item:hover{box-shadow:0 2px 8px rgba(0,0,0,0.06);}
+.checklist-item.done{background:#f8fdf8;opacity:0.75;}
+
+/* ── PERIOD BUTTONS (#4/#5) ── */
+.btn-periodo{padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:white;color:#777;font-family:inherit;font-size:0.78rem;font-weight:600;cursor:pointer;transition:all 0.15s;}
+.btn-periodo:hover{border-color:var(--gold);color:var(--ink);}
+.btn-periodo.active{background:var(--ink);color:white;border-color:var(--ink);}
+
+/* ── CIERRES CHARTS GRID (#5) ── */
+.cierres-charts-grid{margin-bottom:16px;}
+@media(max-width:680px){.cierres-charts-grid{grid-template-columns:1fr !important;}}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
 </style>
 </head>
 <body>
@@ -699,6 +717,7 @@ function verEstadoDoc(docId) {
   edoInicializar(docId);
 }
 
+function edoCopiarLink(btn, token) {
   const input = document.getElementById('edolnk-'+token);
   if (input) navigator.clipboard.writeText(input.value);
   btn.textContent='¡Copiado!'; btn.classList.add('copied');
@@ -913,6 +932,19 @@ function verEstadoDoc(docId) {
           <div class="stat-num" id="ds-consultas">—</div>
           <div class="stat-label">Consultas activas</div>
         </div>
+      </div>
+
+      <!-- #4: Gráfico actividad mensual -->
+      <div class="card" style="margin-bottom:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+          <div class="card-title" style="margin:0;">📊 Actividad mensual</div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn-periodo active" id="dp-3m" onclick="dashSetPeriodo(3,this)">3 meses</button>
+            <button class="btn-periodo" id="dp-6m" onclick="dashSetPeriodo(6,this)">6 meses</button>
+            <button class="btn-periodo" id="dp-12m" onclick="dashSetPeriodo(12,this)">12 meses</button>
+          </div>
+        </div>
+        <canvas id="dashChart" height="90"></canvas>
       </div>
 
       <div class="dash-grid">
@@ -1179,6 +1211,25 @@ function verEstadoDoc(docId) {
         <div class="stat gold"><div class="stat-label">Ticket promedio</div><div class="stat-num" id="ci-ticket" style="font-size:1.3rem;">$—</div></div>
         <div class="stat"><div class="stat-label">Operaciones</div><div class="stat-num" id="ci-ops">—</div></div>
       </div>
+
+      <!-- #5: Gráficos de facturación -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;" class="cierres-charts-grid">
+        <div class="card" style="padding:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px;">
+            <div class="card-title" style="margin:0;font-size:0.85rem;">📈 Facturación mensual</div>
+            <div style="display:flex;gap:4px;">
+              <button class="btn-periodo active" id="ci-6m" onclick="cierresSetPeriodo(6,this)">6m</button>
+              <button class="btn-periodo" id="ci-12m" onclick="cierresSetPeriodo(12,this)">12m</button>
+            </div>
+          </div>
+          <canvas id="cierresChart" height="120"></canvas>
+        </div>
+        <div class="card" style="padding:16px;">
+          <div class="card-title" style="margin-bottom:10px;font-size:0.85rem;">📊 Año actual vs anterior</div>
+          <canvas id="cierresYearChart" height="120"></canvas>
+        </div>
+      </div>
+
       <div id="listaCierres">
         <div class="empty-state"><div class="empty-icon">💰</div><p>Sin cierres registrados aún</p></div>
       </div>
@@ -1269,23 +1320,30 @@ function verEstadoDoc(docId) {
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
         <div>
           <div class="page-title">Pendientes</div>
-          <div class="page-sub">Tasks pendientes, en proceso y completadas</div>
+          <div class="page-sub">Tasks y seguimientos del día</div>
         </div>
         <button class="btn btn-gold" onclick="abrirModalTarea()">+ Nueva tarea</button>
       </div>
-      <div style="display:flex;gap:16px;align-items:flex-start;">
-        <div style="flex:1;">
-          <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--rust);margin-bottom:8px;">⏳ Pendiente</div>
-          <div id="col-pendiente"></div>
-        </div>
-        <div style="flex:1;">
-          <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--gold);margin-bottom:8px;">🔄 En proceso</div>
-          <div id="col-proceso"></div>
-        </div>
-        <div style="flex:1;">
-          <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--sage);margin-bottom:8px;">✅ Finalizado</div>
-          <div id="col-finalizado"></div>
-        </div>
+
+      <div class="card" style="margin-bottom:14px;">
+        <div class="card-title">⏳ Pendientes</div>
+        <div id="col-pendiente" class="checklist-col"></div>
+      </div>
+      <div class="card" style="margin-bottom:14px;">
+        <div class="card-title">🔄 En proceso</div>
+        <div id="col-proceso" class="checklist-col"></div>
+      </div>
+      <div class="card" style="margin-bottom:14px;">
+        <div class="card-title" style="color:var(--sage);">✅ Realizadas</div>
+        <div id="col-finalizado" class="checklist-col"></div>
+        <div id="motivMessage" style="display:none;text-align:center;padding:10px 0;font-size:0.88rem;color:var(--sage);font-weight:600;animation:fadeIn 0.5s ease;"></div>
+      </div>
+
+      <div style="margin-top:6px;">
+        <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#999;margin-bottom:10px;">💡 Ideas pendientes</div>
+        <div id="col-ideas-pendientes"></div>
+        <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--sage);margin:14px 0 10px;">✅ Ideas realizadas</div>
+        <div id="col-ideas-realizadas"></div>
       </div>
     </div>
 
@@ -1355,10 +1413,12 @@ function verEstadoDoc(docId) {
       </div>
       <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
         <button class="btn btn-sm active" onclick="filtrarTextos('todos',this)">Todos</button>
-        <button class="btn btn-sm" onclick="filtrarTextos('whatsapp',this)">WhatsApp</button>
-        <button class="btn btn-sm" onclick="filtrarTextos('email',this)">Email</button>
-        <button class="btn btn-sm" onclick="filtrarTextos('visita',this)">Visita</button>
-        <button class="btn btn-sm" onclick="filtrarTextos('captacion',this)">Captación</button>
+        <button class="btn btn-sm" onclick="filtrarTextos('whatsapp',this)">📱 WhatsApp</button>
+        <button class="btn btn-sm" onclick="filtrarTextos('email',this)">📧 Email</button>
+        <button class="btn btn-sm" onclick="filtrarTextos('visita',this)">🏠 Visita</button>
+        <button class="btn btn-sm" onclick="filtrarTextos('captacion',this)">🎯 Captación</button>
+        <button class="btn btn-sm" onclick="filtrarTextos('seguimiento',this)">🔄 Seguimiento</button>
+        <button class="btn btn-sm" onclick="filtrarTextos('cierre',this)">💰 Cierre</button>
       </div>
       <div id="listaTextos">
         <div class="empty-state"><div class="empty-icon">📄</div><p>Agregá tus primeros textos</p></div>
@@ -1369,10 +1429,23 @@ function verEstadoDoc(docId) {
     <div class="page" id="page-instagram">
       <div class="ig-header">
         <h3>📸 Guiones para Instagram</h3>
-        <p>Contenido inmobiliario diario — IA genera ideas adaptadas a tu negocio</p>
+        <p>Contenido inmobiliario diario — IA genera ideas adaptadas a tu negocio. Historial de grabados incluido para no repetir temas.</p>
       </div>
-      <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center;">
-        <button class="btn btn-gold" onclick="generarGuionIA()">✨ Generar guion con IA</button>
+      <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center;flex-wrap:wrap;">
+        <select id="guTemaIA" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.83rem;background:white;">
+          <option value="">— Elegí un tema —</option>
+          <option value="tips_compra">💡 Tips para compradores</option>
+          <option value="tips_venta">🏠 Tips para vendedores</option>
+          <option value="mercado">📊 Mercado actual</option>
+          <option value="errores">⚠️ Errores frecuentes</option>
+          <option value="zona">📍 Mi zona</option>
+          <option value="inversion">💰 Inversión inmobiliaria</option>
+          <option value="proceso">📋 Proceso de compra/venta</option>
+          <option value="motivacion">🔥 Motivación profesional</option>
+          <option value="negociacion">🤝 Negociación</option>
+          <option value="tendencias">🚀 Tendencias del mercado</option>
+        </select>
+        <button class="btn btn-gold" id="btnGenerarIA" onclick="generarGuionIA()">✨ Generar guion con IA</button>
         <button class="btn btn-outline" onclick="abrirModalGuion()">+ Crear manual</button>
       </div>
       <div id="listaGuiones">
@@ -1461,10 +1534,25 @@ function verEstadoDoc(docId) {
         <div class="form-row">
           <div class="form-group"><label>Contraseña</label><input type="password" id="adminPass" placeholder="Mínimo 6 caracteres"></div>
           <div class="form-group"><label>Rol</label>
-            <select id="adminRol"><option value="member">Miembro</option><option value="admin">Admin</option></select>
+            <select id="adminRol" onchange="togglePermisosPanel(this)"><option value="member">Miembro</option><option value="admin">Admin</option></select>
           </div>
         </div>
-        <button class="btn btn-gold" onclick="crearUsuario()">Crear usuario</button>
+        <!-- #15: Permisos granulares -->
+        <div id="permisosPanel" style="margin-top:12px;">
+          <div style="font-size:0.82rem;font-weight:600;margin-bottom:8px;color:#666;">Acceso a secciones <button type="button" onclick="checkAllPermisos(true)" style="background:none;border:none;color:var(--gold);font-size:0.75rem;cursor:pointer;font-family:inherit;">Todos</button> / <button type="button" onclick="checkAllPermisos(false)" style="background:none;border:none;color:#aaa;font-size:0.75rem;cursor:pointer;font-family:inherit;">Ninguno</button></div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px 12px;font-size:0.8rem;">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" class="perm-check" value="propiedades" checked> Propiedades</label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" class="perm-check" value="contactos" checked> Contactos</label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" class="perm-check" value="consultas" checked> Consultas</label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" class="perm-check" value="cierres" checked> Cierres</label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" class="perm-check" value="objetivos" checked> Objetivos</label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" class="perm-check" value="agenda" checked> Agenda</label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" class="perm-check" value="firma" checked> Firma</label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" class="perm-check" value="textos" checked> Textos</label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" class="perm-check" value="instagram" checked> Instagram</label>
+          </div>
+        </div>
+        <button class="btn btn-gold" style="margin-top:14px;" onclick="crearUsuario()">Crear usuario</button>
       </div>
       <div class="card" style="margin-top:14px;">
         <div class="card-title">Usuarios activos</div>
@@ -1535,7 +1623,11 @@ function verEstadoDoc(docId) {
         </div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>Propiedad de interés</label><input type="text" id="consPropiedad" placeholder="Dirección o ID de propiedad"></div>
+        <div class="form-group"><label>Propiedad de interés</label>
+          <select id="consPropiedadId" style="width:100%;">
+            <option value="">— Cargando propiedades... —</option>
+          </select>
+        </div>
         <div class="form-group"><label>Fecha de muestra</label><input type="date" id="consFechaMuestra"></div>
       </div>
       <div class="form-group"><label>Calificación</label>
@@ -1558,6 +1650,13 @@ function verEstadoDoc(docId) {
       <button class="modal-close" onclick="cerrarModal('modalCierre')">✕</button>
     </div>
     <div class="modal-body">
+      <!-- #11: Propiedad vinculada -->
+      <div class="form-group">
+        <label>Propiedad vinculada</label>
+        <select id="ciPropiedadId" style="width:100%;" onchange="ciPropiedadSeleccionada(this)">
+          <option value="">— Sin vincular / Ingresá dirección manualmente —</option>
+        </select>
+      </div>
       <div class="form-group"><label>Dirección / Propiedad</label><input type="text" id="ciDireccion"></div>
       <div class="form-row">
         <div class="form-group"><label>Valor de venta (USD)</label><input type="number" id="ciValor" placeholder="0"></div>
@@ -1574,6 +1673,9 @@ function verEstadoDoc(docId) {
       <div class="form-group"><label>Puntas (1 o 2)</label><select id="ciPuntas"><option value="2">2 puntas</option><option value="1">1 punta</option></select></div>
       <div class="form-group"><label>Notas</label><textarea id="ciNotas" rows="2"></textarea></div>
       <div id="ciCalculo" style="background:var(--cream);border-radius:8px;padding:12px 14px;margin-top:8px;font-size:0.85rem;display:none;"></div>
+      <div id="ciVendidaWarning" style="display:none;background:#f0faf4;border:1px solid var(--sage-light);border-radius:8px;padding:10px 14px;font-size:0.82rem;color:#2d6a4f;margin-top:8px;">
+        ✅ Al guardar este cierre, la propiedad vinculada será marcada automáticamente como <strong>Vendida</strong>.
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="cerrarModal('modalCierre')">Cancelar</button>
@@ -1651,8 +1753,12 @@ function verEstadoDoc(docId) {
         <div class="form-group"><label>Título</label><input type="text" id="txTitulo" placeholder="Primer contacto WhatsApp..."></div>
         <div class="form-group"><label>Canal</label>
           <select id="txCanal">
-            <option value="whatsapp">WhatsApp</option><option value="email">Email</option>
-            <option value="visita">Visita</option><option value="captacion">Captación</option>
+            <option value="whatsapp">📱 WhatsApp</option>
+            <option value="email">📧 Email</option>
+            <option value="visita">🏠 Visita</option>
+            <option value="captacion">🎯 Captación</option>
+            <option value="seguimiento">🔄 Seguimiento</option>
+            <option value="cierre">💰 Cierre</option>
           </select>
         </div>
       </div>
@@ -1733,6 +1839,7 @@ function verEstadoDoc(docId) {
 
 <!-- ══ SCRIPTS ══ -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
@@ -1809,7 +1916,7 @@ function showPage(id) {
     'contactos': renderContactos,
     'consultas': renderConsultas,
     'embudo': calcularEmbudo,
-    'cierres': renderCierres,
+    'cierres': () => { renderCierres(); setTimeout(renderCierresCharts, 150); },
     'objetivos': renderObjetivos,
     'planilla': renderPlanilla,
     'agenda': renderCalendario,
@@ -1907,6 +2014,9 @@ async function cargarDashboard() {
       <div class="funnel-bar-wrap"><div class="funnel-bar" style="width:${total>0?Math.round(e.n/total*100):0}%"></div></div>
       <span class="funnel-count">${e.n}</span>
     </div>`).join('');
+
+  // #4: render activity chart
+  setTimeout(renderDashChart, 150);
 }
 
 // ── DOCUMENTOS (Firma) ──
@@ -2247,7 +2357,23 @@ function eliminarContacto(id) {
 }
 
 // ── CONSULTAS ──
-function abrirModalConsulta() { abrirModal('modalConsulta'); }
+async function abrirModalConsulta() {
+  abrirModal('modalConsulta');
+  try {
+    const r = await fetch('/api/propiedades?vista=all');
+    const data = await r.json();
+    const sel = document.getElementById('consPropiedadId');
+    if (sel) {
+      sel.innerHTML = '<option value="">— Sin propiedad específica —</option>' +
+        (data.propiedades || []).map(p =>
+          `<option value="${p.id}" data-nombre="${p.direccion||''}">[${p.tipologia||'Prop'}] ${p.direccion}${p.localidad?' - '+p.localidad:''}</option>`
+        ).join('');
+    }
+  } catch(e) {
+    const sel = document.getElementById('consPropiedadId');
+    if (sel) sel.innerHTML = '<option value="">— Sin propiedad —</option>';
+  }
+}
 function filtrarConsultas(etapa, el) {
   document.querySelectorAll('.ctab').forEach(t => t.classList.remove('active'));
   if (el) el.classList.add('active');
@@ -2255,13 +2381,17 @@ function filtrarConsultas(etapa, el) {
 }
 
 function guardarConsulta() {
+  const propSel = document.getElementById('consPropiedadId');
+  const propId = propSel?.value || '';
+  const propNombre = propSel?.options[propSel.selectedIndex]?.dataset.nombre || '';
   const obj = {
     id: Date.now().toString(),
     nombre: document.getElementById('consNombre').value,
     tel: document.getElementById('consTel').value,
     email: document.getElementById('consEmail').value,
     etapa: document.getElementById('consEtapa').value,
-    propiedad: document.getElementById('consPropiedad').value,
+    propiedad_id: propId,
+    propiedad: propNombre,
     fechaMuestra: document.getElementById('consFechaMuestra').value,
     calificacion: document.getElementById('consCalificacion').value,
     obs: document.getElementById('consObs').value,
@@ -2274,6 +2404,31 @@ function guardarConsulta() {
   showToast('Consulta guardada ✅', 'success');
   renderConsultas('todos');
   document.getElementById('badge-consultas').textContent = LOCAL.consultas.length;
+  // #3: WhatsApp button
+  if (obj.tel) mostrarBtnWhatsApp(obj);
+}
+
+// #3: Toast flotante con link WA post-consulta
+function mostrarBtnWhatsApp(consulta) {
+  const textoWA = LOCAL.textos?.find(t => t.canal === 'whatsapp');
+  let mensaje = textoWA?.contenido || 'Hola {nombre}, te contacto por la propiedad 👋';
+  mensaje = mensaje.replace('{nombre}', consulta.nombre || '').replace('{propiedad}', consulta.propiedad || '');
+  const tel = consulta.tel.replace(/[^0-9]/g, '');
+  const url = `https://wa.me/${tel}?text=${encodeURIComponent(mensaje)}`;
+  const div = document.createElement('div');
+  div.id = 'waToast';
+  div.style.cssText = 'position:fixed;bottom:24px;right:24px;background:white;border:1.5px solid #25D366;border-radius:12px;padding:14px 18px;box-shadow:0 4px 20px rgba(0,0,0,0.15);z-index:9999;display:flex;align-items:center;gap:12px;max-width:300px;animation:fadeIn 0.3s ease;';
+  div.innerHTML = `
+    <span style="font-size:1.4rem;">💬</span>
+    <div style="flex:1;">
+      <div style="font-weight:600;font-size:0.85rem;">¿Enviar WhatsApp?</div>
+      <div style="font-size:0.75rem;color:#888;">${consulta.nombre}</div>
+    </div>
+    <a href="${url}" target="_blank" style="background:#25D366;color:white;border:none;border-radius:8px;padding:7px 12px;font-size:0.78rem;font-weight:600;text-decoration:none;white-space:nowrap;">Abrir →</a>
+    <button onclick="document.getElementById('waToast')?.remove()" style="background:none;border:none;cursor:pointer;color:#bbb;font-size:1rem;">✕</button>`;
+  document.getElementById('waToast')?.remove();
+  document.body.appendChild(div);
+  setTimeout(() => div.remove(), 15000);
 }
 
 function renderConsultas(filtro='todos') {
@@ -2336,9 +2491,36 @@ function showEmbudoDetalle(etapa) {
 }
 
 // ── CIERRES ──
-function abrirModalCierre() {
+async function abrirModalCierre() {
   document.getElementById('ciFecha').value = new Date().toISOString().split('T')[0];
+  // #11: Cargar propiedades en selector
+  try {
+    const r = await fetch('/api/propiedades?vista=all');
+    const data = await r.json();
+    const sel = document.getElementById('ciPropiedadId');
+    if (sel) {
+      sel.innerHTML = '<option value="">— Sin vincular / Ingresá dirección manualmente —</option>' +
+        (data.propiedades||[]).filter(p=>p.estado_tasacion!=='Vendida').map(p=>
+          `<option value="${p.id}" data-dir="${p.direccion||''}" data-zona="${p.zona||p.localidad||''}" data-tipo="${p.tipologia||''}">[${p.tipologia||'Prop'}] ${p.direccion}${p.localidad?' - '+p.localidad:''}</option>`
+        ).join('');
+    }
+  } catch(e) {}
+  const warn = document.getElementById('ciVendidaWarning');
+  if (warn) warn.style.display = 'none';
   abrirModal('modalCierre');
+}
+
+function ciPropiedadSeleccionada(sel) {
+  const opt = sel.options[sel.selectedIndex];
+  const warn = document.getElementById('ciVendidaWarning');
+  if (sel.value) {
+    document.getElementById('ciDireccion').value = opt.dataset.dir || '';
+    document.getElementById('ciZona').value = opt.dataset.zona || '';
+    document.getElementById('ciTipo').value = opt.dataset.tipo || '';
+    if (warn) warn.style.display = 'block';
+  } else {
+    if (warn) warn.style.display = 'none';
+  }
 }
 
 function calcularCierre() {
@@ -2358,15 +2540,17 @@ function calcularCierre() {
     </div>`;
 }
 
-function guardarCierre() {
+async function guardarCierre() {
   const valor = parseFloat(document.getElementById('ciValor').value)||0;
   const pct = parseFloat(document.getElementById('ciPct').value)||0;
   const brokerPct = parseFloat(document.getElementById('ciBrokerPct').value)||0;
   const bruto = valor * pct / 100;
   const neto = bruto - (bruto * brokerPct / 100);
+  const propiedadId = document.getElementById('ciPropiedadId')?.value || '';
   const obj = {
     id: Date.now().toString(),
     direccion: document.getElementById('ciDireccion').value,
+    propiedad_id: propiedadId,
     valor, pct, brokerPct, bruto, neto,
     fecha: document.getElementById('ciFecha').value,
     zona: document.getElementById('ciZona').value,
@@ -2376,9 +2560,19 @@ function guardarCierre() {
   };
   LOCAL.cierres.unshift(obj);
   saveLocal('cierres');
+  // #11: Marcar propiedad como Vendida
+  if (propiedadId) {
+    try {
+      await fetch(`/api/propiedades/${propiedadId}/estado`, {
+        method:'PATCH', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({estado_tasacion:'Vendida'})
+      });
+    } catch(e) { console.error('No se pudo actualizar estado propiedad:', e); }
+  }
   cerrarModal('modalCierre');
   showToast('¡Cierre registrado! 🎉', 'success');
   renderCierres();
+  renderObjetivos();
 }
 
 function renderCierres() {
@@ -2565,28 +2759,55 @@ function guardarTarea() {
 }
 
 function renderTareas() {
+  const MOTIV = ['¡Tarea completada! 🔥 Seguís sumando','¡Excelente! Cada paso cuenta 💪','¡Hecho! La constancia hace al campeón ⭐','¡Completado! Tu disciplina es tu ventaja 🏆','¡Genial! Un paso más hacia tu objetivo 🎯'];
   ['pendiente','proceso','finalizado'].forEach(estado => {
     const col = document.getElementById('col-' + estado);
     if (!col) return;
     const lista = LOCAL.tareas.filter(t => t.estado === estado);
-    if (lista.length === 0) { col.innerHTML = '<div style="color:#bbb;font-size:0.82rem;text-align:center;padding:16px 0;">Sin tareas</div>'; return; }
-    const acciones = {
-      pendiente: (id) => `<button class="btn-sm" onclick="moverTarea('${id}','proceso')">→ Iniciar</button>`,
-      proceso: (id) => `<button class="btn-sm" onclick="moverTarea('${id}','finalizado')">✅ Completar</button>`,
-      finalizado: (id) => `<button class="btn-sm" onclick="moverTarea('${id}','pendiente')">↺ Reabrir</button>`,
-    };
-    col.innerHTML = lista.map(t => `
-      <div class="kanban-card">
-        <div class="kanban-card-title">${t.titulo}</div>
-        ${t.fecha ? `<div class="kanban-card-sub">📅 ${t.fecha}</div>` : ''}
-        ${t.nota ? `<div class="kanban-card-sub">${t.nota}</div>` : ''}
-        <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center;">
-          ${acciones[estado](t.id)}
-          <button class="btn-sm" style="color:var(--rust);" onclick="LOCAL.tareas=LOCAL.tareas.filter(x=>x.id!=='${t.id}');saveLocal('tareas');renderTareas()">✕</button>
-        </div>
-      </div>`).join('');
+    if (lista.length === 0) {
+      col.innerHTML = '<div style="color:#bbb;font-size:0.82rem;padding:12px 0 4px;">Sin tareas en este estado</div>';
+    } else {
+      const PCOLOR = { alta:'#c0392b', media:'#e67e22', baja:'#27ae60', red:'#c0392b', orange:'#e67e22', green:'#27ae60', blue:'#2980b9' };
+      col.innerHTML = lista.map(t => {
+        const pc = PCOLOR[t.prioridad||t.color||'media']||'#e67e22';
+        const vencida = t.fecha && new Date(t.fecha) < new Date() && estado !== 'finalizado';
+        return `<div class="checklist-item ${estado==='finalizado'?'done':''}" style="border-left:3px solid ${pc};">
+          <div style="display:flex;align-items:flex-start;gap:10px;">
+            <span onclick="toggleTareaCheck('${t.id}','${estado}')" style="cursor:pointer;font-size:1.1rem;flex-shrink:0;margin-top:1px;">${estado==='finalizado'?'✅':'⭕'}</span>
+            <div style="flex:1;">
+              <div style="font-weight:600;font-size:0.88rem;${estado==='finalizado'?'text-decoration:line-through;opacity:0.6;':''}">${t.titulo}</div>
+              ${t.fecha ? `<div style="font-size:0.74rem;color:${vencida?'#c0392b':'#bbb'};">📅 ${t.fecha}${vencida?' ⚠️ Vencida':''}</div>` : ''}
+              ${t.nota ? `<div style="font-size:0.78rem;color:#999;margin-top:2px;">${t.nota}</div>` : ''}
+            </div>
+            <button onclick="LOCAL.tareas=LOCAL.tareas.filter(x=>x.id!=='${t.id}');saveLocal('tareas');renderTareas()" style="background:none;border:none;cursor:pointer;color:#ddd;font-size:0.9rem;" title="Eliminar">✕</button>
+          </div>
+          ${estado==='pendiente'?`<div style="margin-top:6px;"><button class="btn-sm" onclick="moverTarea('${t.id}','proceso')" style="font-size:0.72rem;">→ Iniciar</button></div>`:''}
+        </div>`;
+      }).join('');
+    }
   });
+  // Ideas en sección tareas
+  const ip = document.getElementById('col-ideas-pendientes');
+  const ir = document.getElementById('col-ideas-realizadas');
+  if (ip) {
+    const p = LOCAL.ideas.filter(i => !i.completada);
+    ip.innerHTML = p.length ? p.map(i=>`<div class="checklist-item"><span onclick="toggleIdea('${i.id}')" style="cursor:pointer;">💡</span> <span style="font-size:0.85rem;">${i.texto}</span></div>`).join('') : '<div style="color:#bbb;font-size:0.82rem;">Sin ideas pendientes</div>';
+  }
+  if (ir) {
+    const r = LOCAL.ideas.filter(i => i.completada);
+    ir.innerHTML = r.length ? r.map(i=>`<div class="checklist-item done"><span>✅</span> <span style="font-size:0.82rem;text-decoration:line-through;opacity:0.6;">${i.texto}</span></div>`).join('') : '<div style="color:#bbb;font-size:0.82rem;">Sin ideas realizadas aún</div>';
+  }
   document.getElementById('badge-pendientes-agenda').textContent = LOCAL.tareas.filter(t=>t.estado==='pendiente').length;
+}
+
+async function toggleTareaCheck(id, estadoActual) {
+  const nuevo = estadoActual==='pendiente'?'proceso':estadoActual==='proceso'?'finalizado':'pendiente';
+  moverTarea(id, nuevo);
+  if (nuevo === 'finalizado') {
+    const MOTIV = ['¡Tarea completada! 🔥 Seguís sumando','¡Excelente! Cada paso cuenta 💪','¡Hecho! La constancia hace al campeón ⭐','¡Completado! Tu disciplina es tu ventaja 🏆','¡Genial! Un paso más hacia tu objetivo 🎯'];
+    const div = document.getElementById('motivMessage');
+    if (div) { div.textContent = MOTIV[Math.floor(Math.random()*MOTIV.length)]; div.style.display='block'; setTimeout(()=>div.style.display='none',3000); }
+  }
 }
 
 function moverTarea(id, estado) {
@@ -2663,24 +2884,40 @@ function guardarGuion() {
 }
 
 async function generarGuionIA() {
-  showToast('Generando guion con IA...', 'info');
+  const tema = document.getElementById('guTemaIA')?.value || '';
+  const btn = document.getElementById('btnGenerarIA');
+  if (btn) { btn.textContent = '⏳ Generando...'; btn.disabled = true; }
   try {
+    // Historial de temas usados para no repetir
+    const temasUsados = LOCAL.guiones.slice(0,8).map(g => g.titulo).filter(Boolean);
+    const temaDescMap = {
+      tips_compra:'tips para compradores de primera vivienda',
+      tips_venta:'tips para vendedores que quieren vender rápido',
+      mercado:'análisis del mercado inmobiliario actual en Argentina',
+      errores:'errores frecuentes al comprar o vender propiedades',
+      zona:'ventajas de vivir en mi zona',
+      inversion:'inversión inmobiliaria en pesos o dólares',
+      proceso:'cómo es el proceso de compra/venta paso a paso',
+      motivacion:'motivación para profesionales inmobiliarios',
+      negociacion:'técnicas de negociación inmobiliaria',
+      tendencias:'tendencias del mercado inmobiliario 2025',
+    };
+    const temaTexto = temaDescMap[tema] || (tema || 'un tema inmobiliario relevante y actual');
+    const historial = temasUsados.length ? `Ya usaste estos temas, NO los repitas: ${temasUsados.join(', ')}. ` : '';
+    const prompt = `${historial}Generá un guion corto de video para Instagram de un agente inmobiliario en Argentina. Marca: Realvix. Tema: ${temaTexto}. Usá lenguaje argentino natural. Formato: gancho inicial muy impactante (1 oración), 3 puntos de desarrollo (bullet style con emojis), call to action. Respondé SOLO en JSON sin markdown: {"titulo":"...","hook":"...","desarrollo":"...","cta":"..."}`;
     const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514', max_tokens: 800,
-        messages: [{role:'user', content:'Generá un guion corto de video para Instagram de un agente inmobiliario en Argentina. Marca: Realvix. Tema: tips para compradores de primera vivienda. Formato: gancho inicial (1 oración impactante), 3 puntos del desarrollo (bullet style), call to action. Respondé SOLO en JSON sin markdown: {"titulo":"...","hook":"...","desarrollo":"...","cta":"..."}'}]
-      })
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:900, messages:[{role:'user',content:prompt}] })
     });
     const data = await r.json();
     const text = data.content?.[0]?.text || '';
     const clean = text.replace(/```json|```/g,'').trim();
     const parsed = JSON.parse(clean);
-    const obj = { id:Date.now().toString(), ...parsed, tema:'tips', fecha:new Date().toISOString().split('T')[0], generadoIA:true };
+    const obj = { id:Date.now().toString(), ...parsed, tema: tema||'general', fecha:new Date().toISOString().split('T')[0], generadoIA:true };
     LOCAL.guiones.unshift(obj); saveLocal('guiones');
     showToast('Guion generado ✅', 'success'); renderGuiones();
   } catch(e) { showToast('Error al generar. Probá el modal manual.', 'error'); }
+  finally { if (btn) { btn.textContent = '✨ Generar guion con IA'; btn.disabled = false; } }
 }
 
 function renderGuiones() {
@@ -2781,11 +3018,39 @@ async function cargarConfiguracion() {
     if (!div) return;
     if (!data.estados?.length) { div.innerHTML = '<p style="color:#bbb">Sin estadios configurados</p>'; return; }
     div.innerHTML = data.estados.map(e => `
-      <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);">
+      <div id="estado-row-${e.id}" style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);">
         <span class="badge color-${e.color}">${e.nombre}</span>
         <span style="font-size:0.75rem;color:#bbb;flex:1;">${e.vista||''}</span>
+        <button onclick="editarEstadoInline(${e.id},'${e.nombre.replace(/'/g,"\\'")}','${e.color||''}')" style="background:none;border:none;cursor:pointer;font-size:0.85rem;color:#bbb;" title="Editar">✏️</button>
+        <button onclick="eliminarEstadoInline(${e.id},'${e.nombre.replace(/'/g,"\\'")}'')" style="background:none;border:none;cursor:pointer;font-size:0.85rem;color:#bbb;" title="Eliminar">✕</button>
       </div>`).join('');
   } catch(e) {}
+}
+
+function editarEstadoInline(id, nombre, color) {
+  const row = document.getElementById('estado-row-'+id);
+  if (!row) return;
+  row.innerHTML = `
+    <input type="text" id="edit-nom-${id}" value="${nombre}" style="flex:1;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:0.83rem;">
+    <input type="color" id="edit-col-${id}" value="${color||'#888888'}" style="width:32px;height:28px;border:none;cursor:pointer;border-radius:4px;">
+    <button onclick="guardarEdicionEstado(${id})" class="btn btn-sm btn-gold" style="padding:4px 10px;font-size:0.75rem;">Guardar</button>
+    <button onclick="cargarConfiguracion()" style="background:none;border:none;cursor:pointer;color:#bbb;font-size:0.85rem;">✕</button>`;
+}
+
+async function guardarEdicionEstado(id) {
+  const nombre = document.getElementById('edit-nom-'+id)?.value.trim();
+  const color = document.getElementById('edit-col-'+id)?.value;
+  if (!nombre) return;
+  await fetch(`/api/estados/${id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({nombre, color})});
+  showToast('Estado actualizado ✅', 'success');
+  cargarConfiguracion();
+}
+
+async function eliminarEstadoInline(id, nombre) {
+  if (!confirm(`¿Eliminar el estado "${nombre}"?\nLas propiedades con este estado quedarán sin estado asignado.`)) return;
+  await fetch(`/api/estados/${id}`, {method:'DELETE'});
+  showToast('Estado eliminado', 'success');
+  cargarConfiguracion();
 }
 
 async function crearEstadio() {
@@ -2845,12 +3110,23 @@ async function cargarUsuariosAdmin() {
   } catch(e) {}
 }
 
+function togglePermisosPanel(sel) {
+  const panel = document.getElementById('permisosPanel');
+  if (panel) panel.style.display = sel.value === 'admin' ? 'none' : 'block';
+}
+
+function checkAllPermisos(val) {
+  document.querySelectorAll('.perm-check').forEach(cb => cb.checked = val);
+}
+
 async function crearUsuario() {
+  const permisos = Array.from(document.querySelectorAll('.perm-check:checked')).map(cb => cb.value);
   const body = {
     name: document.getElementById('adminNombre').value.trim(),
     email: document.getElementById('adminEmail').value.trim(),
     password: document.getElementById('adminPass').value,
     role: document.getElementById('adminRol').value,
+    permisos: document.getElementById('adminRol').value === 'admin' ? [] : permisos,
   };
   if (!body.name || !body.email || !body.password) { showToast('Completá todos los campos', 'error'); return; }
   const r = await fetch('/api/admin/users', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
@@ -2865,6 +3141,83 @@ async function eliminarUsuario(id) {
   if (!confirm('¿Eliminar usuario?')) return;
   await fetch('/api/admin/users/' + id, {method:'DELETE'});
   showToast('Usuario eliminado'); cargarUsuariosAdmin();
+}
+
+// ══ #4: DASHBOARD CHART ══
+let dashChartInst = null, dashPeriodoMeses = 3;
+function dashSetPeriodo(m, btn) {
+  dashPeriodoMeses = m;
+  document.querySelectorAll('[id^="dp-"]').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderDashChart();
+}
+function renderDashChart() {
+  const canvas = document.getElementById('dashChart');
+  if (!canvas || typeof Chart === 'undefined') return;
+  const ahora = new Date();
+  const labels=[], dC=[], dCi=[], dCo=[];
+  for (let i=dashPeriodoMeses-1; i>=0; i--) {
+    const d = new Date(ahora.getFullYear(), ahora.getMonth()-i, 1);
+    const y=d.getFullYear(), m=d.getMonth();
+    labels.push(d.toLocaleDateString('es-AR',{month:'short',year:dashPeriodoMeses>6?'2-digit':undefined}));
+    const inM = (arr,campo) => (arr||[]).filter(x=>{ const f=new Date(x[campo]||x.fecha||x.created_at||''); return f.getFullYear()===y&&f.getMonth()===m; }).length;
+    dC.push(inM(LOCAL.consultas,'fecha')); dCi.push(inM(LOCAL.cierres,'fecha')); dCo.push(inM(LOCAL.contactos,'fecha'));
+  }
+  if (dashChartInst) dashChartInst.destroy();
+  dashChartInst = new Chart(canvas.getContext('2d'), {
+    type:'bar', data:{ labels, datasets:[
+      {label:'Consultas',data:dC,backgroundColor:'#c9a84c88',borderColor:'#c9a84c',borderWidth:2,borderRadius:4},
+      {label:'Cierres',data:dCi,backgroundColor:'#52b78888',borderColor:'#52b788',borderWidth:2,borderRadius:4},
+      {label:'Contactos',data:dCo,backgroundColor:'#88888833',borderColor:'#aaa',borderWidth:2,borderRadius:4},
+    ]},
+    options:{responsive:true,maintainAspectRatio:true,
+      plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:12}}},
+      scales:{y:{beginAtZero:true,ticks:{stepSize:1,font:{size:11}},grid:{color:'#f0ece4'}},x:{ticks:{font:{size:11}},grid:{display:false}}}}
+  });
+}
+
+// ══ #5: CIERRES CHARTS ══
+let cierresChartInst=null, cierresYearInst=null, cierresPeriodo=6;
+function cierresSetPeriodo(m, btn) {
+  cierresPeriodo=m;
+  document.querySelectorAll('[id^="ci-"]').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderCierresCharts();
+}
+function renderCierresCharts() {
+  if (typeof Chart === 'undefined') return;
+  const ahora = new Date();
+  const canvasM = document.getElementById('cierresChart');
+  if (canvasM) {
+    const labels=[], data=[];
+    for (let i=cierresPeriodo-1; i>=0; i--) {
+      const d=new Date(ahora.getFullYear(),ahora.getMonth()-i,1);
+      labels.push(d.toLocaleDateString('es-AR',{month:'short'}));
+      data.push(LOCAL.cierres.filter(c=>{ const f=new Date(c.fecha||''); return f.getFullYear()===d.getFullYear()&&f.getMonth()===d.getMonth(); }).reduce((s,c)=>s+(c.neto||0),0));
+    }
+    if (cierresChartInst) cierresChartInst.destroy();
+    cierresChartInst = new Chart(canvasM.getContext('2d'), {
+      type:'bar', data:{labels,datasets:[{label:'USD Neto',data,backgroundColor:'#c9a84c99',borderColor:'#c9a84c',borderWidth:2,borderRadius:5}]},
+      options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:false}},
+        scales:{y:{beginAtZero:true,ticks:{font:{size:10},callback:v=>'USD '+v.toLocaleString('es-AR')},grid:{color:'#f0ece4'}},x:{ticks:{font:{size:10}},grid:{display:false}}}}
+    });
+  }
+  const canvasY = document.getElementById('cierresYearChart');
+  if (canvasY) {
+    const ya=ahora.getFullYear(), yp=ya-1;
+    const MES=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    const da=MES.map((_,m)=>LOCAL.cierres.filter(c=>{const f=new Date(c.fecha||'');return f.getFullYear()===ya&&f.getMonth()===m;}).reduce((s,c)=>s+(c.neto||0),0));
+    const dp=MES.map((_,m)=>LOCAL.cierres.filter(c=>{const f=new Date(c.fecha||'');return f.getFullYear()===yp&&f.getMonth()===m;}).reduce((s,c)=>s+(c.neto||0),0));
+    if (cierresYearInst) cierresYearInst.destroy();
+    cierresYearInst = new Chart(canvasY.getContext('2d'), {
+      type:'line', data:{labels:MES,datasets:[
+        {label:String(ya),data:da,borderColor:'#c9a84c',backgroundColor:'#c9a84c22',tension:0.3,fill:true,pointRadius:3},
+        {label:String(yp),data:dp,borderColor:'#aaa',backgroundColor:'#88888811',tension:0.3,fill:true,borderDash:[5,3],pointRadius:3}
+      ]},
+      options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{position:'bottom',labels:{font:{size:10},padding:8}}},
+        scales:{y:{beginAtZero:true,ticks:{font:{size:10},callback:v=>v?'USD '+v.toLocaleString('es-AR'):'0'},grid:{color:'#f0ece4'}},x:{ticks:{font:{size:10}},grid:{display:false}}}}
+    });
+  }
 }
 
 // ── INIT ──
