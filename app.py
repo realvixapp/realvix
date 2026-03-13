@@ -921,6 +921,9 @@ def guardar_firma(doc_id, token):
     firmante['signed_at'] = datetime.now().isoformat()
     firmante['ip'] = ip
     firmante['signature_dataurl'] = signature_dataurl
+    # Guardar zona de firma si fue seleccionada por el firmante
+    if data.get('sign_zone'):
+        firmante['sign_zone'] = data['sign_zone']
     save_doc(doc_id, doc)
     all_signed = all(f['signed'] for f in doc['firmantes'])
     if all_signed and doc.get('organizer_email'):
