@@ -17,23 +17,35 @@ async function cargarPropiedadesLead() {
   } catch (e) { console.error('No se pudieron cargar propiedades', e); }
 }
 
-function poblarSelectPropiedad() {
-  const sel = document.getElementById('leadPropiedadSelect');
+function poblarSelectPropiedad(valorActual) {
+  const sel   = document.getElementById('leadPropiedadSelect');
+  const input = document.getElementById('leadPropiedad');
   if (!sel) return;
-  // Solo propiedades publicadas o reservadas
+
+  // Solo publicadas o reservadas (case-insensitive)
   const activas = LEADS.propiedades.filter(p => {
-    const est = (p.estado_tasacion || p.estadio || '').toLowerCase();
-    return est === 'publicado' || est === 'reservado';
+    const est = (p.estado_tasacion || p.estadio || '').toLowerCase().trim();
+    return ['publicado','reservado','publicada','reservada'].includes(est);
   });
-  sel.innerHTML = '<option value="">— Seleccionar propiedad publicada/reservada —</option>'
+
+  sel.innerHTML = '<option value="">— Seleccionar propiedad —</option>'
     + activas.map(p => {
-        const est = (p.estado_tasacion || p.estadio || '');
-        const badge = est === 'publicado' ? '🟢 ' : '🔴 ';
-        const label = `${badge}${p.direccion}${p.tipologia ? ' · ' + p.tipologia : ''}${p.localidad ? ' · ' + p.localidad : ''}`;
-        return `<option value="${escHtml(p.direccion)}">${escHtml(label)}</option>`;
+        const est = (p.estado_tasacion || p.estadio || '').toLowerCase();
+        const badge = est.includes('publ') ? '🟢' : '🔴';
+        const label = `${badge} ${p.direccion}${p.tipologia ? ' · ' + p.tipologia : ''}${p.localidad ? ', ' + p.localidad : ''}`;
+        const val   = p.direccion;
+        const sel2  = (valorActual && valorActual === val) ? ' selected' : '';
+        return `<option value="${escHtml(val)}"${sel2}>${escHtml(label)}</option>`;
       }).join('');
+
   if (activas.length === 0) {
-    sel.innerHTML += '<option value="" disabled>Sin propiedades publicadas/reservadas</option>';
+    sel.innerHTML += '<option value="" disabled style="color:#aaa;">⚠ No hay propiedades publicadas/reservadas en cartera</option>';
+  }
+
+  // Sync hidden input with current select value
+  if (valorActual) {
+    sel.value = valorActual;
+    if (input) input.value = valorActual;
   }
 }
 
@@ -194,7 +206,12 @@ function abrirNuevaConsulta() {
   document.getElementById('leadEstado').value   = 'nuevo';
   document.getElementById('modalLeadTitulo').textContent = 'Nueva consulta';
   onEstadioChange('nuevo');
-  poblarSelectPropiedad();
+  // Recargar propiedades si la lista está vacía (por si cambió el estado)
+  if (LEADS.propiedades.length === 0) {
+    cargarPropiedadesLead().then(poblarSelectPropiedad);
+  } else {
+    poblarSelectPropiedad();
+  }
   abrirModal('modalConsulta');
 }
 
@@ -215,7 +232,11 @@ function editarConsulta(id) {
   document.getElementById('leadMensaje').value     = c.mensaje || c.notas || '';
   document.getElementById('modalLeadTitulo').textContent = 'Editar consulta';
   onEstadioChange(c.estado || 'nuevo');
-  poblarSelectPropiedad();
+  if (LEADS.propiedades.length === 0) {
+    cargarPropiedadesLead().then(() => poblarSelectPropiedad(c.propiedad_nombre || ''));
+  } else {
+    poblarSelectPropiedad(c.propiedad_nombre || '');
+  }
   abrirModal('modalConsulta');
 }
 
