@@ -30,9 +30,11 @@ function switchTab(tab, btn) {
   NEG.tabActual = tab;
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
-  document.getElementById('tabListing').style.display  = tab === 'listing'   ? '' : 'none';
-  document.getElementById('tabEstado').style.display   = tab === 'estado'    ? '' : 'none';
+  document.getElementById('tabListing').style.display   = tab === 'listing'   ? '' : 'none';
+  document.getElementById('tabEstado').style.display    = tab === 'estado'    ? '' : 'none';
   document.getElementById('tabContactos').style.display = tab === 'contactos' ? '' : 'none';
+  document.getElementById('tabActividad').style.display = tab === 'actividad' ? '' : 'none';
+  if (tab === 'actividad') cargarActividad();
 }
 
 // ══ PROPIEDADES (datos comunes) ══
@@ -543,4 +545,189 @@ async function eliminarContacto(id) {
     showToast('Contacto eliminado');
     await cargarContactos();
   } catch (e) { showToast(e.message, 'error'); }
+}
+
+// ══════════════════════════════════════════════════════════
+// ── ACTIVIDAD DE PROPIEDADES ──
+// ══════════════════════════════════════════════════════════
+
+const ACT = { consultas: [], propiedades: [] };
+
+async function cargarActividad() {
+  try {
+    const [dataProp, dataLeads] = await Promise.all([
+      apiGet('/api/propiedades'),
+      apiGet('/api/consultas'),
+    ]);
+    ACT.propiedades = dataProp.propiedades || [];
+    ACT.consultas   = dataLeads.consultas  || [];
+    renderActividad();
+  } catch(e) { showToast('Error al cargar actividad', 'error'); }
+}
+
+function renderActividad() {
+  const filtroEst = (document.getElementById('filtroActividadEstado')?.value || '').toLowerCase();
+
+  // Solo publicadas/reservadas
+  let props = ACT.propiedades.filter(p => {
+    const est = (p.estado_tasacion || p.estadio || '').toLowerCase().trim();
+    return ['publicado','reservado','publicada','reservada'].includes(est);
+  });
+  if (filtroEst) props = props.filter(p => (p.estado_tasacion || p.estadio || '').toLowerCase().includes(filtroEst));
+
+  // Stats globales
+  const totalLeads   = ACT.consultas.filter(c => props.some(p => p.direccion && c.propiedad_nombre === p.direccion)).length;
+  const totalVisitas = ACT.consultas.filter(c => ['visito','visitó'].includes((c.estado||'').toLowerCase()) && props.some(p => p.direccion && c.propiedad_nombre === p.direccion)).length;
+  const pendVisita   = ACT.consultas.filter(c => c.estado === 'pendiente_visita' && props.some(p => p.direccion && c.propiedad_nombre === p.direccion)).length;
+
+  const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  setEl('actTotalProps',  props.length);
+  setEl('actTotalLeads',  totalLeads);
+  setEl('actTotalVisitas',totalVisitas);
+  setEl('actPendVisita',  pendVisita);
+
+  const container = document.getElementById('actividadGrid');
+  if (!container) return;
+
+  if (props.length === 0) {
+    container.innerHTML = `<div class="empty-state">No hay propiedades publicadas o reservadas en cartera.<br>
+      <span style="font-size:0.8rem;color:#aaa;">Cambiá el estado de una propiedad a Publicado o Reservado en el Listing.</span></div>`;
+    return;
+  }
+
+  const ESTADIO_LABELS = {
+    'nuevo':            { label:'Nuevo',            color:'#6B7280', bg:'#F3F4F6' },
+    'pendiente_visita': { label:'Pendiente visita',  color:'#7C3AED', bg:'#F5F3FF' },
+    'contesto':         { label:'Contestó',          color:'#D97706', bg:'#FFFBEB' },
+    'seguimiento':      { label:'Seguimiento',       color:'#2563EB', bg:'#EFF6FF' },
+    'visito':           { label:'Visitó ✓',          color:'#059669', bg:'#ECFDF5' },
+  };
+
+  container.innerHTML = props.map(p => {
+    const est = (p.estado_tasacion || p.estadio || '').toLowerCase();
+    const esPublicado = est.includes('publ');
+    const badgeColor = esPublicado ? '#059669' : '#DC2626';
+    const badgeBg    = esPublicado ? '#ECFDF5' : '#FEF2F2';
+    const badgeLabel = esPublicado ? '🟢 Publicado' : '🔴 Reservado';
+
+    // Consultas asociadas a esta propiedad
+    const consultas = ACT.consultas.filter(c =>
+      c.propiedad_nombre && p.direccion &&
+      c.propiedad_nombre.trim().toLowerCase() === p.direccion.trim().toLowerCase()
+    );
+
+    const nVisitas  = consultas.filter(c => ['visito','visitó'].includes((c.estado||'').toLowerCase())).length;
+    const nPendVis  = consultas.filter(c => c.estado === 'pendiente_visita').length;
+    const nSeguim   = consultas.filter(c => c.estado === 'seguimiento').length;
+    const nNuevos   = consultas.filter(c => c.estado === 'nuevo').length;
+
+    return `
+    <div class="card" style="padding:0;margin-bottom:16px;overflow:hidden;">
+
+      <!-- Header propiedad -->
+      <div style="padding:14px 18px;background:linear-gradient(135deg,#f8f9ff,#f0f4ff);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+            <span style="font-weight:700;font-size:0.95rem;">${escHtml(p.direccion || '—')}</span>
+            <span style="font-size:0.7rem;padding:2px 9px;border-radius:12px;font-weight:700;background:${badgeBg};color:${badgeColor};">${badgeLabel}</span>
+            ${p.tipologia ? `<span style="font-size:0.72rem;color:#888;background:#f3f4f6;padding:2px 7px;border-radius:8px;">${escHtml(p.tipologia)}</span>` : ''}
+          </div>
+          <div style="font-size:0.79rem;color:#888;display:flex;gap:12px;flex-wrap:wrap;">
+            ${p.localidad ? `<span>📍 ${escHtml(p.localidad)}</span>` : ''}
+            ${p.nombre_propietario ? `<span>👤 ${escHtml(p.nombre_propietario)}</span>` : ''}
+            ${p.url ? `<a href="${escHtml(p.url)}" target="_blank" style="color:var(--rx-blue);text-decoration:none;font-size:0.78rem;">🔗 Ver ficha</a>` : ''}
+          </div>
+        </div>
+        <!-- Contadores rápidos -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <div style="text-align:center;padding:6px 12px;background:white;border-radius:8px;border:1px solid var(--border);min-width:52px;">
+            <div style="font-size:1.1rem;font-weight:700;color:var(--rx-blue);">${consultas.length}</div>
+            <div style="font-size:0.62rem;color:#888;white-space:nowrap;">Consultas</div>
+          </div>
+          <div style="text-align:center;padding:6px 12px;background:white;border-radius:8px;border:1px solid var(--border);min-width:52px;">
+            <div style="font-size:1.1rem;font-weight:700;color:#059669;">${nVisitas}</div>
+            <div style="font-size:0.62rem;color:#888;">Visitaron</div>
+          </div>
+          <div style="text-align:center;padding:6px 12px;background:white;border-radius:8px;border:1px solid var(--border);min-width:52px;">
+            <div style="font-size:1.1rem;font-weight:700;color:#7C3AED;">${nPendVis}</div>
+            <div style="font-size:0.62rem;color:#888;white-space:nowrap;">Pend. visita</div>
+          </div>
+          <div style="text-align:center;padding:6px 12px;background:white;border-radius:8px;border:1px solid var(--border);min-width:52px;">
+            <div style="font-size:1.1rem;font-weight:700;color:#2563EB;">${nSeguim}</div>
+            <div style="font-size:0.62rem;color:#888;">Seguim.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lista de consultas -->
+      ${consultas.length === 0
+        ? `<div style="padding:18px 18px;text-align:center;color:#bbb;font-size:0.82rem;">Sin consultas asociadas todavía</div>`
+        : `<div style="padding:10px 18px 14px;">
+            <div style="font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">
+              Consultas (${consultas.length})
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              ${consultas.map(c => {
+                const estadio = ESTADIO_LABELS[c.estado] || { label: c.estado, color:'#888', bg:'#f3f4f6' };
+                return `
+                  <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:${estadio.bg}22;border:1px solid ${estadio.color}22;flex-wrap:wrap;">
+                    <!-- Nombre + estado -->
+                    <div style="flex:1;min-width:0;">
+                      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                        <span style="font-weight:600;font-size:0.85rem;">${escHtml(c.nombre || 'Sin nombre')}</span>
+                        <span style="font-size:0.68rem;padding:1px 7px;border-radius:10px;font-weight:600;background:${estadio.bg};color:${estadio.color};">${estadio.label}</span>
+                        ${c.fecha_visita ? `<span style="font-size:0.68rem;background:#EDE9FE;color:#7C3AED;border-radius:8px;padding:1px 6px;">📅 ${formatFecha(c.fecha_visita)}</span>` : ''}
+                      </div>
+                      <div style="font-size:0.75rem;color:#888;margin-top:2px;display:flex;gap:10px;flex-wrap:wrap;">
+                        ${c.telefono   ? `<span>📞 ${escHtml(c.telefono)}</span>` : ''}
+                        ${c.presupuesto? `<span>💰 ${escHtml(c.presupuesto)}</span>` : ''}
+                        ${c.operacion  ? `<span>🔑 ${escHtml(c.operacion)}</span>` : ''}
+                        <span style="color:#ccc;">${formatFecha(c.created_at)}</span>
+                      </div>
+                      ${c.mensaje ? `<div style="font-size:0.73rem;color:#aaa;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:420px;">${escHtml(c.mensaje)}</div>` : ''}
+                    </div>
+                    <!-- Acciones rápidas -->
+                    <div style="display:flex;gap:4px;flex-shrink:0;">
+                      ${c.telefono ? `<button class="btn-icon-sm" onclick="window.open('${buildWhatsAppUrl(c.telefono, c.nombre ? 'Hola ' + c.nombre + ', te contacto por ' + (p.direccion||'la propiedad') : '')}','_blank')" title="WhatsApp">💬</button>` : ''}
+                      <select class="input-base" style="font-size:0.72rem;padding:3px 6px;height:auto;width:130px;"
+                        onchange="cambiarEstadioActividad('${c.id}', this.value, this)">
+                        ${Object.entries(ESTADIO_LABELS).map(([k,v]) =>
+                          `<option value="${k}" ${c.estado===k?'selected':''}>${v.label}</option>`
+                        ).join('')}
+                      </select>
+                    </div>
+                  </div>`;
+              }).join('')}
+            </div>
+          </div>`
+      }
+    </div>`;
+  }).join('');
+}
+
+async function cambiarEstadioActividad(id, nuevoEstado, selectEl) {
+  const c = ACT.consultas.find(x => x.id === id);
+  if (!c) return;
+  const estadoAnterior = c.estado;
+  try {
+    await apiPut(`/api/consultas/${id}`, { ...c, estado: nuevoEstado });
+    c.estado = nuevoEstado;
+    renderActividad();
+    showToast('Estado actualizado ✓');
+
+    // Si pasa a pendiente visita, ofrecer agendar
+    if (nuevoEstado === 'pendiente_visita') {
+      setTimeout(() => {
+        pedirAgendarEnCalendar({
+          titulo:      `Visita — ${c.nombre || 'Lead'}`,
+          descripcion: `🏠 Visita con ${c.nombre || 'lead'}${c.propiedad_nombre ? ' · ' + c.propiedad_nombre : ''}${c.telefono ? ' · 📞 ' + c.telefono : ''}`,
+          fecha:       c.fecha_visita || '',
+          hora:        '10:00',
+        });
+      }, 300);
+    }
+  } catch(e) {
+    if (selectEl) selectEl.value = estadoAnterior;
+    showToast(e.message, 'error');
+  }
 }
