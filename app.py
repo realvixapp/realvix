@@ -753,6 +753,45 @@ def setup():
     return render_template('setup.html')
 
 
+@app.route('/api/migrate', methods=['POST'])
+@admin_required
+def forzar_migracion():
+    """Fuerza migraciones de DB — llamar desde el navegador si hay errores de columnas"""
+    conn = get_connection()
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
+    resultados = []
+    migraciones = [
+        "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT 'legacy'",
+        "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS email TEXT",
+        "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS estadio TEXT",
+        "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS referido TEXT",
+        "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS url TEXT",
+        "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS ultimo_contacto TEXT",
+        "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS proximo_contacto TEXT",
+        "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS fecha_prelisting TEXT",
+        "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS permisos JSONB DEFAULT '{}'",
+        "UPDATE propiedades SET user_id='legacy' WHERE user_id IS NULL OR user_id=''",
+    ]
+    try:
+        cur = conn.cursor()
+        for m in migraciones:
+            try:
+                cur.execute(m)
+                resultados.append({'ok': True, 'sql': m[:70]})
+            except Exception as e:
+                resultados.append({'ok': False, 'sql': m[:70], 'error': str(e)})
+                try: conn.rollback()
+                except: pass
+                conn = get_connection()
+                cur = conn.cursor()
+        conn.commit()
+        cur.close(); conn.close()
+        return jsonify({'ok': True, 'resultados': resultados})
+    except Exception as e:
+        return jsonify({'error': str(e), 'resultados': resultados}), 500
+
+
 # ══════════════════════════════════════════
 #  ROUTES: MAIN
 # ══════════════════════════════════════════
