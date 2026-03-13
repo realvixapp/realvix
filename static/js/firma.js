@@ -430,6 +430,14 @@ async function enviarDocumento() {
   const titulo = document.getElementById('docTitulo').value.trim();
   if (!titulo) { showToast('El título es requerido', 'error'); return; }
   if (!FIRMA.firmantes.length) { showToast('Agregá al menos un firmante', 'error'); return; }
+  // Validar que todos los firmantes tengan zona asignada (requiere PDF cargado)
+  if (!FIRMA.pdfFile) { showToast('Cargá el PDF antes de enviar', 'error'); return; }
+  const sinZona = FIRMA.firmantes.filter(f => !f.sign_zone);
+  if (sinZona.length > 0) {
+    const nombres = sinZona.map(f => f.name || f.email).join(', ');
+    showToast('Asigná zona de firma a: ' + nombres, 'error', 4000);
+    return;
+  }
 
   const btn = document.getElementById('btnEnviar');
   btn.disabled = true; btn.textContent = '⏳ Enviando...';
@@ -437,7 +445,7 @@ async function enviarDocumento() {
   const fd = new FormData();
   fd.append('title',           titulo);
   fd.append('organizer_name',  document.getElementById('docOrgNombre').value);
-  fd.append('organizer_email', document.getElementById('docOrgEmail').value);
+  fd.append('organizer_email', RX.user?.email || '');
   fd.append('firmantes',       JSON.stringify(FIRMA.firmantes));
   if (FIRMA.pdfFile) fd.append('pdf_file', FIRMA.pdfFile);
 
@@ -468,6 +476,22 @@ async function enviarDocumento() {
 /* ══════════════════════════════════════════
    RESET FORMULARIO NUEVA FIRMA
 ══════════════════════════════════════════ */
+function resetPdf() {
+  FIRMA.pdfFile   = null;
+  FIRMA.pdfBase64 = null;
+  FIRMA.pdfDoc    = null;
+  const p = document.getElementById('docPdf');
+  if (p) p.value = '';
+  const lbl = document.getElementById('pdfFileLabel');
+  if (lbl) lbl.textContent = '';
+  const badge = document.getElementById('pdfBadge');
+  if (badge) badge.style.display = 'none';
+  // Quitar zonas de todos los firmantes (PDF cambió)
+  FIRMA.firmantes.forEach(f => { f.sign_zone = null; });
+  renderFirmantes();
+  showToast('PDF removido', 'info');
+}
+
 function resetFormNueva() {
   const t = document.getElementById('docTitulo');
   if (t) t.value = '';
