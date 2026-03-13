@@ -23,10 +23,9 @@
   <!-- Filtros estadio -->
   <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;">
     <button class="estadio-btn active" onclick="filtrarEstadioProps('todos',this)">Todos</button>
-    <button class="estadio-btn" onclick="filtrarEstadioProps('captado',this)">Captado</button>
-    <button class="estadio-btn" onclick="filtrarEstadioProps('publicado',this)">Publicado</button>
-    <button class="estadio-btn" onclick="filtrarEstadioProps('reservado',this)">Reservado</button>
-    <button class="estadio-btn" onclick="filtrarEstadioProps('cerrado',this)">Cerrado ✓</button>
+    <button class="estadio-btn" onclick="filtrarEstadioProps('publicado',this)">🟢 Publicado</button>
+    <button class="estadio-btn" onclick="filtrarEstadioProps('reservado',this)">🔴 Reservado</button>
+    <button class="estadio-btn" onclick="filtrarEstadioProps('cerrado',this)">⬛ Cerrado</button>
   </div>
 
   <div style="display:flex;gap:8px;margin-bottom:14px;">
@@ -34,11 +33,10 @@
   </div>
 
   <!-- Stats -->
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;">
-    <div class="stat-mini"><div class="stat-mini-label">Captadas</div><div class="stat-mini-num" id="stCaptadas">—</div></div>
-    <div class="stat-mini"><div class="stat-mini-label">Publicadas</div><div class="stat-mini-num" id="stPublicadas">—</div></div>
-    <div class="stat-mini"><div class="stat-mini-label">Reservadas</div><div class="stat-mini-num" id="stReservadas">—</div></div>
-    <div class="stat-mini"><div class="stat-mini-label">Cerradas</div><div class="stat-mini-num" id="stCerradas">—</div></div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;">
+    <div class="stat-mini" style="border-left:3px solid #059669;"><div class="stat-mini-label">🟢 Publicadas</div><div class="stat-mini-num" id="stPublicadas" style="color:#059669;">—</div></div>
+    <div class="stat-mini" style="border-left:3px solid #DC2626;"><div class="stat-mini-label">🔴 Reservadas</div><div class="stat-mini-num" id="stReservadas" style="color:#DC2626;">—</div></div>
+    <div class="stat-mini" style="border-left:3px solid #374151;"><div class="stat-mini-label">⬛ Cerradas</div><div class="stat-mini-num" id="stCerradas" style="color:#374151;">—</div></div>
   </div>
 
   <div id="estadoPropsTable"><div class="loading-state">Cargando...</div></div>
@@ -75,11 +73,68 @@
     <div id="top5Grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;"></div>
   </div>
 
+  <!-- Filtro por respuesta propietario -->
+  <div style="margin-bottom:12px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;" id="propRespIndex"></div>
+
   <!-- Filtro por nombre de propiedad (índice) -->
   <div id="propNombreIndex" style="margin-bottom:14px;"></div>
 
   <div id="actividadPropGrid"><div class="loading-state">Cargando actividad...</div></div>
 </div>
+
+<!-- ── MODAL EDITAR PROPIEDAD (desde propiedades.html) ── -->
+<div class="modal-bg" id="modalEditarProp">
+  <div class="modal" style="max-width:500px;">
+    <div class="modal-header">
+      <h3>Editar propiedad</h3>
+      <button class="modal-close" onclick="cerrarModal('modalEditarProp')">✕</button>
+    </div>
+    <div class="modal-body" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <input type="hidden" id="editPropId">
+      <div class="field" style="grid-column:span 2">
+        <label class="field-label">Dirección</label>
+        <input type="text" id="editPropDireccion" class="input-base">
+      </div>
+      <div class="field">
+        <label class="field-label">Localidad</label>
+        <input type="text" id="editPropLocalidad" class="input-base">
+      </div>
+      <div class="field">
+        <label class="field-label">Tipología</label>
+        <input type="text" id="editPropTipologia" class="input-base">
+      </div>
+      <div class="field">
+        <label class="field-label">Nombre propietario</label>
+        <input type="text" id="editPropNombre" class="input-base">
+      </div>
+      <div class="field">
+        <label class="field-label">Teléfono</label>
+        <input type="text" id="editPropTelefono" class="input-base">
+      </div>
+      <div class="field">
+        <label class="field-label">Estadio</label>
+        <select id="editPropEstadio" class="input-base">
+          <option value="publicado">🟢 Publicado</option>
+          <option value="reservado">🔴 Reservado</option>
+          <option value="cerrado">⬛ Cerrado</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label">Link ficha / portal</label>
+        <input type="text" id="editPropUrl" class="input-base" placeholder="https://...">
+      </div>
+      <div class="field" style="grid-column:span 2">
+        <label class="field-label">Observaciones</label>
+        <textarea id="editPropObs" class="input-base" rows="2" style="resize:vertical;"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="cerrarModal('modalEditarProp')">Cancelar</button>
+      <button class="btn-primary" onclick="guardarEditarProp()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 
 {% endblock %}
 
