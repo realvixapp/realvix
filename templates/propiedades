@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Propiedades — Realvix CRM{% endblock %}
+
+{% block content %}
+<div class="page-title">Propiedades</div>
+<div class="page-sub">Estado de cartera y actividad por propiedad</div>
+
+<!-- Tabs -->
+<div style="display:flex;gap:0;margin-bottom:24px;border-bottom:2px solid var(--border);">
+  <button class="tab-btn active" id="tab-estado-prop" onclick="switchPropTab('estado',this)">📋 Estado de Propiedades</button>
+  <button class="tab-btn" id="tab-actividad-prop" onclick="switchPropTab('actividad',this)">📊 Actividad</button>
+</div>
+
+<!-- ══ ESTADO DE PROPIEDADES ══ -->
+<div id="tabEstadoProp">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+    <div>
+      <div style="font-size:1rem;font-weight:700;">Estado de Propiedades</div>
+      <div style="font-size:0.78rem;color:var(--text-secondary);">Seguimiento de propiedades captadas, publicadas, reservadas y cerradas</div>
+    </div>
+  </div>
+
+  <!-- Filtros estadio -->
+  <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;">
+    <button class="estadio-btn active" onclick="filtrarEstadioProps('todos',this)">Todos</button>
+    <button class="estadio-btn" onclick="filtrarEstadioProps('captado',this)">Captado</button>
+    <button class="estadio-btn" onclick="filtrarEstadioProps('publicado',this)">Publicado</button>
+    <button class="estadio-btn" onclick="filtrarEstadioProps('reservado',this)">Reservado</button>
+    <button class="estadio-btn" onclick="filtrarEstadioProps('cerrado',this)">Cerrado ✓</button>
+  </div>
+
+  <div style="display:flex;gap:8px;margin-bottom:14px;">
+    <input type="text" id="filtroEstadoProp" placeholder="Buscar propiedad..." class="input-base" style="max-width:300px;" oninput="renderEstadoProp()">
+  </div>
+
+  <!-- Stats -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;">
+    <div class="stat-mini"><div class="stat-mini-label">Captadas</div><div class="stat-mini-num" id="stCaptadas">—</div></div>
+    <div class="stat-mini"><div class="stat-mini-label">Publicadas</div><div class="stat-mini-num" id="stPublicadas">—</div></div>
+    <div class="stat-mini"><div class="stat-mini-label">Reservadas</div><div class="stat-mini-num" id="stReservadas">—</div></div>
+    <div class="stat-mini"><div class="stat-mini-label">Cerradas</div><div class="stat-mini-num" id="stCerradas">—</div></div>
+  </div>
+
+  <div id="estadoPropsTable"><div class="loading-state">Cargando...</div></div>
+</div>
+
+<!-- ══ ACTIVIDAD ══ -->
+<div id="tabActividadProp" style="display:none">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+    <div>
+      <div style="font-size:1rem;font-weight:700;">Actividad por Propiedad</div>
+      <div style="font-size:0.78rem;color:var(--text-secondary);">Propiedades publicadas/reservadas y sus consultas asociadas</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <select id="filtroActividadEstadoProp" class="input-base" style="max-width:180px;font-size:0.82rem;" onchange="renderActividadProp()">
+        <option value="">Todos los estados</option>
+        <option value="publicado">🟢 Publicado</option>
+        <option value="reservado">🔴 Reservado</option>
+      </select>
+      <button class="btn-secondary" style="font-size:0.78rem;" onclick="cargarActividadProp()">🔄 Actualizar</button>
+    </div>
+  </div>
+
+  <!-- Stats globales -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;">
+    <div class="stat-mini"><div class="stat-mini-label">Props. activas</div><div class="stat-mini-num" id="actPTotalProps">—</div></div>
+    <div class="stat-mini"><div class="stat-mini-label">Total consultas</div><div class="stat-mini-num" id="actPTotalLeads">—</div></div>
+    <div class="stat-mini"><div class="stat-mini-label">Visitaron</div><div class="stat-mini-num" id="actPTotalVisitas">—</div></div>
+    <div class="stat-mini"><div class="stat-mini-label">Pendiente visita</div><div class="stat-mini-num" id="actPPendVisita">—</div></div>
+  </div>
+
+  <!-- 🏆 Top 5 más consultadas -->
+  <div id="top5Section" style="margin-bottom:20px;display:none;">
+    <div style="font-size:0.85rem;font-weight:700;color:var(--rx-blue);margin-bottom:10px;display:flex;align-items:center;gap:6px;">🏆 Top 5 propiedades más consultadas</div>
+    <div id="top5Grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;"></div>
+  </div>
+
+  <!-- Filtro por nombre de propiedad (índice) -->
+  <div id="propNombreIndex" style="margin-bottom:14px;"></div>
+
+  <div id="actividadPropGrid"><div class="loading-state">Cargando actividad...</div></div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/propiedades.js"></script>
+{% endblock %}
+
+{% block on_ready %}
+initPropiedades();
+{% endblock %}
