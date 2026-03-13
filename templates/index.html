@@ -203,6 +203,7 @@ table.planilla td{border:1px solid var(--border);padding:0;}
 </head>
 <body>
 
+<script>
 // ════════════════════════════════════════
 //  ESTADO DOCUMENTO — JS integrado
 // ════════════════════════════════════════
@@ -296,18 +297,6 @@ function edoCopiarLink(btn, token) {
     <div class="nav-section">Negocio</div>
 
     <!-- Propiedades -->
-    <div class="nb-group">
-      <div class="nb-parent" onclick="toggleGroup('grpCRM')">
-        <span class="nb-chevron" id="chv-grpCRM">▸</span>
-        <span class="nb-icon">🏢</span>
-        <span class="nb-label">Propiedades</span>
-      </div>
-      <div class="nb-children collapsed" id="grpCRM">
-        <div class="nb-child" onclick="showPage('estado-props')" id="nav-estado-props">
-          <span class="nb-icon-sm">📊</span> Estado de Propiedades
-        </div>
-      </div>
-    </div>
 
     <!-- Contactos -->
     <div class="nb-group">
@@ -1474,7 +1463,7 @@ function showPage(id) {
     'textos': renderTextos,
     'instagram': renderGuiones,
     'ideas': renderIdeas,
-    'estado-props': cargarEstadoProps,
+    
 
     'estado-doc': () => { if(edoDocId) edoLoadStatus(); },
   };
