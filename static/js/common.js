@@ -1,12 +1,25 @@
 /**
  * Realvix CRM — common.js
- * Funciones compartidas entre todas las páginas:
- * auth, toast, modales, fetch helpers, utils
+ * Funciones compartidas + filtrado de nav por permisos de usuario
  */
 
 // ══ ESTADO GLOBAL ══
 window.RX = window.RX || {
   user: null,
+};
+
+// Mapa: sección → selector del link en el sidebar
+const NAV_SECCIONES = {
+  negocio:   'a[href="/negocio"]',
+  leads:     'a[href="/leads"]',
+  metricas:  'a[href="/metricas"]',
+  cierres:   'a[href="/cierres"]',
+  agenda:    'a[href="/agenda"]',
+  firma:     'a[href="/firma"]',
+  asistente: 'a[href="/asistente"]',
+  contenido: 'a[href="/contenido"]',
+  guiones:   'a[href="/guiones"]',
+  ideas:     'a[href="/ideas"]',
 };
 
 // ══ AUTH ══
@@ -16,14 +29,54 @@ async function loadUser() {
     if (!res.ok) { window.location.href = '/login'; return; }
     const data = await res.json();
     RX.user = data;
+
+    // Mostrar nombre
     const chip = document.getElementById('userChip');
     if (chip) chip.textContent = data.name;
-    // Mostrar link admin si es admin
+
+    // Mostrar link admin solo si es admin
     const adminLink = document.getElementById('adminLink');
-    if (adminLink && data.role === 'admin') adminLink.style.display = '';
+    if (adminLink) {
+      adminLink.style.display = data.role === 'admin' ? '' : 'none';
+    }
+
+    // Filtrar sidebar según permisos (solo para miembros)
+    if (data.role !== 'admin') {
+      aplicarPermisosNav(data.permisos || {});
+      // Si el usuario intenta acceder a una sección sin permiso, redirigir
+      verificarAccesoPaginaActual(data.permisos || {});
+    }
+
     return data;
   } catch (e) {
     window.location.href = '/login';
+  }
+}
+
+/**
+ * Oculta en el sidebar los links de secciones que el usuario no tiene habilitadas.
+ */
+function aplicarPermisosNav(permisos) {
+  Object.entries(NAV_SECCIONES).forEach(([key, selector]) => {
+    const el = document.querySelector(selector);
+    if (!el) return;
+    const tienePermiso = permisos[key] === true;
+    el.style.display = tienePermiso ? '' : 'none';
+  });
+}
+
+/**
+ * Si el usuario está en una página a la que no tiene acceso, lo manda al inicio.
+ * Solo aplica a páginas de secciones, no al dashboard ni al login.
+ */
+function verificarAccesoPaginaActual(permisos) {
+  const path = window.location.pathname.replace(/\/$/, '');
+  // Buscar si el path corresponde a alguna sección controlada
+  const seccionActual = Object.keys(NAV_SECCIONES).find(key => path === `/${key}`);
+  if (!seccionActual) return; // dashboard u otra ruta pública → ok
+  if (!permisos[seccionActual]) {
+    // No tiene permiso → redirigir al dashboard con mensaje
+    window.location.href = '/?acceso_denegado=1';
   }
 }
 
@@ -100,7 +153,7 @@ function showToast(msg, type = 'success', duration = 3000) {
   }, duration);
 }
 
-// Agregar animación al DOM
+// Animación toast
 const styleEl = document.createElement('style');
 styleEl.textContent = `
   @keyframes rxSlideIn {
