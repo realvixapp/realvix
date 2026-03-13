@@ -3,121 +3,208 @@
 
 {% block content %}
 <div class="page-title">Negocio</div>
-<div class="page-sub">Listing de propiedades, contactos y relaciones</div>
+<div class="page-sub">Gestión de tu cartera de propiedades y contactos</div>
 
-<!-- Tabs -->
-<div style="display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:0;">
-  <button class="tab-btn active" onclick="switchTab('listing',this)">🏢 Listing</button>
-  <button class="tab-btn" onclick="switchTab('contactos',this)">👥 Contactos</button>
+<!-- Tabs principales -->
+<div style="display:flex;gap:0;margin-bottom:24px;border-bottom:2px solid var(--border);">
+  <button class="tab-btn active" id="tab-listing" onclick="switchTab('listing',this)">🏢 Listing</button>
+  <button class="tab-btn" id="tab-estado" onclick="switchTab('estado',this)">📋 Estado de Propiedades</button>
+  <button class="tab-btn" id="tab-contactos" onclick="switchTab('contactos',this)">👥 Contactos</button>
 </div>
 
-<!-- ── LISTING ── -->
+<!-- ══ LISTING ══ -->
 <div id="tabListing">
-  <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
-    <input type="text" id="filtroListing" placeholder="Buscar propiedad..." class="input-base" style="max-width:260px;" oninput="filtrarListing()">
-    <select id="filtroEstado" class="input-base" style="max-width:200px;" onchange="filtrarListing()">
-      <option value="">Todos los estados</option>
-    </select>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+    <div>
+      <div style="font-size:1rem;font-weight:700;">Captación de propiedades</div>
+      <div style="font-size:0.78rem;color:var(--text-secondary);">Registrá y gestioná las propiedades nuevas</div>
+    </div>
     <button class="btn-primary" onclick="abrirNuevaPropiedad()">+ Nueva propiedad</button>
   </div>
 
-  <!-- Vista tabs: listing / seguimiento / rechazados -->
-  <div style="display:flex;gap:4px;margin-bottom:12px;">
-    <button class="tab-sm active" id="vListing" onclick="cambiarVista('listing',this)">Listing</button>
-    <button class="tab-sm" id="vSeguimiento" onclick="cambiarVista('seguimiento',this)">Seguimiento</button>
-    <button class="tab-sm" id="vRechazados" onclick="cambiarVista('rechazados',this)">Rechazados</button>
+  <!-- Stats -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;">
+    <div class="stat-mini"><div class="stat-mini-label">Total cartera</div><div class="stat-mini-num" id="lsTotalCartera">—</div></div>
+    <div class="stat-mini"><div class="stat-mini-label">Captadas</div><div class="stat-mini-num" id="lsCaptadas">—</div></div>
+    <div class="stat-mini"><div class="stat-mini-label">En seguimiento</div><div class="stat-mini-num" id="lsSeguimiento">—</div></div>
   </div>
 
-  <div id="listingTable">
-    <div class="loading-state">Cargando...</div>
+  <!-- Filtros listing -->
+  <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;">
+    <input type="text" id="filtroListing" placeholder="Buscar dirección, propietario..." class="input-base" style="max-width:280px;" oninput="filtrarListing()">
+    <select id="filtroTipoListing" class="input-base" style="max-width:150px;" onchange="filtrarListing()">
+      <option value="">Todos los tipos</option>
+      <option>Casa</option><option>Departamento</option><option>PH</option>
+      <option>Local</option><option>Terreno</option><option>Oficina</option>
+    </select>
   </div>
+
+  <!-- Tabla: dirección, propietario, teléfono, tipología, estado tasación -->
+  <div id="listingTable"><div class="loading-state">Cargando...</div></div>
 </div>
 
-<!-- ── CONTACTOS ── -->
+<!-- ══ ESTADO DE PROPIEDADES ══ -->
+<div id="tabEstado" style="display:none">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+    <div>
+      <div style="font-size:1rem;font-weight:700;">Estado de Propiedades</div>
+      <div style="font-size:0.78rem;color:var(--text-secondary);">Seguimiento post-captación — estadio, próximo contacto, observaciones</div>
+    </div>
+    <button class="btn-primary" onclick="abrirNuevaPropiedad()">+ Nueva propiedad</button>
+  </div>
+
+  <!-- Filtro por estadio -->
+  <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;">
+    <button class="estadio-btn active" onclick="filtrarEstadioEstado('todos',this)">Todos</button>
+    <button class="estadio-btn" onclick="filtrarEstadioEstado('nuevo',this)">Nuevo</button>
+    <button class="estadio-btn" onclick="filtrarEstadioEstado('en_tasacion',this)">En tasación</button>
+    <button class="estadio-btn" onclick="filtrarEstadioEstado('captado',this)">Captado</button>
+    <button class="estadio-btn" onclick="filtrarEstadioEstado('publicado',this)">Publicado</button>
+    <button class="estadio-btn" onclick="filtrarEstadioEstado('reservado',this)">Reservado</button>
+    <button class="estadio-btn" onclick="filtrarEstadioEstado('cerrado',this)">Cerrado ✓</button>
+  </div>
+
+  <div style="display:flex;gap:8px;margin-bottom:14px;">
+    <input type="text" id="filtroEstadoBuscar" placeholder="Buscar propiedad..." class="input-base" style="max-width:280px;" oninput="filtrarEstado()">
+  </div>
+
+  <!-- Tabla: dirección, estadio, próximo contacto, último contacto, observaciones -->
+  <div id="estadoTable"><div class="loading-state">Cargando...</div></div>
+</div>
+
+<!-- ══ CONTACTOS ══ -->
 <div id="tabContactos" style="display:none">
-  <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center;">
-    <input type="text" id="filtroContactos" placeholder="Buscar contacto..." class="input-base" style="max-width:260px;" oninput="filtrarContactos()">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+    <div>
+      <div style="font-size:1rem;font-weight:700;">Contactos</div>
+      <div style="font-size:0.78rem;color:var(--text-secondary);">Propietarios, clientes, brokers y proveedores</div>
+    </div>
     <button class="btn-primary" onclick="abrirNuevoContacto()">+ Nuevo contacto</button>
   </div>
-  <div id="contactosGrid">
-    <div class="loading-state">Cargando...</div>
+  <div style="display:flex;gap:8px;margin-bottom:14px;">
+    <input type="text" id="filtroContactos" placeholder="Buscar contacto..." class="input-base" style="max-width:280px;" oninput="filtrarContactos()">
+    <select id="filtroTipoContacto" class="input-base" style="max-width:160px;" onchange="filtrarContactos()">
+      <option value="">Todos los tipos</option>
+      <option value="propietario">Propietario</option>
+      <option value="cliente">Cliente</option>
+      <option value="broker">Broker</option>
+      <option value="proveedor">Proveedor</option>
+    </select>
   </div>
+  <div id="contactosGrid"><div class="loading-state">Cargando...</div></div>
 </div>
 
-<!-- ── MODAL PROPIEDAD ── -->
+
+<!-- ══ MODAL PROPIEDAD (campos completos) ══ -->
 <div class="modal-bg" id="modalPropiedad">
-  <div class="modal" style="max-width:560px;">
+  <div class="modal" style="max-width:580px;">
     <div class="modal-header">
       <h3 id="modalPropTitulo">Nueva propiedad</h3>
       <button class="modal-close" onclick="cerrarModal('modalPropiedad')">✕</button>
     </div>
-    <div class="modal-body" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-      <input type="hidden" id="propId">
-      <div class="field" style="grid-column:span 2">
-        <label class="field-label">Dirección</label>
-        <input type="text" id="propDireccion" class="input-base" placeholder="Ej: Rivadavia 1234">
+    <div class="modal-body">
+
+      <div class="modal-section-title">📍 Datos del inmueble</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
+        <input type="hidden" id="propId">
+        <div class="field" style="grid-column:span 2">
+          <label class="field-label">Dirección *</label>
+          <input type="text" id="propDireccion" class="input-base" placeholder="Av. Corrientes 1234">
+        </div>
+        <div class="field">
+          <label class="field-label">Localidad</label>
+          <input type="text" id="propLocalidad" class="input-base" placeholder="CABA">
+        </div>
+        <div class="field">
+          <label class="field-label">Zona</label>
+          <input type="text" id="propZona" class="input-base" placeholder="Palermo">
+        </div>
+        <div class="field">
+          <label class="field-label">Tipología</label>
+          <select id="propTipologia" class="input-base">
+            <option value="">— Tipo —</option>
+            <option>Casa</option><option>Departamento</option><option>PH</option>
+            <option>Local</option><option>Terreno</option><option>Oficina</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label">Estado tasación</label>
+          <select id="propEstado" class="input-base">
+            <option value="">— Estado —</option>
+            <option value="nuevo">Nuevo</option>
+            <option value="en_tasacion">En tasación</option>
+            <option value="captado">Captado</option>
+            <option value="publicado">Publicado</option>
+            <option value="reservado">Reservado</option>
+            <option value="cerrado">Cerrado</option>
+          </select>
+        </div>
+        <div class="field" style="grid-column:span 2">
+          <label class="field-label">Link de ficha / portal</label>
+          <input type="text" id="propUrl" class="input-base" placeholder="https://zonaprop.com.ar/...">
+        </div>
       </div>
-      <div class="field">
-        <label class="field-label">Localidad</label>
-        <input type="text" id="propLocalidad" class="input-base">
+
+      <div class="modal-section-title">👤 Propietario</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
+        <div class="field">
+          <label class="field-label">Nombre propietario</label>
+          <input type="text" id="propNombre" class="input-base" placeholder="Juan García">
+        </div>
+        <div class="field">
+          <label class="field-label">Teléfono</label>
+          <input type="text" id="propTelefono" class="input-base" placeholder="+54 11 ...">
+        </div>
+        <div class="field">
+          <label class="field-label">Email</label>
+          <input type="email" id="propEmail" class="input-base">
+        </div>
+        <div class="field">
+          <label class="field-label">Referido por</label>
+          <input type="text" id="propReferido" class="input-base">
+        </div>
       </div>
-      <div class="field">
-        <label class="field-label">Zona</label>
-        <input type="text" id="propZona" class="input-base">
-      </div>
-      <div class="field">
-        <label class="field-label">Tipología</label>
-        <select id="propTipologia" class="input-base">
-          <option value="">— Tipo —</option>
-          <option>Casa</option><option>Departamento</option><option>PH</option>
-          <option>Local</option><option>Terreno</option><option>Oficina</option>
-        </select>
-      </div>
-      <div class="field">
-        <label class="field-label">Estado</label>
-        <select id="propEstado" class="input-base"></select>
-      </div>
-      <div class="field">
-        <label class="field-label">Propietario</label>
-        <input type="text" id="propNombre" class="input-base">
-      </div>
-      <div class="field">
-        <label class="field-label">Teléfono</label>
-        <input type="text" id="propTelefono" class="input-base">
-      </div>
-      <div class="field">
-        <label class="field-label">Email</label>
-        <input type="email" id="propEmail" class="input-base">
-      </div>
-      <div class="field">
-        <label class="field-label">Referido por</label>
-        <input type="text" id="propReferido" class="input-base">
-      </div>
-      <div class="field">
-        <label class="field-label">URL portal</label>
-        <input type="text" id="propUrl" class="input-base" placeholder="https://...">
-      </div>
-      <div class="field">
-        <label class="field-label">Último contacto</label>
-        <input type="date" id="propUltimo" class="input-base">
-      </div>
-      <div class="field">
-        <label class="field-label">Próximo contacto</label>
-        <input type="date" id="propProximo" class="input-base">
-      </div>
-      <div class="field" style="grid-column:span 2">
-        <label class="field-label">Observaciones</label>
-        <textarea id="propObservaciones" class="input-base" rows="3" style="resize:vertical;"></textarea>
+
+      <div class="modal-section-title">📅 Seguimiento</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="field">
+          <label class="field-label">Estadio</label>
+          <select id="propEstadio" class="input-base">
+            <option value="">— Estadio —</option>
+            <option value="nuevo">Nuevo</option>
+            <option value="en_tasacion">En tasación</option>
+            <option value="captado">Captado</option>
+            <option value="publicado">Publicado</option>
+            <option value="reservado">Reservado</option>
+            <option value="cerrado">Cerrado</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label">Próximo contacto</label>
+          <input type="date" id="propProximo" class="input-base">
+        </div>
+        <div class="field">
+          <label class="field-label">Último contacto</label>
+          <input type="date" id="propUltimo" class="input-base">
+        </div>
+        <div class="field">
+          <label class="field-label">Fecha prelisting</label>
+          <input type="date" id="propPrelisting" class="input-base">
+        </div>
+        <div class="field" style="grid-column:span 2">
+          <label class="field-label">Observaciones</label>
+          <textarea id="propObservaciones" class="input-base" rows="3" placeholder="Notas iniciales..." style="resize:vertical;"></textarea>
+        </div>
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="cerrarModal('modalPropiedad')">Cancelar</button>
-      <button class="btn-primary" onclick="guardarPropiedad()">Guardar</button>
+      <button class="btn-primary" onclick="guardarPropiedad()">Crear propiedad</button>
     </div>
   </div>
 </div>
 
-<!-- ── MODAL CONTACTO ── -->
+<!-- ══ MODAL CONTACTO ══ -->
 <div class="modal-bg" id="modalContacto">
   <div class="modal" style="max-width:480px;">
     <div class="modal-header">
@@ -133,8 +220,8 @@
       <div class="field">
         <label class="field-label">Tipo</label>
         <select id="ctcTipo" class="input-base">
-          <option value="cliente">Cliente</option>
           <option value="propietario">Propietario</option>
+          <option value="cliente">Cliente</option>
           <option value="broker">Broker</option>
           <option value="proveedor">Proveedor</option>
           <option value="otro">Otro</option>
