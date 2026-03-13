@@ -323,18 +323,31 @@ async function cargarContactos() {
 
 function filtrarContactos() { renderContactos(); }
 
+// Letra activa del filtro alfabético
+let _ctcLetraFiltro = '';
+
+function filtrarLetraContacto(letra) {
+  _ctcLetraFiltro = (_ctcLetraFiltro === letra) ? '' : letra; // toggle
+  renderContactos();
+}
+
+function limpiarFiltroAlfabeto() {
+  _ctcLetraFiltro = '';
+  renderContactos();
+}
+
 function renderContactos() {
   const q    = (document.getElementById('filtroContactos')?.value || '').toLowerCase();
   const tipo = document.getElementById('filtroTipoContacto')?.value || '';
-  const lista = NEG.contactos.filter(c =>
+
+  let lista = NEG.contactos.filter(c =>
     (!q || (c.nombre||'').toLowerCase().includes(q) || (c.telefono||'').includes(q) || (c.email||'').toLowerCase().includes(q)) &&
-    (!tipo || c.tipo === tipo)
+    (!tipo || c.tipo === tipo) &&
+    (!_ctcLetraFiltro || (c.nombre||'')[0].toUpperCase() === _ctcLetraFiltro)
   );
+
   const container = document.getElementById('contactosGrid');
   if (!container) return;
-  if (lista.length === 0) {
-    container.innerHTML = `<div class="empty-state">No hay contactos cargados</div>`; return;
-  }
 
   const TIPO_COLORS = {
     propietario: { bg:'#EEF2FF', color:'#1B3FE4' },
@@ -344,85 +357,105 @@ function renderContactos() {
     otro:        { bg:'#F3F4F6', color:'#6B7280' },
   };
 
-  // Agrupar por inicial
-  const grupos = {};
-  lista.forEach(c => {
-    const inicial = (c.nombre || '?')[0].toUpperCase();
-    if (!grupos[inicial]) grupos[inicial] = [];
-    grupos[inicial].push(c);
-  });
-  const letrasUsadas = Object.keys(grupos).sort();
+  // Letras que tienen contactos (de toda la lista sin filtro alfabético)
+  const todosNombres = NEG.contactos
+    .filter(c => (!q || (c.nombre||'').toLowerCase().includes(q)) && (!tipo || c.tipo === tipo));
+  const letrasConDatos = new Set(todosNombres.map(c => (c.nombre||'?')[0].toUpperCase()));
 
-  // Índice alfabético
+  // Índice alfabético — siempre completo, letras activas en azul
   const todasLetras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
   const indiceHtml = `
-    <div id="contactosAlfaIndex" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:16px;padding:10px 14px;background:var(--cream);border-radius:8px;border:1px solid var(--border);">
-      ${todasLetras.map(l => {
-        const activa = letrasUsadas.includes(l);
-        return activa
-          ? `<a href="#ctcLetra-${l}" style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-size:0.78rem;font-weight:700;background:var(--rx-blue);color:white;text-decoration:none;cursor:pointer;" onclick="scrollToLetra('${l}')">${l}</a>`
-          : `<span style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-size:0.78rem;color:#ccc;">${l}</span>`;
-      }).join('')}
-      ${letrasUsadas.some(l => !'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.includes(l))
-        ? `<a href="#ctcLetra-?" style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-size:0.78rem;font-weight:700;background:var(--rx-blue);color:white;text-decoration:none;" onclick="scrollToLetra('?')">#</a>`
-        : ''}
+    <div style="margin-bottom:14px;">
+      <div style="display:flex;flex-wrap:wrap;gap:4px;padding:10px 14px;background:var(--cream);border-radius:8px;border:1px solid var(--border);align-items:center;">
+        ${todasLetras.map(l => {
+          const tieneDatos = letrasConDatos.has(l);
+          const esFiltro   = _ctcLetraFiltro === l;
+          if (tieneDatos) {
+            return `<button onclick="filtrarLetraContacto('${l}')"
+              style="width:28px;height:28px;border-radius:6px;border:none;cursor:pointer;font-size:0.78rem;font-weight:700;
+              background:${esFiltro ? 'var(--rx-blue)' : 'white'};
+              color:${esFiltro ? 'white' : 'var(--rx-blue)'};
+              border:1.5px solid var(--rx-blue);transition:all 0.1s;">${l}</button>`;
+          } else {
+            return `<span style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:0.78rem;color:#d1d5db;">${l}</span>`;
+          }
+        }).join('')}
+        ${_ctcLetraFiltro
+          ? `<button onclick="limpiarFiltroAlfabeto()"
+              style="margin-left:8px;padding:4px 12px;border-radius:6px;border:1px solid #e0e0e0;background:white;color:#666;font-size:0.75rem;cursor:pointer;font-weight:600;">
+              ✕ Limpiar (${_ctcLetraFiltro})
+            </button>`
+          : ''}
+      </div>
+      ${_ctcLetraFiltro ? `<div style="font-size:0.78rem;color:var(--rx-blue);margin-top:6px;padding-left:4px;">Mostrando contactos que empiezan con <strong>${_ctcLetraFiltro}</strong></div>` : ''}
     </div>`;
 
-  // Lista agrupada
-  const listaHtml = letrasUsadas.map(letra => `
-    <div id="ctcLetra-${letra}" style="margin-bottom:4px;">
-      <div style="font-size:0.72rem;font-weight:700;color:var(--rx-blue);padding:6px 2px 4px;border-bottom:2px solid var(--rx-blue-light);margin-bottom:6px;letter-spacing:1px;">${letra}</div>
-      ${grupos[letra].map(c => {
-        const tc = TIPO_COLORS[c.tipo] || TIPO_COLORS.otro;
-        // Cumpleaños badge
-        let cumpleBadge = '';
-        if (c.cumpleanos) {
-          const hoy = new Date(); const cum = new Date(c.cumpleanos);
-          const proxCum = new Date(hoy.getFullYear(), cum.getMonth(), cum.getDate());
-          if (proxCum < hoy) proxCum.setFullYear(hoy.getFullYear() + 1);
-          const dias = Math.ceil((proxCum - hoy) / 86400000);
-          if (dias <= 30) cumpleBadge = `<span style="font-size:0.68rem;background:#FFF7ED;color:#F97316;border-radius:8px;padding:1px 6px;font-weight:600;white-space:nowrap;">🎂 ${dias === 0 ? '¡Hoy!' : 'en ' + dias + 'd'}</span>`;
-        }
-        return `
-          <div class="card" style="padding:12px 16px;display:flex;align-items:center;gap:14px;margin-bottom:6px;">
-            <!-- Avatar inicial -->
-            <div style="width:38px;height:38px;border-radius:50%;background:${tc.bg};color:${tc.color};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem;flex-shrink:0;">
-              ${escHtml((c.nombre||'?')[0].toUpperCase())}
-            </div>
-            <!-- Info -->
-            <div style="flex:1;min-width:0;">
-              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                <span style="font-weight:600;font-size:0.9rem;">${escHtml(c.nombre)}</span>
-                <span style="font-size:0.68rem;padding:1px 7px;border-radius:10px;font-weight:600;background:${tc.bg};color:${tc.color};">${c.tipo||'otro'}</span>
-                ${cumpleBadge}
-              </div>
-              <div style="display:flex;gap:14px;margin-top:3px;font-size:0.79rem;color:#666;flex-wrap:wrap;">
-                ${c.profesion  ? `<span>💼 ${escHtml(c.profesion)}</span>` : ''}
-                ${c.telefono   ? `<span>📞 ${escHtml(c.telefono)}</span>` : ''}
-                ${c.email      ? `<span>✉️ ${escHtml(c.email)}</span>` : ''}
-                ${c.localidad  ? `<span>📍 ${escHtml(c.localidad)}</span>` : ''}
-              </div>
-              ${c.hijos   ? `<div style="font-size:0.76rem;color:#aaa;margin-top:2px;">👨‍👧‍👦 ${escHtml(c.hijos)}${c.hobbies ? ' · 🎯 ' + escHtml(c.hobbies) : ''}</div>` : c.hobbies ? `<div style="font-size:0.76rem;color:#aaa;margin-top:2px;">🎯 ${escHtml(c.hobbies)}</div>` : ''}
-              ${c.gustos  ? `<div style="font-size:0.76rem;color:#aaa;margin-top:1px;">🏠 ${escHtml(c.gustos)}</div>` : ''}
-              ${c.notas   ? `<div style="font-size:0.75rem;color:#ccc;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:500px;">${escHtml(c.notas)}</div>` : ''}
-            </div>
-            <!-- Acciones -->
-            <div style="display:flex;gap:4px;flex-shrink:0;">
-              ${c.telefono ? `<button class="btn-icon-sm" onclick="window.open('${buildWhatsAppUrl(c.telefono,'')}','_blank')" title="WhatsApp">💬</button>` : ''}
-              <button class="btn-icon-sm" onclick="editarContacto('${c.id}')" title="Editar">✏️</button>
-              <button class="btn-icon-sm danger" onclick="eliminarContacto('${c.id}')" title="Eliminar">🗑️</button>
-            </div>
-          </div>`;
-      }).join('')}
-    </div>
-  `).join('');
+  if (lista.length === 0) {
+    container.innerHTML = indiceHtml + `<div class="empty-state">${_ctcLetraFiltro ? 'No hay contactos con la letra ' + _ctcLetraFiltro : 'No hay contactos cargados'}</div>`;
+    return;
+  }
+
+  // Agrupar por inicial (solo si no hay filtro de letra activo)
+  let listaHtml = '';
+  if (_ctcLetraFiltro) {
+    // Sin agrupación cuando hay filtro activo
+    listaHtml = lista.map(c => renderContactoRow(c, TIPO_COLORS)).join('');
+  } else {
+    const grupos = {};
+    lista.forEach(c => {
+      const inicial = (c.nombre || '?')[0].toUpperCase();
+      if (!grupos[inicial]) grupos[inicial] = [];
+      grupos[inicial].push(c);
+    });
+    const letrasUsadas = Object.keys(grupos).sort();
+    listaHtml = letrasUsadas.map(letra => `
+      <div style="margin-bottom:8px;">
+        <div style="font-size:0.72rem;font-weight:700;color:var(--rx-blue);padding:6px 2px 4px;
+          border-bottom:2px solid var(--rx-blue-light);margin-bottom:6px;letter-spacing:1px;">${letra}</div>
+        ${grupos[letra].map(c => renderContactoRow(c, TIPO_COLORS)).join('')}
+      </div>`).join('');
+  }
 
   container.innerHTML = indiceHtml + listaHtml;
 }
 
-function scrollToLetra(letra) {
-  const el = document.getElementById(`ctcLetra-${letra}`);
-  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+function renderContactoRow(c, TIPO_COLORS) {
+  const tc = TIPO_COLORS[c.tipo] || TIPO_COLORS.otro;
+  let cumpleBadge = '';
+  if (c.cumpleanos) {
+    const hoy = new Date(); const cum = new Date(c.cumpleanos);
+    const proxCum = new Date(hoy.getFullYear(), cum.getMonth(), cum.getDate());
+    if (proxCum < hoy) proxCum.setFullYear(hoy.getFullYear() + 1);
+    const dias = Math.ceil((proxCum - hoy) / 86400000);
+    if (dias <= 30) cumpleBadge = `<span style="font-size:0.68rem;background:#FFF7ED;color:#F97316;border-radius:8px;padding:1px 6px;font-weight:600;white-space:nowrap;">🎂 ${dias === 0 ? '¡Hoy!' : 'en ' + dias + 'd'}</span>`;
+  }
+  return `
+    <div class="card" style="padding:12px 16px;display:flex;align-items:center;gap:14px;margin-bottom:6px;">
+      <div style="width:38px;height:38px;border-radius:50%;background:${tc.bg};color:${tc.color};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem;flex-shrink:0;">
+        ${escHtml((c.nombre||'?')[0].toUpperCase())}
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+          <span style="font-weight:600;font-size:0.9rem;">${escHtml(c.nombre)}</span>
+          <span style="font-size:0.68rem;padding:1px 7px;border-radius:10px;font-weight:600;background:${tc.bg};color:${tc.color};">${c.tipo||'otro'}</span>
+          ${cumpleBadge}
+        </div>
+        <div style="display:flex;gap:14px;margin-top:3px;font-size:0.79rem;color:#666;flex-wrap:wrap;">
+          ${c.profesion ? `<span>💼 ${escHtml(c.profesion)}</span>` : ''}
+          ${c.telefono  ? `<span>📞 ${escHtml(c.telefono)}</span>`  : ''}
+          ${c.email     ? `<span>✉️ ${escHtml(c.email)}</span>`     : ''}
+          ${c.localidad ? `<span>📍 ${escHtml(c.localidad)}</span>` : ''}
+        </div>
+        ${c.hijos || c.hobbies ? `<div style="font-size:0.75rem;color:#aaa;margin-top:2px;">${c.hijos ? '👨‍👧‍👦 ' + escHtml(c.hijos) : ''}${c.hijos && c.hobbies ? ' · ' : ''}${c.hobbies ? '🎯 ' + escHtml(c.hobbies) : ''}</div>` : ''}
+        ${c.gustos ? `<div style="font-size:0.75rem;color:#aaa;">🏠 ${escHtml(c.gustos)}</div>` : ''}
+        ${c.notas  ? `<div style="font-size:0.74rem;color:#ccc;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:520px;">${escHtml(c.notas)}</div>` : ''}
+      </div>
+      <div style="display:flex;gap:4px;flex-shrink:0;">
+        ${c.telefono ? `<button class="btn-icon-sm" onclick="window.open('${buildWhatsAppUrl(c.telefono,'')}','_blank')" title="WhatsApp">💬</button>` : ''}
+        <button class="btn-icon-sm" onclick="editarContacto('${c.id}')" title="Editar">✏️</button>
+        <button class="btn-icon-sm danger" onclick="eliminarContacto('${c.id}')" title="Eliminar">🗑️</button>
+      </div>
+    </div>`;
 }
 
 
