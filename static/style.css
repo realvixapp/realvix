@@ -1427,3 +1427,49 @@ hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
 .input-base:focus { border-color: var(--rx-blue); }
 textarea.input-base { height: auto; resize: vertical; }
 select.input-base { appearance: auto; }
+
+/* ── stat-mini (stats pequeños en listing) ── */
+.stat-mini {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 12px 16px;
+}
+.stat-mini-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-tertiary);
+  margin-bottom: 4px;
+}
+.stat-mini-num {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* ── modal section title ── */
+.modal-section-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ── estadio inline select (en tabla Estado) ── */
+.estadio-inline-select {
+  border: none;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 20px;
+  padding: 3px 8px;
+  transition: opacity 0.15s;
+}
+.estadio-inline-select:hover { opacity: 0.8; }
