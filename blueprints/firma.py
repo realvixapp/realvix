@@ -234,6 +234,7 @@ def crear_documento():
         })
     doc = {
         'id': doc_id,
+        'user_id': user['id'],
         'title': title,
         'organizer_name': organizer_name,
         'organizer_email': organizer_email,
@@ -241,6 +242,7 @@ def crear_documento():
         'firmantes': firmantes,
         'created_at': datetime.now().isoformat(),
         'completado': False,
+        'archivado': False,
     }
     save_doc(doc_id, doc)
 
@@ -295,19 +297,29 @@ def listar_documentos():
     if not user: return jsonify({'error': 'No autenticado'}), 401
     conn = _get_connection()
     if not conn:
-        docs = list(_documents.values())
+        docs = [d for d in _documents.values() if d.get('user_id') == user['id']]
         for d in docs:
             d['completado'] = all(f['signed'] for f in d.get('firmantes', []))
         docs.sort(key=lambda x: x.get('created_at', ''), reverse=True)
         return jsonify({'documentos': docs})
     try:
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("SELECT id, data FROM documents ORDER BY created_at DESC")
+        cur.execute("SELECT id, data FROM documents WHERE data->>'user_id' = %s ORDER BY created_at DESC", (user['id'],))
         rows = cur.fetchall(); cur.close(); conn.close()
         docs = []
+        from datetime import datetime as dt
+        one_month_ago = dt.now().replace(day=1)
         for row in rows:
             d = row['data']
             d['completado'] = all(f['signed'] for f in d.get('firmantes', []))
+            # Auto-archivar completados con más de 1 mes
+            if d['completado'] and not d.get('archivado'):
+                try:
+                    created = dt.fromisoformat(d.get('created_at', ''))
+                    if created < one_month_ago:
+                        d['archivado'] = True
+                        save_doc(d['id'], d)
+                except: pass
             docs.append(d)
         return jsonify({'documentos': docs})
     except Exception as e:
@@ -318,6 +330,9 @@ def listar_documentos():
 def eliminar_documento(doc_id):
     user = _get_current_user()
     if not user: return jsonify({'error': 'No autenticado'}), 401
+    doc = get_doc(doc_id)
+    if doc and doc.get('user_id') and doc['user_id'] != user['id']:
+        return jsonify({'error': 'Sin permiso'}), 403
     conn = _get_connection()
     if conn:
         try:
@@ -410,6 +425,72 @@ def guardar_firma(doc_id, token):
     return jsonify({'ok': True, 'all_signed': all_signed, 'signed_count': signed_count, 'total': total})
 
 
+@bp.route('/api/documentos/historial', methods=['GET'])
+def listar_historial():
+    """Docs archivados del usuario, agrupados por mes/año."""
+    user = _get_current_user()
+    if not user: return jsonify({'error': 'No autenticado'}), 401
+    conn = _get_connection()
+    if not conn: return jsonify({'carpetas': []})
+    try:
+        from datetime import datetime as dt
+        from collections import defaultdict
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute(
+            "SELECT id, data FROM documents WHERE data->>'user_id' = %s AND data->>'archivado' = 'true' ORDER BY created_at DESC",
+            (user['id'],)
+        )
+        rows = cur.fetchall(); cur.close(); conn.close()
+        carpetas = defaultdict(list)
+        for row in rows:
+            d = row['data']
+            d['completado'] = True
+            try:
+                created = dt.fromisoformat(d.get('created_at', ''))
+                key = created.strftime('%B %Y').capitalize()  # ej: "Marzo 2026"
+            except:
+                key = 'Sin fecha'
+            carpetas[key].append({'id': d['id'], 'title': d.get('title',''), 'created_at': d.get('created_at','')})
+        result = [{'nombre': k, 'docs': v, 'cantidad': len(v)} for k, v in carpetas.items()]
+        return jsonify({'carpetas': result})
+    except Exception as e:
+        return jsonify({'carpetas': [], 'error': str(e)})
+
+
+@bp.route('/api/documentos/historial/<carpeta_nombre>', methods=['DELETE'])
+def eliminar_carpeta_historial(carpeta_nombre):
+    """Elimina todos los docs archivados de una carpeta (mes/año)."""
+    user = _get_current_user()
+    if not user: return jsonify({'error': 'No autenticado'}), 401
+    conn = _get_connection()
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
+    try:
+        from datetime import datetime as dt
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute(
+            "SELECT id, data FROM documents WHERE data->>'user_id' = %s AND data->>'archivado' = 'true'",
+            (user['id'],)
+        )
+        rows = cur.fetchall()
+        ids_a_borrar = []
+        for row in rows:
+            d = row['data']
+            try:
+                created = dt.fromisoformat(d.get('created_at', ''))
+                key = created.strftime('%B %Y').capitalize()
+            except:
+                key = 'Sin fecha'
+            if key == carpeta_nombre:
+                ids_a_borrar.append(row['id'])
+        cur2 = conn.cursor()
+        for doc_id in ids_a_borrar:
+            cur2.execute("DELETE FROM documents WHERE id=%s", (doc_id,))
+        conn.commit(); cur2.close(); conn.close()
+        return jsonify({'ok': True, 'eliminados': len(ids_a_borrar)})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @bp.route('/api/documento/<doc_id>/certificado')
 def descargar_certificado(doc_id):
     user = _get_current_user()
@@ -419,9 +500,8 @@ def descargar_certificado(doc_id):
         return "No encontrado", 404
     pdf_bytes = generate_full_pdf(doc)
     resp = Response(pdf_bytes, mimetype='application/pdf')
-    # Usar el título del documento como nombre del PDF
     raw_title = doc.get('title', '') or doc_id[:8]
-    safe_title = ''.join(c if c.isalnum() or c in (' ', '-', '_') else '' for c in raw_title).strip()
+    safe_title = ''.join(c2 if c2.isalnum() or c2 in (' ', '-', '_') else '' for c2 in raw_title).strip()
     safe_title = safe_title.replace(' ', '-') or doc_id[:8]
     resp.headers['Content-Disposition'] = f'attachment; filename="{safe_title}.pdf"'
     return resp
