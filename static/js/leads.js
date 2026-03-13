@@ -99,6 +99,18 @@ async function cambiarEstadio(id, nuevoEstado) {
     c.estado = nuevoEstado;
     if (nuevoEstado === 'visito') showToast('Lead marcado como Visitó → aparece en Muestras ✓', 'success');
     renderLeads();
+
+    // 📅 Preguntar si agendar en Google Calendar
+    if (nuevoEstado === 'pendiente_visita') {
+      setTimeout(() => {
+        pedirAgendarEnCalendar({
+          titulo: `Visita — ${c.nombre || 'Lead'}`,
+          descripcion: `🏠 Visita con ${c.nombre || 'lead'}${c.propiedad_nombre ? ' · ' + c.propiedad_nombre : ''}${c.telefono ? ' · ' + c.telefono : ''}`,
+          hora: '10:00',
+          tipo: 'visita'
+        });
+      }, 300);
+    }
   } catch (e) { showToast(e.message, 'error'); }
 }
 
