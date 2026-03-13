@@ -40,8 +40,11 @@ function switchFirmaTab(tab, btn) {
   document.getElementById('tabNueva').style.display       = tab === 'nueva'       ? '' : 'none';
   document.getElementById('tabPendientes').style.display  = tab === 'pendientes'  ? '' : 'none';
   document.getElementById('tabCompletados').style.display = tab === 'completados' ? '' : 'none';
+  const th = document.getElementById('tabHistorial');
+  if (th) th.style.display = tab === 'historial' ? '' : 'none';
   if (tab === 'pendientes')  cargarLista('pendientes');
   if (tab === 'completados') cargarLista('completados');
+  if (tab === 'historial')   cargarHistorial();
   // Blanquear formulario al salir del tab nueva
   if (tab !== 'nueva') resetFormNueva();
 }
@@ -440,7 +443,7 @@ async function enviarDocumento() {
   const sinZona = FIRMA.firmantes.filter(f => !f.sign_zone);
   if (sinZona.length > 0) {
     const nombres = sinZona.map(f => f.name || f.email).join(', ');
-    showToast('Asigná zona de firma a: ' + nombres, 'error', 4000);
+    mostrarModalError('⚠️ Zonas de firma faltantes', 'Asigná la zona de firma a: <strong>' + nombres + '</strong><br><br>Hacé clic en el chip "📍 Asignar zona" de cada firmante en el PDF antes de enviar.');
     return;
   }
 
@@ -787,3 +790,107 @@ document.addEventListener('click', function(e) {
   if (e.target === document.getElementById('zonaModal'))   cerrarZonaModal();
   if (e.target === document.getElementById('estadoModal')) cerrarEstadoModal();
 });
+
+
+/* ══════════════════════════════════════════
+   MODAL ERROR GENÉRICO
+══════════════════════════════════════════ */
+function mostrarModalError(titulo, cuerpo) {
+  let m = document.getElementById('modalErrorFirma');
+  if (!m) {
+    m = document.createElement('div');
+    m.id = 'modalErrorFirma';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:3000;display:flex;align-items:center;justify-content:center;';
+    m.innerHTML = `
+      <div style="background:var(--paper);border-radius:var(--radius-xl);width:min(440px,92vw);box-shadow:var(--shadow-xl);overflow:hidden;">
+        <div style="padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;">
+          <span style="font-size:1.3rem;">⚠️</span>
+          <span id="modalErrorFirmaTitulo" style="font-weight:700;font-size:0.95rem;flex:1;"></span>
+          <button onclick="document.getElementById('modalErrorFirma').remove()" style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:var(--text-secondary);">✕</button>
+        </div>
+        <div id="modalErrorFirmaCuerpo" style="padding:20px 22px;font-size:0.88rem;color:var(--text-secondary);line-height:1.6;"></div>
+        <div style="padding:14px 22px;border-top:1px solid var(--border);text-align:right;">
+          <button class="btn-primary" style="font-size:0.84rem;padding:9px 22px;"
+                  onclick="document.getElementById('modalErrorFirma').remove()">Entendido</button>
+        </div>
+      </div>`;
+    document.body.appendChild(m);
+  }
+  document.getElementById('modalErrorFirmaTitulo').textContent = titulo;
+  document.getElementById('modalErrorFirmaCuerpo').innerHTML   = cuerpo;
+  m.style.display = 'flex';
+  m.onclick = function(e) { if (e.target === m) m.remove(); };
+}
+
+/* ══════════════════════════════════════════
+   HISTORIAL
+══════════════════════════════════════════ */
+async function cargarHistorial() {
+  const c = document.getElementById('listaHistorial');
+  if (!c) return;
+  c.innerHTML = '<div class="loading-state">Cargando historial...</div>';
+  try {
+    const data = await apiGet('/api/documentos/historial');
+    renderHistorial(c, data.carpetas || []);
+  } catch(e) {
+    c.innerHTML = '<div class="empty-state">Error al cargar el historial</div>';
+  }
+}
+
+function renderHistorial(container, carpetas) {
+  if (!carpetas.length) {
+    container.innerHTML = '<div class="empty-state">No hay documentos archivados aún.<br><span style="font-size:0.78rem;opacity:.6;">Los documentos completados se archivan automáticamente después de 1 mes.</span></div>';
+    return;
+  }
+  container.innerHTML = carpetas.map(function(cp) {
+    const safe = encodeURIComponent(cp.nombre);
+    return `
+      <div class="doc-row" style="flex-direction:column;align-items:stretch;gap:8px;padding:14px 16px;" id="carpeta_${safe}">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div class="doc-icon-box" style="background:#f0e6ff;color:#7c3aed;font-size:1.1rem;">📁</div>
+          <div style="flex:1;">
+            <div style="font-weight:700;font-size:0.9rem;">${escHtml(cp.nombre)}</div>
+            <div style="font-size:0.74rem;color:var(--text-secondary);margin-top:1px;">${cp.cantidad} documento${cp.cantidad !== 1 ? 's' : ''}</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0;">
+            <button class="btn-xs" onclick="toggleCarpeta('${safe}')">📂 Ver</button>
+            <button class="btn-icon-sm danger" onclick="eliminarCarpeta('${escHtml(cp.nombre)}','${safe}')" title="Eliminar carpeta completa">🗑</button>
+          </div>
+        </div>
+        <div id="contenido_${safe}" style="display:none;border-top:1px solid var(--border);padding-top:10px;display:none;">
+          ${cp.docs.map(function(d) {
+            return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);">
+              <span style="font-size:0.83rem;flex:1;">${escHtml(d.title || 'Sin título')}</span>
+              <span style="font-size:0.72rem;color:var(--text-secondary);">${formatFecha(d.created_at)}</span>
+              <a href="/api/documento/${d.id}/certificado" class="btn-xs" target="_blank">⬇️ PDF</a>
+              <button class="btn-icon-sm danger" onclick="eliminarDocHistorial('${d.id}','${safe}')" title="Eliminar">🗑</button>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function toggleCarpeta(safe) {
+  const el = document.getElementById('contenido_' + safe);
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+async function eliminarCarpeta(nombre, safe) {
+  if (!confirmar('¿Eliminar todos los documentos de "' + nombre + '"? No se puede deshacer.')) return;
+  try {
+    await fetch('/api/documentos/historial/' + encodeURIComponent(nombre), { method: 'DELETE' });
+    showToast('Carpeta eliminada ✓');
+    cargarHistorial();
+  } catch(e) { showToast('Error al eliminar', 'error'); }
+}
+
+async function eliminarDocHistorial(docId, safe) {
+  if (!confirmar('¿Eliminar este documento del historial?')) return;
+  try {
+    await apiDelete('/api/documento/' + docId);
+    showToast('Documento eliminado ✓');
+    cargarHistorial();
+  } catch(e) { showToast('Error al eliminar', 'error'); }
+}
