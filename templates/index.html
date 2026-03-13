@@ -217,6 +217,17 @@ table.planilla td{border:1px solid var(--border);padding:0;}
 .btn-copy-edo{padding:6px 12px;background:var(--ink);color:white;border:none;border-radius:6px;font-size:0.72rem;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit;transition:background 0.15s;}
 .btn-copy-edo:hover{background:#333;}
 .btn-copy-edo.copied{background:var(--sage);}
+
+/* ── CHECKLIST TAREAS (#8) ── */
+.checklist-col { display:flex; flex-direction:column; gap:8px; }
+.checklist-item { background:white; border:1px solid var(--border); border-radius:8px; padding:10px 14px; transition:box-shadow 0.15s; }
+.checklist-item:hover { box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+.checklist-item.done { background:#f8fdf8; opacity:0.75; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:translateY(0)} }
+
+/* ── CIERRES CHARTS GRID (#5) ── */
+.cierres-charts-grid { margin-bottom:16px; }
+@media(max-width:680px) { .cierres-charts-grid { grid-template-columns:1fr !important; } }
 </style>
 </head>
 <body>
@@ -699,6 +710,7 @@ function verEstadoDoc(docId) {
   edoInicializar(docId);
 }
 
+function edoCopiarLink(btn, token) {
   const input = document.getElementById('edolnk-'+token);
   if (input) navigator.clipboard.writeText(input.value);
   btn.textContent='¡Copiado!'; btn.classList.add('copied');
@@ -913,6 +925,19 @@ function verEstadoDoc(docId) {
           <div class="stat-num" id="ds-consultas">—</div>
           <div class="stat-label">Consultas activas</div>
         </div>
+      </div>
+
+      <!-- #4: Gráficos interactivos del mes -->
+      <div class="card" style="margin-bottom:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+          <div class="card-title" style="margin:0;">📊 Actividad mensual</div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn-periodo active" id="dp-3m" onclick="dashSetPeriodo(3,this)">3 meses</button>
+            <button class="btn-periodo" id="dp-6m" onclick="dashSetPeriodo(6,this)">6 meses</button>
+            <button class="btn-periodo" id="dp-12m" onclick="dashSetPeriodo(12,this)">12 meses</button>
+          </div>
+        </div>
+        <canvas id="dashChart" height="90"></canvas>
       </div>
 
       <div class="dash-grid">
@@ -1179,6 +1204,25 @@ function verEstadoDoc(docId) {
         <div class="stat gold"><div class="stat-label">Ticket promedio</div><div class="stat-num" id="ci-ticket" style="font-size:1.3rem;">$—</div></div>
         <div class="stat"><div class="stat-label">Operaciones</div><div class="stat-num" id="ci-ops">—</div></div>
       </div>
+
+      <!-- #5: Gráficos de facturación -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;" class="cierres-charts-grid">
+        <div class="card" style="padding:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px;">
+            <div class="card-title" style="margin:0;font-size:0.85rem;">📈 Facturación mensual</div>
+            <div style="display:flex;gap:4px;">
+              <button class="btn-periodo active" id="ci-6m" onclick="cierresSetPeriodo(6,this)">6m</button>
+              <button class="btn-periodo" id="ci-12m" onclick="cierresSetPeriodo(12,this)">12m</button>
+            </div>
+          </div>
+          <canvas id="cierresChart" height="120"></canvas>
+        </div>
+        <div class="card" style="padding:16px;">
+          <div class="card-title" style="margin-bottom:10px;font-size:0.85rem;">📊 Año actual vs anterior</div>
+          <canvas id="cierresYearChart" height="120"></canvas>
+        </div>
+      </div>
+
       <div id="listaCierres">
         <div class="empty-state"><div class="empty-icon">💰</div><p>Sin cierres registrados aún</p></div>
       </div>
@@ -1269,23 +1313,32 @@ function verEstadoDoc(docId) {
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
         <div>
           <div class="page-title">Pendientes</div>
-          <div class="page-sub">Tasks pendientes, en proceso y completadas</div>
+          <div class="page-sub">Tasks y seguimientos del día</div>
         </div>
         <button class="btn btn-gold" onclick="abrirModalTarea()">+ Nueva tarea</button>
       </div>
-      <div style="display:flex;gap:16px;align-items:flex-start;">
-        <div style="flex:1;">
-          <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--rust);margin-bottom:8px;">⏳ Pendiente</div>
-          <div id="col-pendiente"></div>
-        </div>
-        <div style="flex:1;">
-          <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--gold);margin-bottom:8px;">🔄 En proceso</div>
-          <div id="col-proceso"></div>
-        </div>
-        <div style="flex:1;">
-          <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--sage);margin-bottom:8px;">✅ Finalizado</div>
-          <div id="col-finalizado"></div>
-        </div>
+
+      <!-- #8: Checklist unificado -->
+      <div class="card" style="margin-bottom:14px;">
+        <div class="card-title">⏳ Pendientes</div>
+        <div id="col-pendiente" class="checklist-col"></div>
+      </div>
+      <div class="card" style="margin-bottom:14px;">
+        <div class="card-title">🔄 En proceso</div>
+        <div id="col-proceso" class="checklist-col"></div>
+      </div>
+      <div class="card" style="margin-bottom:14px;">
+        <div class="card-title" style="color:var(--sage);">✅ Realizadas</div>
+        <div id="col-finalizado" class="checklist-col"></div>
+        <div id="motivMessage" style="display:none;text-align:center;padding:10px 0;font-size:0.88rem;color:var(--sage);font-weight:600;animation:fadeIn 0.5s ease;"></div>
+      </div>
+
+      <!-- Ideas pendientes/realizadas -->
+      <div style="margin-top:6px;">
+        <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#999;margin-bottom:10px;">💡 Ideas pendientes</div>
+        <div id="col-ideas-pendientes"></div>
+        <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--sage);margin:14px 0 10px;">✅ Ideas realizadas</div>
+        <div id="col-ideas-realizadas"></div>
       </div>
     </div>
 
@@ -1353,12 +1406,15 @@ function verEstadoDoc(docId) {
         </div>
         <button class="btn btn-gold" onclick="abrirModalTexto()">+ Nuevo texto</button>
       </div>
-      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+      <!-- #10: Filtros por sección temática -->
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
         <button class="btn btn-sm active" onclick="filtrarTextos('todos',this)">Todos</button>
-        <button class="btn btn-sm" onclick="filtrarTextos('whatsapp',this)">WhatsApp</button>
-        <button class="btn btn-sm" onclick="filtrarTextos('email',this)">Email</button>
-        <button class="btn btn-sm" onclick="filtrarTextos('visita',this)">Visita</button>
-        <button class="btn btn-sm" onclick="filtrarTextos('captacion',this)">Captación</button>
+        <button class="btn btn-sm" onclick="filtrarTextos('whatsapp',this)">📱 WhatsApp</button>
+        <button class="btn btn-sm" onclick="filtrarTextos('email',this)">📧 Email</button>
+        <button class="btn btn-sm" onclick="filtrarTextos('visita',this)">🏠 Visita</button>
+        <button class="btn btn-sm" onclick="filtrarTextos('captacion',this)">🎯 Captación</button>
+        <button class="btn btn-sm" onclick="filtrarTextos('seguimiento',this)">🔄 Seguimiento</button>
+        <button class="btn btn-sm" onclick="filtrarTextos('cierre',this)">💰 Cierre</button>
       </div>
       <div id="listaTextos">
         <div class="empty-state"><div class="empty-icon">📄</div><p>Agregá tus primeros textos</p></div>
@@ -1369,10 +1425,22 @@ function verEstadoDoc(docId) {
     <div class="page" id="page-instagram">
       <div class="ig-header">
         <h3>📸 Guiones para Instagram</h3>
-        <p>Contenido inmobiliario diario — IA genera ideas adaptadas a tu negocio</p>
+        <p>Contenido inmobiliario diario — IA genera ideas adaptadas a tu negocio. Historial de grabados incluido para no repetir temas.</p>
       </div>
-      <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center;">
-        <button class="btn btn-gold" onclick="generarGuionIA()">✨ Generar guion con IA</button>
+      <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center;flex-wrap:wrap;">
+        <select id="guTemaIA" style="padding:9px 14px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.85rem;">
+          <option value="tips para compradores">Tips para compradores</option>
+          <option value="tips para vendedores">Tips para vendedores</option>
+          <option value="mercado inmobiliario actual">Mercado actual</option>
+          <option value="errores comunes al comprar o vender">Errores comunes</option>
+          <option value="inversión en propiedades">Inversión en propiedades</option>
+          <option value="proceso de compraventa en Argentina">Proceso de compraventa</option>
+          <option value="motivación y negocio inmobiliario">Motivación inmobiliaria</option>
+          <option value="mi zona y barrio">Mi zona / barrio</option>
+          <option value="testimonios y casos de éxito">Testimonios y éxitos</option>
+          <option value="tips de negociación">Tips de negociación</option>
+        </select>
+        <button class="btn btn-gold" id="btnGenerarIA" onclick="generarGuionIA()">🤖 Generar con IA</button>
         <button class="btn btn-outline" onclick="abrirModalGuion()">+ Crear manual</button>
       </div>
       <div id="listaGuiones">
@@ -1461,7 +1529,25 @@ function verEstadoDoc(docId) {
         <div class="form-row">
           <div class="form-group"><label>Contraseña</label><input type="password" id="adminPass" placeholder="Mínimo 6 caracteres"></div>
           <div class="form-group"><label>Rol</label>
-            <select id="adminRol"><option value="member">Miembro</option><option value="admin">Admin</option></select>
+            <select id="adminRol" onchange="togglePermisosPanel(this.value)">
+              <option value="member">Miembro</option>
+              <option value="admin">Admin (acceso total)</option>
+            </select>
+          </div>
+        </div>
+        <!-- #15: Permisos granulares por sección -->
+        <div id="permisosPanel" style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:14px;">
+          <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#888;margin-bottom:10px;">Secciones habilitadas</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px;">
+            ${SECCIONES_CRM.map(s => `
+              <label style="display:flex;align-items:center;gap:7px;font-size:0.83rem;cursor:pointer;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:#fafafa;">
+                <input type="checkbox" name="adminPerm" value="${s.id}" checked style="cursor:pointer;">
+                ${s.label}
+              </label>`).join('')}
+          </div>
+          <div style="margin-top:8px;display:flex;gap:8px;">
+            <button onclick="checkAllPermisos(true)" class="btn-sm btn btn-outline" style="padding:4px 10px;font-size:0.75rem;">✓ Todos</button>
+            <button onclick="checkAllPermisos(false)" class="btn-sm btn btn-outline" style="padding:4px 10px;font-size:0.75rem;">✕ Ninguno</button>
           </div>
         </div>
         <button class="btn btn-gold" onclick="crearUsuario()">Crear usuario</button>
@@ -1535,7 +1621,12 @@ function verEstadoDoc(docId) {
         </div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>Propiedad de interés</label><input type="text" id="consPropiedad" placeholder="Dirección o ID de propiedad"></div>
+        <div class="form-group"><label>Propiedad de interés</label>
+          <select id="consPropiedad" style="width:100%;">
+            <option value="">— Seleccioná una propiedad —</option>
+          </select>
+          <div id="consPropiedadNombreHidden" style="display:none;"></div>
+        </div>
         <div class="form-group"><label>Fecha de muestra</label><input type="date" id="consFechaMuestra"></div>
       </div>
       <div class="form-group"><label>Calificación</label>
@@ -1558,6 +1649,13 @@ function verEstadoDoc(docId) {
       <button class="modal-close" onclick="cerrarModal('modalCierre')">✕</button>
     </div>
     <div class="modal-body">
+      <!-- #11: Selector de propiedad -->
+      <div class="form-group">
+        <label>Propiedad vinculada</label>
+        <select id="ciPropiedadId" style="width:100%;" onchange="ciPropiedadSeleccionada(this)">
+          <option value="">— Sin vincular / Ingresá dirección manualmente —</option>
+        </select>
+      </div>
       <div class="form-group"><label>Dirección / Propiedad</label><input type="text" id="ciDireccion"></div>
       <div class="form-row">
         <div class="form-group"><label>Valor de venta (USD)</label><input type="number" id="ciValor" placeholder="0"></div>
@@ -1574,6 +1672,9 @@ function verEstadoDoc(docId) {
       <div class="form-group"><label>Puntas (1 o 2)</label><select id="ciPuntas"><option value="2">2 puntas</option><option value="1">1 punta</option></select></div>
       <div class="form-group"><label>Notas</label><textarea id="ciNotas" rows="2"></textarea></div>
       <div id="ciCalculo" style="background:var(--cream);border-radius:8px;padding:12px 14px;margin-top:8px;font-size:0.85rem;display:none;"></div>
+      <div id="ciVendidaWarning" style="display:none;background:#f0faf4;border:1px solid var(--sage);border-radius:8px;padding:10px 14px;font-size:0.82rem;color:#2d6a4f;margin-top:8px;">
+        ✅ Al guardar este cierre, la propiedad vinculada será marcada automáticamente como <strong>Vendida</strong>.
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="cerrarModal('modalCierre')">Cancelar</button>
@@ -1649,10 +1750,14 @@ function verEstadoDoc(docId) {
     <div class="modal-body">
       <div class="form-row">
         <div class="form-group"><label>Título</label><input type="text" id="txTitulo" placeholder="Primer contacto WhatsApp..."></div>
-        <div class="form-group"><label>Canal</label>
+        <div class="form-group"><label>Sección / Canal</label>
           <select id="txCanal">
-            <option value="whatsapp">WhatsApp</option><option value="email">Email</option>
-            <option value="visita">Visita</option><option value="captacion">Captación</option>
+            <option value="whatsapp">📱 WhatsApp</option>
+            <option value="email">📧 Email</option>
+            <option value="visita">🏠 Visita</option>
+            <option value="captacion">🎯 Captación</option>
+            <option value="seguimiento">🔄 Seguimiento</option>
+            <option value="cierre">💰 Cierre</option>
           </select>
         </div>
       </div>
@@ -1733,6 +1838,7 @@ function verEstadoDoc(docId) {
 
 <!-- ══ SCRIPTS ══ -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
@@ -1887,7 +1993,7 @@ function showPage(id) {
     'contactos': renderContactos,
     'consultas': renderConsultas,
     'embudo': calcularEmbudo,
-    'cierres': renderCierres,
+    'cierres': () => { renderCierres(); setTimeout(renderCierresCharts, 100); },
     'objetivos': renderObjetivos,
     'planilla': renderPlanilla,
     'agenda': renderCalendario,
@@ -1985,6 +2091,9 @@ async function cargarDashboard() {
       <div class="funnel-bar-wrap"><div class="funnel-bar" style="width:${total>0?Math.round(e.n/total*100):0}%"></div></div>
       <span class="funnel-count">${e.n}</span>
     </div>`).join('');
+
+  // #4: Render chart
+  setTimeout(renderDashChart, 100);
 }
 
 // ── DOCUMENTOS (Firma) ──
@@ -2337,7 +2446,18 @@ async function eliminarContacto(id) {
 }
 
 // ── CONSULTAS ──
-function abrirModalConsulta() { abrirModal('modalConsulta'); }
+async function abrirModalConsulta() {
+  // Cargar propiedades en el selector
+  try {
+    const r = await fetch('/api/propiedades?vista=all');
+    const data = await r.json();
+    const sel = document.getElementById('consPropiedad');
+    const props = data.propiedades || [];
+    sel.innerHTML = '<option value="">— Seleccioná una propiedad —</option>' +
+      props.map(p => `<option value="${p.id}" data-url="${p.url||''}">[${p.tipologia||'Prop'}] ${p.direccion}${p.localidad?' - '+p.localidad:''}</option>`).join('');
+  } catch(e) {}
+  abrirModal('modalConsulta');
+}
 function filtrarConsultas(etapa, el) {
   document.querySelectorAll('.ctab').forEach(t => t.classList.remove('active'));
   if (el) el.classList.add('active');
@@ -2345,12 +2465,17 @@ function filtrarConsultas(etapa, el) {
 }
 
 async function guardarConsulta() {
+  const sel = document.getElementById('consPropiedad');
+  const propId = sel.value || '';
+  const propText = sel.options[sel.selectedIndex]?.text || '';
+  const propNombre = propId ? propText.replace(/^\[.*?\]\s*/, '') : document.getElementById('consPropiedad')?.value || '';
   const obj = {
     nombre: document.getElementById('consNombre').value,
     telefono: document.getElementById('consTel').value,
     email: document.getElementById('consEmail').value,
     estado: document.getElementById('consEtapa').value,
-    propiedad_nombre: document.getElementById('consPropiedad').value,
+    propiedad_id: propId,
+    propiedad_nombre: propNombre,
     notas: document.getElementById('consObs').value,
   };
   if (!obj.nombre) { showToast('Ingresá el nombre', 'error'); return; }
@@ -2360,6 +2485,40 @@ async function guardarConsulta() {
   showToast('Consulta guardada ✅', 'success');
   renderConsultas('todos');
   document.getElementById('badge-consultas').textContent = LOCAL.consultas.length;
+
+  // #3: Si hay propiedad y teléfono, ofrecer botón WhatsApp
+  if (obj.telefono && propId) {
+    const propSel = document.getElementById('consPropiedad');
+    const propOption = propSel.options[propSel.selectedIndex];
+    const propUrl = propOption?.dataset?.url || '';
+    mostrarBtnWhatsApp(obj, propNombre, propUrl);
+  }
+}
+
+function mostrarBtnWhatsApp(consulta, propNombre, propUrl) {
+  // Buscar texto prearm ado de seguimiento si hay
+  const textoBase = LOCAL.textos.find(t => (t.tipo||'').includes('whatsapp')) ||
+    { contenido: `Hola {nombre}, te escribo de Realvix con información sobre {propiedad}. Cualquier consulta estoy a disposición! 👍` };
+  const msg = textoBase.contenido
+    .replace('{nombre}', consulta.nombre || '')
+    .replace('{propiedad}', propNombre || '')
+    .replace('{fecha}', new Date().toLocaleDateString('es-AR'));
+  const msgFinal = msg + (propUrl ? `\n\n🏠 ${propUrl}` : '');
+  const tel = consulta.telefono.replace(/[^0-9]/g, '');
+  const waUrl = `https://wa.me/${tel}?text=${encodeURIComponent(msgFinal)}`;
+
+  // Modal flotante WhatsApp
+  const div = document.createElement('div');
+  div.style.cssText = 'position:fixed;bottom:24px;right:24px;background:white;border:1px solid #e8e4dc;border-radius:14px;padding:20px 24px;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,0.15);max-width:340px;';
+  div.innerHTML = `
+    <div style="font-weight:700;font-size:0.95rem;margin-bottom:6px;">📱 ¿Respondés por WhatsApp?</div>
+    <div style="font-size:0.82rem;color:#666;margin-bottom:14px;">Consulta de <strong>${consulta.nombre}</strong> sobre <strong>${propNombre}</strong> lista para enviar.</div>
+    <div style="display:flex;gap:8px;">
+      <a href="${waUrl}" target="_blank" style="flex:1;background:#25d366;color:white;text-align:center;padding:10px;border-radius:8px;text-decoration:none;font-weight:600;font-size:0.88rem;">💬 Abrir WhatsApp</a>
+      <button onclick="this.closest('div[style]').remove()" style="background:none;border:1px solid #ddd;border-radius:8px;padding:10px 14px;cursor:pointer;font-size:0.82rem;color:#888;">Cerrar</button>
+    </div>`;
+  document.body.appendChild(div);
+  setTimeout(() => { if(div.parentNode) div.remove(); }, 15000);
 }
 
 function renderConsultas(filtro='todos') {
@@ -2421,10 +2580,256 @@ function showEmbudoDetalle(etapa) {
   div.innerHTML = `<div style="font-size:0.83rem;color:#888;">${items.length} registro(s) en <strong>${etapa}</strong></div>`;
 }
 
-// ── CIERRES ──
-function abrirModalCierre() {
+// ══════════════════════════════════════════
+//  #4: DASHBOARD CHART (Chart.js)
+// ══════════════════════════════════════════
+let dashChartInstance = null;
+let dashPeriodoMeses = 3;
+
+function dashSetPeriodo(meses, btn) {
+  dashPeriodoMeses = meses;
+  document.querySelectorAll('[id^="dp-"]').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderDashChart();
+}
+
+function renderDashChart() {
+  const canvas = document.getElementById('dashChart');
+  if (!canvas) return;
+  const meses = dashPeriodoMeses;
+  const ahora = new Date();
+  const labels = [], dataConsultas = [], dataCierres = [], dataContactos = [];
+
+  for (let i = meses - 1; i >= 0; i--) {
+    const d = new Date(ahora.getFullYear(), ahora.getMonth() - i, 1);
+    const y = d.getFullYear(), m = d.getMonth();
+    labels.push(d.toLocaleDateString('es-AR', { month: 'short', year: meses > 6 ? '2-digit' : undefined }));
+    const inMonth = (arr, campo) => (arr || []).filter(x => {
+      const f = new Date(x[campo] || x.fecha || x.created_at || '');
+      return f.getFullYear() === y && f.getMonth() === m;
+    }).length;
+    dataConsultas.push(inMonth(LOCAL.consultas, 'created_at'));
+    dataCierres.push(inMonth(LOCAL.cierres, 'fecha'));
+    dataContactos.push(inMonth(LOCAL.contactos, 'fecha'));
+  }
+
+  if (dashChartInstance) dashChartInstance.destroy();
+  dashChartInstance = new Chart(canvas.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Consultas', data: dataConsultas, backgroundColor: '#c9a84c88', borderColor: '#c9a84c', borderWidth: 2, borderRadius: 4 },
+        { label: 'Cierres', data: dataCierres, backgroundColor: '#52b78888', borderColor: '#52b788', borderWidth: 2, borderRadius: 4 },
+        { label: 'Contactos', data: dataContactos, backgroundColor: '#88888833', borderColor: '#aaa', borderWidth: 2, borderRadius: 4 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 12 } } },
+      scales: {
+        y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 11 } }, grid: { color: '#f0ece4' } },
+        x: { ticks: { font: { size: 11 } }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+// ══════════════════════════════════════════
+//  #5: CIERRES CHARTS
+// ══════════════════════════════════════════
+let cierresChartInst = null, cierresYearInst = null;
+let cierresPeriodo = 6;
+
+function cierresSetPeriodo(meses, btn) {
+  cierresPeriodo = meses;
+  document.querySelectorAll('[id^="ci-"]').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderCierresCharts();
+}
+
+function renderCierresCharts() {
+  const ahora = new Date();
+  // ── Gráfico mensual ──
+  const canvasM = document.getElementById('cierresChart');
+  if (canvasM) {
+    const labels = [], data = [];
+    for (let i = cierresPeriodo - 1; i >= 0; i--) {
+      const d = new Date(ahora.getFullYear(), ahora.getMonth() - i, 1);
+      labels.push(d.toLocaleDateString('es-AR', { month: 'short' }));
+      data.push(LOCAL.cierres.filter(c => {
+        const f = new Date(c.fecha || '');
+        return f.getFullYear() === d.getFullYear() && f.getMonth() === d.getMonth();
+      }).reduce((s, c) => s + (parseFloat(c.neto || c.comision_neta) || 0), 0));
+    }
+    if (cierresChartInst) cierresChartInst.destroy();
+    cierresChartInst = new Chart(canvasM.getContext('2d'), {
+      type: 'bar',
+      data: { labels, datasets: [{ label: 'USD Neto', data, backgroundColor: '#c9a84c99', borderColor: '#c9a84c', borderWidth: 2, borderRadius: 5 }] },
+      options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, ticks: { font: { size: 10 }, callback: v => 'USD ' + v.toLocaleString('es-AR') }, grid: { color: '#f0ece4' } }, x: { ticks: { font: { size: 10 } }, grid: { display: false } } } }
+    });
+  }
+  // ── Comparativa año ──
+  const canvasY = document.getElementById('cierresYearChart');
+  if (canvasY) {
+    const anoActual = ahora.getFullYear(), anoAnterior = anoActual - 1;
+    const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    const dataActual = MESES.map((_, m) => LOCAL.cierres.filter(c => { const f = new Date(c.fecha||''); return f.getFullYear()===anoActual && f.getMonth()===m; }).reduce((s,c)=>s+(parseFloat(c.neto||c.comision_neta)||0),0));
+    const dataAnterior = MESES.map((_, m) => LOCAL.cierres.filter(c => { const f = new Date(c.fecha||''); return f.getFullYear()===anoAnterior && f.getMonth()===m; }).reduce((s,c)=>s+(parseFloat(c.neto||c.comision_neta)||0),0));
+    if (cierresYearInst) cierresYearInst.destroy();
+    cierresYearInst = new Chart(canvasY.getContext('2d'), {
+      type: 'line',
+      data: { labels: MESES, datasets: [
+        { label: String(anoActual), data: dataActual, borderColor: '#c9a84c', backgroundColor: '#c9a84c22', tension: 0.3, fill: true, pointRadius: 3 },
+        { label: String(anoAnterior), data: dataAnterior, borderColor: '#aaa', backgroundColor: '#88888811', tension: 0.3, fill: true, borderDash: [5,3], pointRadius: 3 }
+      ]},
+      options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, padding: 8 } } },
+        scales: { y: { beginAtZero: true, ticks: { font: { size: 10 }, callback: v => v ? 'USD '+v.toLocaleString('es-AR') : '0' }, grid: { color: '#f0ece4' } }, x: { ticks: { font: { size: 10 } }, grid: { display: false } } } }
+    });
+  }
+}
+
+// ══════════════════════════════════════════
+//  #8: TAREAS — CHECKLIST REDISEÑADO
+// ══════════════════════════════════════════
+const MOTIV_MSGS = [
+  '¡Tarea completada! 🔥 Seguís sumando',
+  '¡Excelente! Cada paso cuenta 💪',
+  '¡Hecho! La constancia hace al campeón ⭐',
+  '¡Completado! Tu disciplina es tu ventaja 🏆',
+  '¡Genial! Un paso más hacia tu objetivo 🎯',
+];
+
+function renderTareas() {
+  ['pendiente','proceso','finalizado'].forEach(estado => {
+    const col = document.getElementById('col-' + estado);
+    if (!col) return;
+    const lista = LOCAL.tareas.filter(t => t.estado === estado);
+    if (lista.length === 0) {
+      col.innerHTML = '<div style="color:#bbb;font-size:0.82rem;padding:12px 0 4px;">Sin tareas en este estado</div>';
+    } else {
+      const PRIORIDAD_COLOR = { alta: '#c0392b', media: '#e67e22', baja: '#27ae60', red:'#c0392b', orange:'#e67e22', green:'#27ae60', blue:'#2980b9' };
+      col.innerHTML = lista.map(t => {
+        const pColor = PRIORIDAD_COLOR[t.prioridad||t.color||'media'] || '#e67e22';
+        const vencida = t.fecha_venc && new Date(t.fecha_venc) < new Date() && estado !== 'finalizado';
+        return `<div class="checklist-item ${estado==='finalizado'?'done':''}" id="tarea-${t.id}" style="border-left:3px solid ${pColor};">
+          <div style="display:flex;align-items:flex-start;gap:10px;">
+            <span onclick="toggleTareaCheck('${t.id}','${estado}')" style="cursor:pointer;font-size:1.1rem;flex-shrink:0;margin-top:1px;">${estado==='finalizado'?'✅':'⭕'}</span>
+            <div style="flex:1;">
+              <div style="font-weight:600;font-size:0.88rem;${estado==='finalizado'?'text-decoration:line-through;opacity:0.6;':''}">${t.titulo}</div>
+              ${t.fecha_venc ? `<div style="font-size:0.74rem;color:${vencida?'#c0392b':'#bbb'};">📅 ${t.fecha_venc}${vencida?' ⚠️ Vencida':''}</div>` : ''}
+              ${t.descripcion||t.nota ? `<div style="font-size:0.78rem;color:#999;margin-top:2px;">${t.descripcion||t.nota}</div>` : ''}
+            </div>
+            <button onclick="eliminarTarea('${t.id}')" style="background:none;border:none;cursor:pointer;color:#ddd;font-size:0.9rem;flex-shrink:0;" title="Eliminar">✕</button>
+          </div>
+          ${estado==='pendiente'?`<div style="margin-top:6px;"><button class="btn-sm" onclick="moverTarea('${t.id}','proceso')" style="font-size:0.72rem;">→ Iniciar</button></div>`:''}
+        </div>`;
+      }).join('');
+    }
+  });
+  // Ideas en la sección de tareas
+  const ideasPend = document.getElementById('col-ideas-pendientes');
+  const ideasReal = document.getElementById('col-ideas-realizadas');
+  if (ideasPend) {
+    const p = LOCAL.ideas.filter(i => i.estado !== 'realizada');
+    ideasPend.innerHTML = p.length ? p.map(i => `<div class="checklist-item"><span onclick="toggleIdea('${i.id}')" style="cursor:pointer;">💡</span> <span style="font-size:0.85rem;">${i.texto}</span></div>`).join('') : '<div style="color:#bbb;font-size:0.82rem;">Sin ideas pendientes</div>';
+  }
+  if (ideasReal) {
+    const r = LOCAL.ideas.filter(i => i.estado === 'realizada');
+    ideasReal.innerHTML = r.length ? r.map(i => `<div class="checklist-item done"><span>✅</span> <span style="font-size:0.82rem;text-decoration:line-through;opacity:0.6;">${i.texto}</span></div>`).join('') : '<div style="color:#bbb;font-size:0.82rem;">Sin ideas realizadas aún</div>';
+  }
+  document.getElementById('badge-pendientes-agenda').textContent = LOCAL.tareas.filter(t=>t.estado==='pendiente').length;
+}
+
+async function toggleTareaCheck(id, estadoActual) {
+  const nuevoEstado = estadoActual === 'pendiente' ? 'proceso' : estadoActual === 'proceso' ? 'finalizado' : 'pendiente';
+  await moverTarea(id, nuevoEstado);
+  if (nuevoEstado === 'finalizado') {
+    const msg = MOTIV_MSGS[Math.floor(Math.random() * MOTIV_MSGS.length)];
+    const div = document.getElementById('motivMessage');
+    if (div) { div.textContent = msg; div.style.display = 'block'; setTimeout(() => div.style.display='none', 3000); }
+  }
+}
+
+// ══════════════════════════════════════════
+//  #11: CIERRE — VINCULAR PROPIEDAD
+// ══════════════════════════════════════════
+async function abrirModalCierre() {
   document.getElementById('ciFecha').value = new Date().toISOString().split('T')[0];
+  // Cargar propiedades en selector
+  try {
+    const r = await fetch('/api/propiedades?vista=all');
+    const data = await r.json();
+    const sel = document.getElementById('ciPropiedadId');
+    if (sel) {
+      sel.innerHTML = '<option value="">— Sin vincular / Ingresá dirección manualmente —</option>' +
+        (data.propiedades || []).filter(p => p.estado_tasacion !== 'Vendida').map(p =>
+          `<option value="${p.id}" data-dir="${p.direccion||''}" data-zona="${p.zona||''}" data-tipo="${p.tipologia||''}">[${p.tipologia||'Prop'}] ${p.direccion}${p.localidad?' - '+p.localidad:''}</option>`
+        ).join('');
+    }
+  } catch(e) {}
+  document.getElementById('ciVendidaWarning').style.display = 'none';
   abrirModal('modalCierre');
+}
+
+function ciPropiedadSeleccionada(sel) {
+  const opt = sel.options[sel.selectedIndex];
+  const warn = document.getElementById('ciVendidaWarning');
+  if (sel.value) {
+    document.getElementById('ciDireccion').value = opt.dataset.dir || '';
+    document.getElementById('ciZona').value = opt.dataset.zona || '';
+    document.getElementById('ciTipo').value = opt.dataset.tipo || '';
+    if (warn) warn.style.display = 'block';
+  } else {
+    if (warn) warn.style.display = 'none';
+  }
+}
+
+async function guardarCierre() {
+  const valor = parseFloat(document.getElementById('ciValor').value)||0;
+  const pct = parseFloat(document.getElementById('ciPct').value)||0;
+  const brokerPct = parseFloat(document.getElementById('ciBrokerPct').value)||0;
+  const bruto = valor * pct / 100;
+  const neto = bruto - (bruto * brokerPct / 100);
+  const propiedadId = document.getElementById('ciPropiedadId')?.value || '';
+  const obj = {
+    propiedad: document.getElementById('ciDireccion').value,
+    propiedad_id: propiedadId,
+    valor_operacion: valor,
+    comision_pct: pct,
+    comision_bruta: bruto,
+    comision_neta: neto,
+    fecha: document.getElementById('ciFecha').value,
+    zona: document.getElementById('ciZona').value,
+    tipo: document.getElementById('ciTipo').value,
+    puntas: document.getElementById('ciPuntas').value,
+    notas: document.getElementById('ciNotas').value,
+  };
+  const r = await api('POST', '/api/cierres', obj);
+  if (r?.id) { obj.id = r.id; obj.neto = neto; obj.bruto = bruto; obj.pct = pct; obj.direccion = obj.propiedad; LOCAL.cierres.unshift(obj); }
+
+  // #11: Si hay propiedad vinculada → actualizarla a "Vendida"
+  if (propiedadId) {
+    try {
+      const rProp = await fetch('/api/propiedades?vista=all');
+      const dProp = await rProp.json();
+      const prop = (dProp.propiedades||[]).find(p => p.id === propiedadId);
+      if (prop) {
+        await fetch(`/api/propiedades/${propiedadId}`, {
+          method: 'PUT',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ ...prop, estado_tasacion: 'Vendida' })
+        });
+      }
+    } catch(e) { console.error('Error actualizando propiedad:', e); }
+  }
+
+  cerrarModal('modalCierre');
+  showToast('¡Cierre registrado! 🎉', 'success');
+  renderCierres();
+  renderCierresCharts();
+  renderObjetivos();
 }
 
 function calcularCierre() {
@@ -2442,31 +2847,6 @@ function calcularCierre() {
       ${brokerPct?`<div><div style="font-size:0.68rem;text-transform:uppercase;color:#bbb;">Broker (${brokerPct}%)</div><div style="font-size:1.1rem;font-weight:700;color:var(--rust);">-USD ${broker.toLocaleString('es-AR',{maximumFractionDigits:0})}</div></div>`:''}
       <div><div style="font-size:0.68rem;text-transform:uppercase;color:#bbb;">Comisión neta</div><div style="font-size:1.1rem;font-weight:700;color:var(--sage);">USD ${neto.toLocaleString('es-AR',{maximumFractionDigits:0})}</div></div>
     </div>`;
-}
-
-async function guardarCierre() {
-  const valor = parseFloat(document.getElementById('ciValor').value)||0;
-  const pct = parseFloat(document.getElementById('ciPct').value)||0;
-  const brokerPct = parseFloat(document.getElementById('ciBrokerPct').value)||0;
-  const bruto = valor * pct / 100;
-  const neto = bruto - (bruto * brokerPct / 100);
-  const obj = {
-    propiedad: document.getElementById('ciDireccion').value,
-    valor_operacion: valor,
-    comision_pct: pct,
-    comision_bruta: bruto,
-    comision_neta: neto,
-    fecha: document.getElementById('ciFecha').value,
-    zona: document.getElementById('ciZona').value,
-    tipo: document.getElementById('ciTipo').value,
-    puntas: document.getElementById('ciPuntas').value,
-    notas: document.getElementById('ciNotas').value,
-  };
-  const r = await api('POST', '/api/cierres', obj);
-  if (r?.id) { obj.id = r.id; obj.neto = neto; obj.bruto = bruto; obj.pct = pct; obj.direccion = obj.propiedad; LOCAL.cierres.unshift(obj); }
-  cerrarModal('modalCierre');
-  showToast('¡Cierre registrado! 🎉', 'success');
-  renderCierres();
 }
 
 function renderCierres() {
@@ -2778,25 +3158,49 @@ async function guardarGuion() {
 }
 
 async function generarGuionIA() {
-  showToast('Generando guion con IA...', 'info');
+  const temaEl = document.getElementById('guTemaIA');
+  const tema = temaEl?.value || 'tips inmobiliarios';
+  const btn = document.getElementById('btnGenerarIA');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Generando...'; }
+  showToast('Generando guion con IA... 🎬', 'info');
   try {
+    // Contexto de historial para no repetir temas
+    const grabados = LOCAL.guiones.filter(g => g.grabado).map(g => `"${g.titulo}"`).join(', ');
+    const recientes = LOCAL.guiones.slice(0, 10).map(g => `"${g.titulo}" (${g.tema||''})`).join(', ');
+    const historialCtx = recientes ? `\n\nGuiones YA grabados o recientes (NO repetir estos temas): ${grabados || 'ninguno'}. Guiones recientes: ${recientes}.` : '';
+
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514', max_tokens: 800,
-        messages: [{role:'user', content:'Generá un guion corto de video para Instagram de un agente inmobiliario en Argentina. Marca: Realvix. Tema: tips para compradores de primera vivienda. Formato: gancho inicial (1 oración impactante), 3 puntos del desarrollo (bullet style), call to action. Respondé SOLO en JSON sin markdown: {"titulo":"...","hook":"...","desarrollo":"...","cta":"..."}'}]
+        model: 'claude-sonnet-4-20250514', max_tokens: 1000,
+        messages: [{role:'user', content:`Sos un experto en contenido de Instagram para el mercado inmobiliario argentino. Generá un guion ORIGINAL y PERSUASIVO para un Reel de Instagram de un agente inmobiliario de Zona Oeste/Buenos Aires. Marca: Realvix.
+
+Tema solicitado: ${tema}
+${historialCtx}
+
+El guion debe tener:
+- HOOK: Primera oración impactante (máx 15 palabras) que detenga el scroll. Usá datos, preguntas provocadoras o frases que generen curiosidad/emoción.
+- DESARROLLO: 3 puntos concretos, accionables y persuasivos. Escribilos como si los estuvieras diciendo en cámara, con energía y confianza. Usá lenguaje natural argentino.
+- CTA: Llamado a la acción claro: seguirte, escribir al DM, guardar el video o comentar algo específico.
+
+Respondé SOLO en JSON sin markdown ni explicaciones: {"titulo":"...","hook":"...","desarrollo":"...","cta":"..."}`}]
       })
     });
     const data = await r.json();
     const text = data.content?.[0]?.text || '';
     const clean = text.replace(/```json|```/g,'').trim();
     const parsed = JSON.parse(clean);
-    const obj2 = { ...parsed, grabado: false };
+    const obj2 = { ...parsed, tema, grabado: false };
     const saved2 = await api('POST', '/api/guiones', obj2);
     if (saved2?.id) { obj2.id = saved2.id; LOCAL.guiones.unshift(obj2); }
-    showToast('Guion generado ✅', 'success'); renderGuiones();
-  } catch(e) { showToast('Error al generar. Probá el modal manual.', 'error'); }
+    showToast('¡Guion generado! 🎬✅', 'success'); renderGuiones();
+  } catch(e) {
+    console.error(e);
+    showToast('Error al generar. Probá el modal manual.', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🤖 Generar con IA'; }
+  }
 }
 
 function renderGuiones() {
@@ -2929,11 +3333,45 @@ async function cargarConfiguracion() {
     if (!div) return;
     if (!data.estados?.length) { div.innerHTML = '<p style="color:#bbb">Sin estadios configurados</p>'; return; }
     div.innerHTML = data.estados.map(e => `
-      <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);">
-        <span class="badge color-${e.color}">${e.nombre}</span>
+      <div id="estado-row-${e.id}" style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+        <span class="badge color-${e.color}" id="estado-badge-${e.id}">${e.nombre}</span>
         <span style="font-size:0.75rem;color:#bbb;flex:1;">${e.vista||''}</span>
+        <button onclick="editarEstadoInline(${e.id},'${e.nombre}','${e.color}')" title="Editar" style="background:none;border:1px solid #ddd;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:0.75rem;color:#888;">✏️</button>
+        <button onclick="eliminarEstadoInline(${e.id},'${e.nombre}')" title="Eliminar" style="background:none;border:1px solid #fcc;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:0.75rem;color:var(--rust);">✕</button>
       </div>`).join('');
   } catch(e) {}
+}
+
+async function editarEstadoInline(id, nombreActual, colorActual) {
+  const row = document.getElementById('estado-row-'+id);
+  if (!row) return;
+  row.innerHTML = `
+    <input type="text" id="edit-nombre-${id}" value="${nombreActual}" style="flex:1;padding:6px 10px;border:1.5px solid var(--gold);border-radius:6px;font-family:inherit;font-size:0.85rem;">
+    <select id="edit-color-${id}" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:0.82rem;">
+      ${['gray','purple','blue','green','yellow','orange','red','pink'].map(c => `<option value="${c}" ${c===colorActual?'selected':''}>● ${c.charAt(0).toUpperCase()+c.slice(1)}</option>`).join('')}
+    </select>
+    <button onclick="guardarEdicionEstado(${id})" style="background:var(--gold);color:white;border:none;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:0.82rem;">✓</button>
+    <button onclick="cargarConfiguracion()" style="background:none;border:1px solid #ddd;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:0.82rem;color:#888;">✕</button>`;
+}
+
+async function guardarEdicionEstado(id) {
+  const nombre = document.getElementById('edit-nombre-'+id)?.value.trim();
+  const color = document.getElementById('edit-color-'+id)?.value;
+  if (!nombre) { showToast('El nombre no puede estar vacío', 'error'); return; }
+  await fetch(`/api/estados/${id}`, {
+    method: 'PUT',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ nombre, color })
+  });
+  showToast('Estado actualizado ✅', 'success');
+  cargarConfiguracion();
+}
+
+async function eliminarEstadoInline(id, nombre) {
+  if (!confirm(`¿Eliminar el estado "${nombre}"? Las propiedades con este estado quedarán sin estado asignado.`)) return;
+  await fetch(`/api/estados/${id}`, { method: 'DELETE' });
+  showToast('Estado eliminado', 'success');
+  cargarConfiguracion();
 }
 
 async function crearEstadio() {
@@ -3018,12 +3456,28 @@ async function togglePermiso(userId, seccion, enabled) {
   showToast('Permiso actualizado ✅', 'success');
 }
 
+function togglePermisosPanel(rol) {
+  document.getElementById('permisosPanel').style.display = rol === 'admin' ? 'none' : 'block';
+}
+
+function checkAllPermisos(check) {
+  document.querySelectorAll('input[name="adminPerm"]').forEach(cb => cb.checked = check);
+}
+
 async function crearUsuario() {
+  const rol = document.getElementById('adminRol').value;
+  let permisos = {};
+  if (rol !== 'admin') {
+    document.querySelectorAll('input[name="adminPerm"]').forEach(cb => {
+      permisos[cb.value] = cb.checked;
+    });
+  }
   const body = {
     name: document.getElementById('adminNombre').value.trim(),
     email: document.getElementById('adminEmail').value.trim(),
     password: document.getElementById('adminPass').value,
-    role: document.getElementById('adminRol').value,
+    role: rol,
+    permisos,
   };
   if (!body.name || !body.email || !body.password) { showToast('Completá todos los campos', 'error'); return; }
   const r = await fetch('/api/admin/users', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
