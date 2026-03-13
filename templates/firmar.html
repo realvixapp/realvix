@@ -98,6 +98,17 @@
   <!-- Firma -->
   <div class="card" id="signCard">
     <div class="card-title">✍️ Tu firma</div>
+
+    <!-- #17: Confirmación de email obligatoria -->
+    <div style="margin-bottom:16px;padding:14px;background:#fff8e1;border:1px solid #f0c040;border-radius:8px;">
+      <div class="pad-label" style="margin-bottom:6px;">📧 Confirmá tu email antes de firmar</div>
+      <input type="email" id="emailConfirmacion" placeholder="Ingresá tu email..."
+        style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.88rem;outline:none;box-sizing:border-box;"
+        oninput="validarEmailFirma()">
+      <div id="emailError" style="display:none;color:#c0392b;font-size:0.78rem;margin-top:4px;">⚠️ El email no coincide con el registrado para este firmante.</div>
+      <div id="emailOk" style="display:none;color:#2d6a4f;font-size:0.78rem;margin-top:4px;">✅ Email confirmado</div>
+    </div>
+
     <div class="pad-label">Dibujá tu firma en el recuadro</div>
     <div class="sig-wrap">
       <canvas id="sigCanvas" height="180"></canvas>
@@ -221,7 +232,7 @@ canvas.addEventListener('touchend', () => drawing = false);
 function setHasContent() {
   hasContent = true;
   document.getElementById('sigHint').style.display = 'none';
-  document.getElementById('btnFirmar').disabled = false;
+  actualizarBotonFirmar();
 }
 
 function clearSig() {
@@ -232,7 +243,35 @@ function clearSig() {
   document.getElementById('btnFirmar').disabled = true;
 }
 
+const FIRMANTE_EMAIL = "{{ firmante.email }}";
+
+function validarEmailFirma() {
+  const val = document.getElementById('emailConfirmacion').value.trim().toLowerCase();
+  const expected = FIRMANTE_EMAIL.toLowerCase();
+  const err = document.getElementById('emailError');
+  const ok = document.getElementById('emailOk');
+  const isValid = val.length > 0 && val.includes('@') && val.includes('.');
+  const matches = val === expected;
+  if (val.length === 0) { err.style.display='none'; ok.style.display='none'; }
+  else if (!isValid) { err.textContent='⚠️ Ingresá un email válido.'; err.style.display='block'; ok.style.display='none'; }
+  else if (!matches) { err.textContent='⚠️ El email no coincide con el registrado para este firmante.'; err.style.display='block'; ok.style.display='none'; }
+  else { err.style.display='none'; ok.style.display='block'; }
+  actualizarBotonFirmar();
+}
+
+function actualizarBotonFirmar() {
+  const emailVal = document.getElementById('emailConfirmacion').value.trim().toLowerCase();
+  const emailValido = emailVal === FIRMANTE_EMAIL.toLowerCase();
+  const btn = document.getElementById('btnFirmar');
+  btn.disabled = !(hasContent && emailValido);
+}
+
 async function guardarFirma() {
+  const emailVal = document.getElementById('emailConfirmacion').value.trim();
+  if (!emailVal || emailVal.toLowerCase() !== FIRMANTE_EMAIL.toLowerCase()) {
+    toast('⚠️ Confirmá tu email correctamente antes de firmar');
+    return;
+  }
   if (!hasContent) { toast('Dibujá tu firma primero'); return; }
   const btn = document.getElementById('btnFirmar');
   btn.disabled = true;
@@ -244,7 +283,7 @@ async function guardarFirma() {
     const res = await fetch(`/api/firmar/${DOC_ID}/${TOKEN}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ signature_dataurl: signatureDataUrl }),
+      body: JSON.stringify({ signature_dataurl: signatureDataUrl, email_confirmado: emailVal }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Error al guardar la firma');
