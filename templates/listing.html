@@ -94,14 +94,11 @@ tr:hover td { background: #fdfaf4; cursor: pointer; }
 .empty-table .ei { font-size: 2.5rem; margin-bottom: 10px; }
 .empty-table p { font-size: 0.85rem; }
 
-/* ── ABRIR PROP BTN ── */
-tr:hover .btn-abrir-prop { opacity: 1 !important; }
-
 /* ── SLIDE-OVER ── */
-.so-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 500; align-items: center; justify-content: center; }
-.so-bg.open { display: flex; }
-.slideover { position: relative; width: 560px; max-width: 96vw; max-height: 92vh; background: white; box-shadow: 0 8px 48px rgba(0,0,0,0.18); z-index: 501; border-radius: 16px; overflow-y: auto; display: flex; flex-direction: column; animation: popIn 0.2s ease; }
-@keyframes popIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.so-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 500; }
+.so-bg.open { display: block; }
+.slideover { position: fixed; top: 0; right: 0; height: 100vh; width: 500px; max-width: 96vw; background: white; box-shadow: -4px 0 32px rgba(0,0,0,0.12); z-index: 501; transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); overflow-y: auto; display: flex; flex-direction: column; }
+.slideover.open { transform: translateX(0); }
 .so-header { padding: 18px 22px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: white; z-index: 2; flex-shrink: 0; }
 .so-title { font-family: 'DM Serif Display', serif; font-size: 1.15rem; }
 .so-close { background: none; border: none; font-size: 1.4rem; cursor: pointer; color: #bbb; line-height: 1; padding: 0; }
@@ -415,7 +412,7 @@ tr:hover .btn-abrir-prop { opacity: 1 !important; }
         <div class="so-field"><label>Teléfono</label><input type="tel" id="soTelefono" placeholder="+54 11 ..."></div>
         <div class="so-field m-full"><label>Email</label><input type="email" id="soEmail" placeholder="juan@email.com"></div>
         <div class="so-field"><label>Referido</label><input type="text" id="soReferido"></div>
-        <div class="so-field"><label>URL Propiedad</label><input type="url" id="soUrl" placeholder="https://..."></div>
+        <div class="so-field"><label>🔗 Link de ficha / portal</label><input type="url" id="soUrl" placeholder="https://zonaprop.com.ar/..."></div>
       </div>
     </div>
     <div class="so-section">
@@ -503,6 +500,7 @@ tr:hover .btn-abrir-prop { opacity: 1 !important; }
         </div>
         <div class="m-field"><label>Nombre Propietario</label><input type="text" id="nNombre" placeholder="Juan García"></div>
         <div class="m-field"><label>Teléfono</label><input type="tel" id="nTelefono" placeholder="+54 11 ..."></div>
+        <div class="m-field m-full"><label>🔗 Link de ficha / portal</label><input type="url" id="nLinkFicha" placeholder="https://zonaprop.com.ar/..."></div>
         <div class="m-field m-full"><label>Observaciones</label><input type="text" id="nObs" placeholder="Notas iniciales..."></div>
       </div>
     </div>
@@ -602,18 +600,8 @@ function renderTabla(props) {
   empty.style.display = 'none';
 
   tbody.innerHTML = props.map(p => `
-    <tr>
-      <td>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <div>
-            <div class="td-dir">${p.direccion || '—'}</div>
-            ${p.localidad ? `<div class="td-prop">${p.localidad}</div>` : ''}
-          </div>
-          <a href="#" onclick="event.preventDefault();abrirSO('${p.id}')" title="Ver ficha completa"
-            style="opacity:0;flex-shrink:0;font-size:0.72rem;font-weight:600;color:var(--gold);text-decoration:none;border:1px solid var(--gold);border-radius:4px;padding:2px 7px;white-space:nowrap;transition:opacity 0.15s;"
-            class="btn-abrir-prop">↗ Abrir</a>
-        </div>
-      </td>
+    <tr onclick="abrirSO('${p.id}')">
+      <td><div class="td-dir">${p.direccion || '—'}</div>${p.localidad ? `<div class="td-prop">${p.localidad}</div>` : ''}</td>
       <td class="td-prop">${p.localidad || '—'}</td>
       <td>${p.tipologia ? `<span class="tipo-tag">${p.tipologia}</span>` : '—'}</td>
       <td>${p.nombre_propietario || '—'}</td>
@@ -832,9 +820,8 @@ function filtrar() {
 
 // ── Slide-over ──
 function abrirSO(id) {
-  // Try to find in current filtered list first, then in all props
-  const p = propiedades.find(x => x.id === id) || (allPropiedades||[]).find(x => x.id === id);
-  if (!p) { cargar().then(() => abrirSO(id)); return; }
+  const p = propiedades.find(x => x.id === id);
+  if (!p) return;
   document.getElementById('soId').value = p.id;
   document.getElementById('soTitle').textContent = p.direccion || 'Propiedad';
   document.getElementById('soDireccion').value = p.direccion || '';
@@ -906,45 +893,12 @@ function renderEstadosList() {
   const COLORES = { gray:'#888', purple:'#6b21a8', blue:'#1e40af', green:'#166534', yellow:'#ca8a04', orange:'#9a3412', red:'#991b1b', pink:'#9d174d' };
   const BG = { gray:'#f0f0f0', purple:'#f3e8ff', blue:'#dbeafe', green:'#dcfce7', yellow:'#fef9c3', orange:'#ffedd5', red:'#fee2e2', pink:'#fce7f3' };
   container.innerHTML = estados.map(e => `
-    <div id="lstrow-${e.id}" style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:${BG[e.color]||'#f5f5f5'};border-radius:8px;">
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:${BG[e.color]||'#f5f5f5'};border-radius:8px;">
       <span style="width:10px;height:10px;border-radius:50%;background:${COLORES[e.color]||'#888'};flex-shrink:0;"></span>
       <span style="flex:1;font-size:0.88rem;font-weight:600;color:${COLORES[e.color]||'#333'};">${e.nombre}</span>
       <span style="font-size:0.72rem;color:#aaa;">${e.vista||''}</span>
-      <button onclick="lstEditarEstado(${e.id},'${e.nombre}','${e.color}')" title="Editar" style="background:none;border:1px solid rgba(0,0,0,0.12);border-radius:5px;padding:3px 7px;cursor:pointer;font-size:0.75rem;color:#666;">✏️</button>
-      <button onclick="lstEliminarEstado(${e.id},'${e.nombre}')" title="Eliminar" style="background:none;border:1px solid rgba(200,0,0,0.2);border-radius:5px;padding:3px 7px;cursor:pointer;font-size:0.75rem;color:#c00;">✕</button>
     </div>
   `).join('') || '<p style="color:#bbb;font-size:0.82rem;text-align:center;">Sin estados aún</p>';
-}
-
-function lstEditarEstado(id, nombre, color) {
-  const row = document.getElementById('lstrow-'+id);
-  if (!row) return;
-  row.innerHTML = `
-    <input type="text" id="ledit-n-${id}" value="${nombre}" style="flex:1;padding:5px 8px;border:1.5px solid var(--gold);border-radius:6px;font-family:inherit;font-size:0.85rem;">
-    <select id="ledit-c-${id}" style="padding:5px 8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:0.82rem;">
-      ${['gray','purple','blue','green','yellow','orange','red','pink'].map(c=>`<option value="${c}" ${c===color?'selected':''}>${c}</option>`).join('')}
-    </select>
-    <button onclick="lstGuardarEstado(${id})" style="background:var(--gold);color:white;border:none;border-radius:5px;padding:5px 10px;cursor:pointer;font-size:0.8rem;">✓</button>
-    <button onclick="renderEstadosList()" style="background:none;border:1px solid #ddd;border-radius:5px;padding:5px 8px;cursor:pointer;color:#888;font-size:0.8rem;">✕</button>`;
-}
-
-async function lstGuardarEstado(id) {
-  const nombre = document.getElementById('ledit-n-'+id)?.value.trim();
-  const color = document.getElementById('ledit-c-'+id)?.value;
-  if (!nombre) return;
-  await fetch(`/api/estados/${id}`, {
-    method:'PUT', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ nombre, color })
-  });
-  await cargar();
-  renderEstadosList();
-}
-
-async function lstEliminarEstado(id, nombre) {
-  if (!confirm(`¿Eliminar el estado "${nombre}"?`)) return;
-  await fetch(`/api/estados/${id}`, { method:'DELETE' });
-  await cargar();
-  renderEstadosList();
 }
 async function crearEstado() {
   const nombre = document.getElementById('nuevoEstadoNombre').value.trim();
@@ -973,7 +927,9 @@ function abrirNueva() {
 }
 function cerrarNueva() {
   document.getElementById('modalNueva').classList.remove('open');
-  ['nDireccion','nLocalidad','nNombre','nTelefono','nObs'].forEach(id => document.getElementById(id).value = '');
+  ['nDireccion','nLocalidad','nNombre','nTelefono','nObs','nLinkFicha'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value = '';
+  });
   document.getElementById('nZona').value = '';
   document.getElementById('nTipologia').value = '';
   document.getElementById('nEstado').value = '';
@@ -982,6 +938,8 @@ function cerrarNueva() {
 async function crearPropiedad() {
   const dir = document.getElementById('nDireccion').value.trim();
   if (!dir) { alert('Ingresá la dirección'); return; }
+  const btn = document.querySelector('#modalNueva .btn-ink');
+  if (btn) { btn.textContent = '⏳ Creando...'; btn.disabled = true; }
   const data = {
     direccion: dir,
     localidad: document.getElementById('nLocalidad').value,
@@ -990,10 +948,9 @@ async function crearPropiedad() {
     estado_tasacion: document.getElementById('nEstado').value || estados[0]?.nombre || 'Pendiente Visita',
     nombre_propietario: document.getElementById('nNombre').value,
     telefono: document.getElementById('nTelefono').value,
+    url: document.getElementById('nLinkFicha').value,
     observaciones: document.getElementById('nObs').value,
   };
-  const btn = document.querySelector('#modalNueva .btn-ink');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Creando...'; }
   try {
     const res = await fetch('/api/propiedades', {
       method: 'POST',
@@ -1004,16 +961,13 @@ async function crearPropiedad() {
     if (result.ok) {
       cerrarNueva();
       await cargar();
-      // Mostrar la propiedad recién creada abriendo su slideover
-      const nueva = propiedades.find(p => p.id === result.id) || allPropiedades.find(p => p.id === result.id);
-      if (nueva) setTimeout(() => abrirSO(result.id), 300);
     } else {
-      alert('Error al crear: ' + (result.error || 'Intente nuevamente'));
+      alert('Error al crear: ' + (result.error || 'Respuesta inesperada'));
     }
   } catch(e) {
     alert('Error de conexión: ' + e.message);
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Crear propiedad'; }
+    if (btn) { btn.textContent = 'Crear propiedad'; btn.disabled = false; }
   }
 }
 
