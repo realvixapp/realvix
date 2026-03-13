@@ -1473,3 +1473,27 @@ select.input-base { appearance: auto; }
   transition: opacity 0.15s;
 }
 .estadio-inline-select:hover { opacity: 0.8; }
+
+/* ── KANBAN DRAG & DROP ── */
+.kanban-body.drag-over {
+  background: var(--rx-blue-light);
+  border: 2px dashed var(--rx-blue);
+  border-radius: 8px;
+  transition: background 0.15s, border 0.15s;
+}
+.kanban-card[draggable="true"] {
+  cursor: grab;
+  user-select: none;
+}
+.kanban-card[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+/* ── PANEL FLOTANTE LEAD ── */
+#panelFlotanteLead {
+  animation: slideInUp 0.25s ease;
+}
+@keyframes slideInUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
