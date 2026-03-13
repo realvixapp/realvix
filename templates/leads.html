@@ -13,7 +13,6 @@
 
 <!-- ── CONSULTAS ── -->
 <div id="tabConsultas">
-  <!-- Estadios (kanban-style) -->
   <div style="display:flex;gap:8px;margin-bottom:16px;overflow-x:auto;padding-bottom:4px;">
     <button class="estadio-btn active" data-est="todos" onclick="filtrarEstadio('todos',this)">Todos</button>
     <button class="estadio-btn" data-est="nuevo" onclick="filtrarEstadio('nuevo',this)">Nuevo</button>
@@ -22,15 +21,11 @@
     <button class="estadio-btn" data-est="seguimiento" onclick="filtrarEstadio('seguimiento',this)">Seguimiento</button>
     <button class="estadio-btn" data-est="visito" onclick="filtrarEstadio('visito',this)">Visitó ✓</button>
   </div>
-
   <div style="display:flex;gap:10px;margin-bottom:14px;align-items:center;">
     <input type="text" id="filtroLeads" placeholder="Buscar lead..." class="input-base" style="max-width:260px;" oninput="filtrarLeads()">
     <button class="btn-primary" onclick="abrirNuevaConsulta()">+ Nueva consulta</button>
   </div>
-
-  <div id="leadsGrid">
-    <div class="loading-state">Cargando...</div>
-  </div>
+  <div id="leadsGrid"><div class="loading-state">Cargando...</div></div>
 </div>
 
 <!-- ── MUESTRAS ── -->
@@ -38,20 +33,19 @@
   <p style="color:var(--text-secondary);font-size:0.84rem;margin-bottom:16px;">
     Leads que llegaron al estadio <strong>Visitó</strong> — post-visita.
   </p>
-  <div id="muestrasGrid">
-    <div class="loading-state">Cargando...</div>
-  </div>
+  <div id="muestrasGrid"><div class="loading-state">Cargando...</div></div>
 </div>
 
 <!-- ── MODAL CONSULTA ── -->
 <div class="modal-bg" id="modalConsulta">
-  <div class="modal" style="max-width:520px;">
+  <div class="modal" style="max-width:560px;">
     <div class="modal-header">
       <h3 id="modalLeadTitulo">Nueva consulta</h3>
       <button class="modal-close" onclick="cerrarModal('modalConsulta')">✕</button>
     </div>
     <div class="modal-body" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
       <input type="hidden" id="leadId">
+
       <div class="field">
         <label class="field-label">Nombre</label>
         <input type="text" id="leadNombre" class="input-base">
@@ -75,10 +69,19 @@
           <option value="otro">Otro</option>
         </select>
       </div>
-      <div class="field">
+
+      <!-- Propiedad de interés: dropdown de la BD -->
+      <div class="field" style="grid-column:span 2">
         <label class="field-label">Propiedad de interés</label>
-        <input type="text" id="leadPropiedad" class="input-base">
+        <div style="display:flex;gap:6px;">
+          <select id="leadPropiedadSelect" class="input-base" style="flex:1;" onchange="onSelectPropiedad(this)">
+            <option value="">— Seleccionar de la cartera —</option>
+          </select>
+          <input type="text" id="leadPropiedad" class="input-base" style="flex:1;" placeholder="O escribí libremente...">
+        </div>
+        <div style="font-size:0.72rem;color:#aaa;margin-top:4px;">Elegí de la cartera o escribí una descripción libre</div>
       </div>
+
       <div class="field">
         <label class="field-label">Operación</label>
         <select id="leadOperacion" class="input-base">
@@ -95,9 +98,10 @@
         <label class="field-label">Zona de interés</label>
         <input type="text" id="leadZona" class="input-base">
       </div>
+
       <div class="field">
         <label class="field-label">Estadio</label>
-        <select id="leadEstado" class="input-base">
+        <select id="leadEstado" class="input-base" onchange="onEstadioChange(this.value)">
           <option value="nuevo">Nuevo</option>
           <option value="pendiente_visita">Pendiente Visita</option>
           <option value="contesto">Contestó</option>
@@ -105,6 +109,13 @@
           <option value="visito">Visitó ✓</option>
         </select>
       </div>
+
+      <!-- Campo fecha de visita — solo visible cuando estadio = pendiente_visita -->
+      <div class="field" id="campoFechaVisita" style="display:none;">
+        <label class="field-label" style="color:#7C3AED;font-weight:700;">📅 Fecha de visita</label>
+        <input type="date" id="leadFechaVisita" class="input-base" style="border-color:#7C3AED44;">
+      </div>
+
       <div class="field" style="grid-column:span 2">
         <label class="field-label">Mensaje / Notas</label>
         <textarea id="leadMensaje" class="input-base" rows="3" style="resize:vertical;"></textarea>
