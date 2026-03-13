@@ -1623,6 +1623,13 @@ function edoCopiarLink(btn, token) {
         <div class="card-title">Usuarios activos</div>
         <div id="listaUsuarios">Cargando...</div>
       </div>
+
+      <div class="card" style="margin-top:14px;border:1.5px solid #fde68a;background:#fffbeb;">
+        <div class="card-title" style="color:#92400e;">🛠️ Mantenimiento de base de datos</div>
+        <p style="font-size:0.82rem;color:#888;margin-bottom:12px;">Si ves errores de "columna no existe", ejecutá la migración para actualizar la estructura de la base de datos.</p>
+        <button class="btn btn-outline" onclick="ejecutarMigracion()" id="btnMigrar">⚙️ Ejecutar migración</button>
+        <div id="migracionResultado" style="display:none;margin-top:12px;font-size:0.78rem;"></div>
+      </div>
     </div>
 
     <!-- Modal editar usuario -->
@@ -3466,6 +3473,34 @@ async function crearUsuario() {
     }
   } catch(e) { showToast('Error: ' + e.message, 'error'); }
   finally { if (btn) { btn.textContent = 'Crear usuario'; btn.disabled = false; } }
+}
+
+async function ejecutarMigracion() {
+  const btn = document.getElementById('btnMigrar');
+  const res = document.getElementById('migracionResultado');
+  btn.textContent = '⏳ Ejecutando...'; btn.disabled = true;
+  res.style.display = 'none';
+  try {
+    const r = await fetch('/api/migrate', {method:'POST'});
+    const data = await r.json();
+    res.style.display = 'block';
+    if (data.ok) {
+      const oks = data.resultados.filter(x=>x.ok).length;
+      const errs = data.resultados.filter(x=>!x.ok);
+      res.innerHTML = `<div style="color:#166534;font-weight:600;">✅ Migración completada (${oks} operaciones OK)</div>` +
+        (errs.length ? `<div style="color:#991b1b;margin-top:6px;">Avisos: ${errs.map(e=>e.sql).join(', ')}</div>` : '') +
+        `<div style="color:#aaa;margin-top:6px;">Recargá la página para que los cambios surtan efecto.</div>`;
+      showToast('Migración ejecutada ✅', 'success');
+    } else {
+      res.innerHTML = `<div style="color:#991b1b;">❌ Error: ${data.error}</div>`;
+      showToast('Error en migración: ' + data.error, 'error');
+    }
+  } catch(e) {
+    res.style.display = 'block';
+    res.innerHTML = `<div style="color:#991b1b;">❌ Error de conexión: ${e.message}</div>`;
+  } finally {
+    btn.textContent = '⚙️ Ejecutar migración'; btn.disabled = false;
+  }
 }
 
 async function eliminarUsuario(id) {
