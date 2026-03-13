@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Agenda — Realvix CRM{% endblock %}
+
+{% block content %}
+<div class="page-title">Agenda</div>
+<div class="page-sub">Calendario, eventos y pendientes del día</div>
+
+<!-- Tabs -->
+<div style="display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border);">
+  <button class="tab-btn active" onclick="switchAgendaTab('calendario',this)">📅 Calendario</button>
+  <button class="tab-btn" onclick="switchAgendaTab('tareas',this)">✅ Pendientes</button>
+</div>
+
+<!-- ── CALENDARIO ── -->
+<div id="tabCalendario">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button class="btn-icon" onclick="mesAnterior()">‹</button>
+      <span id="calTitulo" style="font-size:1rem;font-weight:600;min-width:160px;text-align:center;"></span>
+      <button class="btn-icon" onclick="mesSiguiente()">›</button>
+    </div>
+    <button class="btn-primary" onclick="abrirNuevoEvento()">+ Nuevo evento</button>
+  </div>
+  <div id="calGrid" class="cal-grid"></div>
+  <div id="eventosDia" style="margin-top:16px;"></div>
+</div>
+
+<!-- ── TAREAS KANBAN ── -->
+<div id="tabTareas" style="display:none">
+  <div style="display:flex;gap:10px;margin-bottom:14px;align-items:center;">
+    <button class="btn-primary" onclick="abrirNuevaTarea()">+ Nueva tarea</button>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
+    <div class="kanban-col">
+      <div class="kanban-header" style="background:var(--rx-blue-light);color:var(--rx-blue);">⏳ Pendiente</div>
+      <div id="colPendiente" class="kanban-body"></div>
+    </div>
+    <div class="kanban-col">
+      <div class="kanban-header" style="background:var(--warning-bg);color:var(--warning);">🔄 En proceso</div>
+      <div id="colProceso" class="kanban-body"></div>
+    </div>
+    <div class="kanban-col">
+      <div class="kanban-header" style="background:var(--success-bg);color:var(--success);">✅ Completado</div>
+      <div id="colCompletado" class="kanban-body"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL EVENTO ── -->
+<div class="modal-bg" id="modalEvento">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <h3 id="modalEvTitulo">Nuevo evento</h3>
+      <button class="modal-close" onclick="cerrarModal('modalEvento')">✕</button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;">
+      <input type="hidden" id="evId">
+      <div class="field">
+        <label class="field-label">Título *</label>
+        <input type="text" id="evTitulo" class="input-base">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="field">
+          <label class="field-label">Fecha</label>
+          <input type="date" id="evFecha" class="input-base">
+        </div>
+        <div class="field">
+          <label class="field-label">Hora</label>
+          <input type="time" id="evHora" class="input-base">
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Tipo</label>
+        <select id="evTipo" class="input-base">
+          <option value="reunion">Reunión</option>
+          <option value="visita">Visita</option>
+          <option value="firma">Firma</option>
+          <option value="llamada">Llamada</option>
+          <option value="otro">Otro</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label">Notas</label>
+        <textarea id="evNotas" class="input-base" rows="2" style="resize:vertical;"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="cerrarModal('modalEvento')">Cancelar</button>
+      <button class="btn-primary" onclick="guardarEvento()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL TAREA ── -->
+<div class="modal-bg" id="modalTarea">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <h3 id="modalTaTitulo">Nueva tarea</h3>
+      <button class="modal-close" onclick="cerrarModal('modalTarea')">✕</button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;">
+      <input type="hidden" id="taId">
+      <div class="field">
+        <label class="field-label">Título *</label>
+        <input type="text" id="taTitulo" class="input-base">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="field">
+          <label class="field-label">Prioridad</label>
+          <select id="taPrioridad" class="input-base">
+            <option value="alta">Alta</option>
+            <option value="media" selected>Media</option>
+            <option value="baja">Baja</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label">Vencimiento</label>
+          <input type="date" id="taDate" class="input-base">
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Descripción</label>
+        <textarea id="taDesc" class="input-base" rows="2" style="resize:vertical;"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="cerrarModal('modalTarea')">Cancelar</button>
+      <button class="btn-primary" onclick="guardarTarea()">Guardar</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/agenda.js"></script>
+{% endblock %}
+
+{% block on_ready %}
+initAgenda();
+{% endblock %}

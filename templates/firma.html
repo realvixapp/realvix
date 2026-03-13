@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Firma Electrónica — Realvix CRM{% endblock %}
+
+{% block content %}
+<div class="page-title">Firma Electrónica</div>
+<div class="page-sub">Enviá documentos para firmar digitalmente</div>
+
+<!-- Tabs -->
+<div style="display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border);">
+  <button class="tab-btn active" onclick="switchFirmaTab('enviar',this)">✉️ Enviar documento</button>
+  <button class="tab-btn" onclick="switchFirmaTab('historial',this)">📋 Historial</button>
+</div>
+
+<!-- ── ENVIAR ── -->
+<div id="tabEnviar">
+  <div class="card" style="max-width:620px;padding:20px;">
+    <div style="font-weight:600;font-size:0.88rem;margin-bottom:16px;">Nuevo documento para firmar</div>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div class="field">
+        <label class="field-label">Título del documento *</label>
+        <input type="text" id="docTitulo" class="input-base" placeholder="Ej: Reserva Rivadavia 1234">
+      </div>
+      <div class="field">
+        <label class="field-label">Tu nombre (organizador)</label>
+        <input type="text" id="docOrgNombre" class="input-base" placeholder="Tu nombre o el de la agencia">
+      </div>
+      <div class="field">
+        <label class="field-label">Tu email (para recibir confirmación)</label>
+        <input type="email" id="docOrgEmail" class="input-base">
+      </div>
+      <div class="field">
+        <label class="field-label">Archivo PDF (opcional)</label>
+        <input type="file" id="docPdf" class="input-base" accept="application/pdf" style="height:auto;padding:6px;">
+      </div>
+
+      <!-- Firmantes -->
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <label class="field-label">Firmantes</label>
+          <button class="btn-xs" onclick="agregarFirmante()">+ Agregar firmante</button>
+        </div>
+        <div id="firmantesContainer" style="display:flex;flex-direction:column;gap:8px;">
+          <!-- Firmante 1 por defecto -->
+          <div class="firmante-row" style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;">
+            <div class="field">
+              <label class="field-label" style="font-size:0.65rem;">Nombre</label>
+              <input type="text" class="input-base fn" placeholder="Nombre completo">
+            </div>
+            <div class="field">
+              <label class="field-label" style="font-size:0.65rem;">Email</label>
+              <input type="email" class="input-base fe" placeholder="email@ejemplo.com">
+            </div>
+            <button class="btn-icon-sm danger" onclick="this.closest('.firmante-row').remove()" style="margin-bottom:0;">✕</button>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn-primary" style="align-self:flex-start;" onclick="enviarDocumento()">
+        ✉️ Enviar para firmar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── HISTORIAL ── -->
+<div id="tabHistorial" style="display:none;">
+  <div id="historialDocs">
+    <div class="loading-state">Cargando documentos...</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/firma.js"></script>
+{% endblock %}
+
+{% block on_ready %}
+initFirma();
+{% endblock %}

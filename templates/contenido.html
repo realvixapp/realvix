@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Contenido — Realvix CRM{% endblock %}
+
+{% block content %}
+<div class="page-title">Contenido</div>
+<div class="page-sub">Textos predeterminados para WhatsApp y comunicaciones</div>
+
+<div style="display:flex;gap:10px;margin-bottom:16px;align-items:center;flex-wrap:wrap;">
+  <input type="text" id="filtroTextos" placeholder="Buscar texto..." class="input-base" style="max-width:260px;" oninput="filtrarTextos()">
+  <select id="filtroCategoria" class="input-base" style="max-width:180px;" onchange="filtrarTextos()">
+    <option value="">Todas las categorías</option>
+    <option value="bienvenida">Bienvenida</option>
+    <option value="seguimiento">Seguimiento</option>
+    <option value="visita">Visita</option>
+    <option value="cierre">Cierre</option>
+    <option value="general">General</option>
+  </select>
+  <button class="btn-primary" onclick="abrirNuevoTexto()">+ Nuevo texto</button>
+</div>
+
+<div id="textosGrid">
+  <div class="loading-state">Cargando...</div>
+</div>
+
+<!-- Modal -->
+<div class="modal-bg" id="modalTexto">
+  <div class="modal" style="max-width:500px;">
+    <div class="modal-header">
+      <h3 id="modalTxtTitulo">Nuevo texto</h3>
+      <button class="modal-close" onclick="cerrarModal('modalTexto')">✕</button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;">
+      <input type="hidden" id="txtId">
+      <div class="field">
+        <label class="field-label">Título</label>
+        <input type="text" id="txtTitulo" class="input-base">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="field">
+          <label class="field-label">Tipo</label>
+          <select id="txtTipo" class="input-base">
+            <option value="whatsapp">WhatsApp</option>
+            <option value="email">Email</option>
+            <option value="otro">Otro</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label">Categoría</label>
+          <select id="txtCategoria" class="input-base">
+            <option value="bienvenida">Bienvenida</option>
+            <option value="seguimiento">Seguimiento</option>
+            <option value="visita">Visita</option>
+            <option value="cierre">Cierre</option>
+            <option value="general">General</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Contenido <span style="color:#aaa;font-weight:400;">({nombre}, {propiedad}, etc.)</span></label>
+        <textarea id="txtContenido" class="input-base" rows="6" style="resize:vertical;font-size:0.85rem;"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="cerrarModal('modalTexto')">Cancelar</button>
+      <button class="btn-primary" onclick="guardarTexto()">Guardar</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/contenido.js"></script>
+{% endblock %}
+
+{% block on_ready %}
+initContenido();
+{% endblock %}

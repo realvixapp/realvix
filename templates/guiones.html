@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Guiones — Realvix CRM{% endblock %}
+
+{% block content %}
+<div class="page-title">Guiones Instagram</div>
+<div class="page-sub">Guiones de contenido para redes sociales</div>
+
+<div style="display:flex;gap:10px;margin-bottom:16px;align-items:center;">
+  <input type="text" id="filtroGuiones" placeholder="Buscar guión..." class="input-base" style="max-width:260px;" oninput="filtrarGuiones()">
+  <button class="btn-primary" onclick="abrirNuevoGuion()">+ Nuevo guión</button>
+</div>
+
+<div id="guionesGrid">
+  <div class="loading-state">Cargando...</div>
+</div>
+
+<!-- Modal -->
+<div class="modal-bg" id="modalGuion">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header">
+      <h3 id="modalGuiTitulo">Nuevo guión</h3>
+      <button class="modal-close" onclick="cerrarModal('modalGuion')">✕</button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;">
+      <input type="hidden" id="guiId">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="field">
+          <label class="field-label">Título</label>
+          <input type="text" id="guiTitulo" class="input-base">
+        </div>
+        <div class="field">
+          <label class="field-label">Tema</label>
+          <input type="text" id="guiTema" class="input-base" placeholder="Ej: Mercado, Consejos...">
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">🎣 Hook (apertura)</label>
+        <textarea id="guiHook" class="input-base" rows="2" style="resize:vertical;"></textarea>
+      </div>
+      <div class="field">
+        <label class="field-label">📝 Desarrollo</label>
+        <textarea id="guiDesarrollo" class="input-base" rows="4" style="resize:vertical;"></textarea>
+      </div>
+      <div class="field">
+        <label class="field-label">📣 CTA (llamada a la acción)</label>
+        <textarea id="guiCta" class="input-base" rows="2" style="resize:vertical;"></textarea>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <input type="checkbox" id="guiGrabado" style="width:16px;height:16px;">
+        <label for="guiGrabado" style="font-size:0.84rem;">Grabado</label>
+        <input type="date" id="guiFechaGrabacion" class="input-base" style="max-width:160px;">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="cerrarModal('modalGuion')">Cancelar</button>
+      <button class="btn-primary" onclick="guardarGuion()">Guardar</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/guiones.js"></script>
+{% endblock %}
+
+{% block on_ready %}
+initGuiones();
+{% endblock %}

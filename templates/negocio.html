@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% block title %}Negocio — Realvix CRM{% endblock %}
+
+{% block content %}
+<div class="page-title">Negocio</div>
+<div class="page-sub">Listing de propiedades, contactos y relaciones</div>
+
+<!-- Tabs -->
+<div style="display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:0;">
+  <button class="tab-btn active" onclick="switchTab('listing',this)">🏢 Listing</button>
+  <button class="tab-btn" onclick="switchTab('contactos',this)">👥 Contactos</button>
+</div>
+
+<!-- ── LISTING ── -->
+<div id="tabListing">
+  <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
+    <input type="text" id="filtroListing" placeholder="Buscar propiedad..." class="input-base" style="max-width:260px;" oninput="filtrarListing()">
+    <select id="filtroEstado" class="input-base" style="max-width:200px;" onchange="filtrarListing()">
+      <option value="">Todos los estados</option>
+    </select>
+    <button class="btn-primary" onclick="abrirNuevaPropiedad()">+ Nueva propiedad</button>
+  </div>
+
+  <!-- Vista tabs: listing / seguimiento / rechazados -->
+  <div style="display:flex;gap:4px;margin-bottom:12px;">
+    <button class="tab-sm active" id="vListing" onclick="cambiarVista('listing',this)">Listing</button>
+    <button class="tab-sm" id="vSeguimiento" onclick="cambiarVista('seguimiento',this)">Seguimiento</button>
+    <button class="tab-sm" id="vRechazados" onclick="cambiarVista('rechazados',this)">Rechazados</button>
+  </div>
+
+  <div id="listingTable">
+    <div class="loading-state">Cargando...</div>
+  </div>
+</div>
+
+<!-- ── CONTACTOS ── -->
+<div id="tabContactos" style="display:none">
+  <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center;">
+    <input type="text" id="filtroContactos" placeholder="Buscar contacto..." class="input-base" style="max-width:260px;" oninput="filtrarContactos()">
+    <button class="btn-primary" onclick="abrirNuevoContacto()">+ Nuevo contacto</button>
+  </div>
+  <div id="contactosGrid">
+    <div class="loading-state">Cargando...</div>
+  </div>
+</div>
+
+<!-- ── MODAL PROPIEDAD ── -->
+<div class="modal-bg" id="modalPropiedad">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header">
+      <h3 id="modalPropTitulo">Nueva propiedad</h3>
+      <button class="modal-close" onclick="cerrarModal('modalPropiedad')">✕</button>
+    </div>
+    <div class="modal-body" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <input type="hidden" id="propId">
+      <div class="field" style="grid-column:span 2">
+        <label class="field-label">Dirección</label>
+        <input type="text" id="propDireccion" class="input-base" placeholder="Ej: Rivadavia 1234">
+      </div>
+      <div class="field">
+        <label class="field-label">Localidad</label>
+        <input type="text" id="propLocalidad" class="input-base">
+      </div>
+      <div class="field">
+        <label class="field-label">Zona</label>
+        <input type="text" id="propZona" class="input-base">
+      </div>
+      <div class="field">
+        <label class="field-label">Tipología</label>
+        <select id="propTipologia" class="input-base">
+          <option value="">— Tipo —</option>
+          <option>Casa</option><option>Departamento</option><option>PH</option>
+          <option>Local</option><option>Terreno</option><option>Oficina</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label">Estado</label>
+        <select id="propEstado" class="input-base"></select>
+      </div>
+      <div class="field">
+        <label class="field-label">Propietario</label>
+        <input type="text" id="propNombre" class="input-base">
+      </div>
+      <div class="field">
+        <label class="field-label">Teléfono</label>
+        <input type="text" id="propTelefono" class="input-base">
+      </div>
+      <div class="field">
+        <label class="field-label">Email</label>
+        <input type="email" id="propEmail" class="input-base">
+      </div>
+      <div class="field">
+        <label class="field-label">Referido por</label>
+        <input type="text" id="propReferido" class="input-base">
+      </div>
+      <div class="field">
+        <label class="field-label">URL portal</label>
+        <input type="text" id="propUrl" class="input-base" placeholder="https://...">
+      </div>
+      <div class="field">
+        <label class="field-label">Último contacto</label>
+        <input type="date" id="propUltimo" class="input-base">
+      </div>
+      <div class="field">
+        <label class="field-label">Próximo contacto</label>
+        <input type="date" id="propProximo" class="input-base">
+      </div>
+      <div class="field" style="grid-column:span 2">
+        <label class="field-label">Observaciones</label>
+        <textarea id="propObservaciones" class="input-base" rows="3" style="resize:vertical;"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="cerrarModal('modalPropiedad')">Cancelar</button>
+      <button class="btn-primary" onclick="guardarPropiedad()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL CONTACTO ── -->
+<div class="modal-bg" id="modalContacto">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <h3 id="modalCtcTitulo">Nuevo contacto</h3>
+      <button class="modal-close" onclick="cerrarModal('modalContacto')">✕</button>
+    </div>
+    <div class="modal-body" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <input type="hidden" id="ctcId">
+      <div class="field" style="grid-column:span 2">
+        <label class="field-label">Nombre *</label>
+        <input type="text" id="ctcNombre" class="input-base">
+      </div>
+      <div class="field">
+        <label class="field-label">Tipo</label>
+        <select id="ctcTipo" class="input-base">
+          <option value="cliente">Cliente</option>
+          <option value="propietario">Propietario</option>
+          <option value="broker">Broker</option>
+          <option value="proveedor">Proveedor</option>
+          <option value="otro">Otro</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label">Teléfono</label>
+        <input type="text" id="ctcTelefono" class="input-base">
+      </div>
+      <div class="field">
+        <label class="field-label">Email</label>
+        <input type="email" id="ctcEmail" class="input-base">
+      </div>
+      <div class="field">
+        <label class="field-label">Localidad</label>
+        <input type="text" id="ctcLocalidad" class="input-base">
+      </div>
+      <div class="field" style="grid-column:span 2">
+        <label class="field-label">Notas</label>
+        <textarea id="ctcNotas" class="input-base" rows="2" style="resize:vertical;"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="cerrarModal('modalContacto')">Cancelar</button>
+      <button class="btn-primary" onclick="guardarContacto()">Guardar</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/negocio.js"></script>
+{% endblock %}
+
+{% block on_ready %}
+initNegocio();
+{% endblock %}

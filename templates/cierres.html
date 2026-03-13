@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% block title %}Cierres — Realvix CRM{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="page-title">Cierres</div>
+<div class="page-sub">Operaciones cerradas y finanzas del negocio</div>
+
+<!-- Tabs -->
+<div style="display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border);">
+  <button class="tab-btn active" onclick="switchCierresTab('cierres',this)">💰 Cierres</button>
+  <button class="tab-btn" onclick="switchCierresTab('gastos',this)">📊 Gastos del negocio</button>
+</div>
+
+<!-- ── CIERRES ── -->
+<div id="tabCierres">
+  <!-- Stats -->
+  <div class="stats" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px;">
+    <div class="stat green">
+      <div class="stat-label">Total cierres</div>
+      <div class="stat-num" id="cTotalCierres">—</div>
+    </div>
+    <div class="stat blue">
+      <div class="stat-label">Comisión bruta</div>
+      <div class="stat-num" id="cTotalBruta" style="font-size:1.2rem;">—</div>
+    </div>
+    <div class="stat orange">
+      <div class="stat-label">Comisión neta</div>
+      <div class="stat-num" id="cTotalNeta" style="font-size:1.2rem;">—</div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:10px;margin-bottom:14px;align-items:center;">
+    <button class="btn-primary" onclick="abrirNuevoCierre()">+ Nuevo cierre</button>
+  </div>
+
+  <!-- Gráfico mensual -->
+  <div class="card" style="margin-bottom:20px;">
+    <div style="font-weight:600;font-size:0.88rem;margin-bottom:12px;">Comisiones por mes</div>
+    <canvas id="cierresChart" height="70"></canvas>
+  </div>
+
+  <div id="cierresTable">
+    <div class="loading-state">Cargando...</div>
+  </div>
+</div>
+
+<!-- ── GASTOS DEL NEGOCIO ── -->
+<div id="tabGastos" style="display:none">
+  <!-- Stats gastos -->
+  <div class="stats" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px;">
+    <div class="stat green">
+      <div class="stat-label">Total ingresos</div>
+      <div class="stat-num" id="gTotalIngresos" style="font-size:1.1rem;">—</div>
+    </div>
+    <div class="stat danger" style="--danger:var(--danger);">
+      <div class="stat-label">Total egresos</div>
+      <div class="stat-num" id="gTotalEgresos" style="font-size:1.1rem;">—</div>
+    </div>
+    <div class="stat blue">
+      <div class="stat-label">Saldo neto</div>
+      <div class="stat-num" id="gSaldo" style="font-size:1.1rem;">—</div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:10px;margin-bottom:14px;align-items:center;">
+    <select id="filtroTipoGasto" class="input-base" style="max-width:160px;" onchange="filtrarGastos()">
+      <option value="">Todos</option>
+      <option value="ingreso">Ingresos</option>
+      <option value="egreso">Egresos</option>
+    </select>
+    <button class="btn-primary" onclick="abrirNuevoGasto()">+ Registrar movimiento</button>
+  </div>
+
+  <div id="gastosTable">
+    <div class="loading-state">Cargando...</div>
+  </div>
+</div>
+
+<!-- ── MODAL CIERRE ── -->
+<div class="modal-bg" id="modalCierre">
+  <div class="modal" style="max-width:500px;">
+    <div class="modal-header">
+      <h3 id="modalCieTitulo">Nuevo cierre</h3>
+      <button class="modal-close" onclick="cerrarModal('modalCierre')">✕</button>
+    </div>
+    <div class="modal-body" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <input type="hidden" id="cieId">
+      <div class="field" style="grid-column:span 2">
+        <label class="field-label">Propiedad</label>
+        <input type="text" id="ciePropiedad" class="input-base">
+      </div>
+      <div class="field">
+        <label class="field-label">Comprador</label>
+        <input type="text" id="cieComprador" class="input-base">
+      </div>
+      <div class="field">
+        <label class="field-label">Vendedor</label>
+        <input type="text" id="cieVendedor" class="input-base">
+      </div>
+      <div class="field">
+        <label class="field-label">Valor operación</label>
+        <input type="number" id="cieValor" class="input-base" oninput="calcCierre()">
+      </div>
+      <div class="field">
+        <label class="field-label">Moneda</label>
+        <select id="cieMoneda" class="input-base">
+          <option value="USD">USD</option>
+          <option value="ARS">ARS</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label">Comisión %</label>
+        <input type="number" id="ciePct" class="input-base" value="3" step="0.1" oninput="calcCierre()">
+      </div>
+      <div class="field">
+        <label class="field-label">% Broker</label>
+        <input type="number" id="cieBrokerPct" class="input-base" value="0" step="0.1" oninput="calcCierre()">
+      </div>
+      <div class="field">
+        <label class="field-label">Comisión bruta</label>
+        <input type="text" id="cieBruta" class="input-base" readonly style="background:#f8f9fa;">
+      </div>
+      <div class="field">
+        <label class="field-label">Comisión neta</label>
+        <input type="text" id="cieNeta" class="input-base" readonly style="background:#f8f9fa;">
+      </div>
+      <div class="field">
+        <label class="field-label">Tipo</label>
+        <select id="cieTipo" class="input-base">
+          <option value="venta">Venta</option>
+          <option value="alquiler">Alquiler</option>
+          <option value="permuta">Permuta</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label">Fecha</label>
+        <input type="date" id="cieFecha" class="input-base">
+      </div>
+      <div class="field" style="grid-column:span 2">
+        <label class="field-label">Notas</label>
+        <textarea id="cieNotas" class="input-base" rows="2" style="resize:vertical;"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="cerrarModal('modalCierre')">Cancelar</button>
+      <button class="btn-primary" onclick="guardarCierre()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL GASTO ── -->
+<div class="modal-bg" id="modalGasto">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-header">
+      <h3 id="modalGasTitulo">Nuevo movimiento</h3>
+      <button class="modal-close" onclick="cerrarModal('modalGasto')">✕</button>
+    </div>
+    <div class="modal-body" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <input type="hidden" id="gasId">
+      <div class="field" style="grid-column:span 2">
+        <label class="field-label">Descripción *</label>
+        <input type="text" id="gasDescripcion" class="input-base">
+      </div>
+      <div class="field">
+        <label class="field-label">Tipo</label>
+        <select id="gasTipo" class="input-base">
+          <option value="ingreso">Ingreso</option>
+          <option value="egreso">Egreso</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label">Categoría</label>
+        <select id="gasCategoria" class="input-base">
+          <option value="general">General</option>
+          <option value="impuestos">Impuestos</option>
+          <option value="marketing">Marketing</option>
+          <option value="infraestructura">Infraestructura</option>
+          <option value="honorarios">Honorarios</option>
+          <option value="otros">Otros</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label">Monto</label>
+        <input type="number" id="gasMonto" class="input-base">
+      </div>
+      <div class="field">
+        <label class="field-label">Moneda</label>
+        <select id="gasMoneda" class="input-base">
+          <option value="ARS">ARS</option>
+          <option value="USD">USD</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label">Proveedor</label>
+        <input type="text" id="gasProveedor" class="input-base">
+      </div>
+      <div class="field">
+        <label class="field-label">Fecha</label>
+        <input type="date" id="gasFecha" class="input-base">
+      </div>
+      <div class="field" style="grid-column:span 2">
+        <label class="field-label">Notas</label>
+        <textarea id="gasNotas" class="input-base" rows="2" style="resize:vertical;"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="cerrarModal('modalGasto')">Cancelar</button>
+      <button class="btn-primary" onclick="guardarGasto()">Guardar</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/cierres.js"></script>
+{% endblock %}
+
+{% block on_ready %}
+initCierres();
+{% endblock %}

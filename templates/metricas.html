@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Métricas — Realvix CRM{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="page-title">Métricas del negocio</div>
+<div class="page-sub">Embudo, objetivos y planilla de resultados</div>
+
+<!-- Tabs -->
+<div style="display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border);">
+  <button class="tab-btn active" onclick="switchMetTab('embudo',this)">🔽 Embudo</button>
+  <button class="tab-btn" onclick="switchMetTab('objetivos',this)">🎯 Objetivos</button>
+  <button class="tab-btn" onclick="switchMetTab('planilla',this)">📋 Planilla</button>
+</div>
+
+<!-- ── EMBUDO ── -->
+<div id="tabEmbudo">
+  <div class="embudo-grid" id="embudoGrid">
+    <!-- Generado por JS -->
+  </div>
+  <div class="card" style="margin-top:16px;">
+    <canvas id="embudoChart" height="80"></canvas>
+  </div>
+</div>
+
+<!-- ── OBJETIVOS ── -->
+<div id="tabObjetivos" style="display:none">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+    <div style="font-weight:600;font-size:0.9rem;">Metas del período</div>
+    <div style="display:flex;gap:6px;">
+      <button class="btn-xs active" id="op-mensual" onclick="setPeriodoObj('mensual',this)">Mensual</button>
+      <button class="btn-xs" id="op-trimestral" onclick="setPeriodoObj('trimestral',this)">Trimestral</button>
+      <button class="btn-xs" id="op-anual" onclick="setPeriodoObj('anual',this)">Anual</button>
+    </div>
+  </div>
+  <div id="objetivosGrid">
+    <div class="loading-state">Cargando...</div>
+  </div>
+  <button class="btn-primary" style="margin-top:16px;" onclick="abrirEditarObjetivos()">✏️ Editar objetivos</button>
+</div>
+
+<!-- ── PLANILLA ── -->
+<div id="tabPlanilla" style="display:none">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+    <div style="font-weight:600;font-size:0.9rem;">Carga semanal de resultados</div>
+    <button class="btn-primary" onclick="agregarSemana()">+ Agregar semana</button>
+  </div>
+  <div id="planillaTable">
+    <div class="loading-state">Cargando...</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/metricas.js"></script>
+{% endblock %}
+
+{% block on_ready %}
+initMetricas();
+{% endblock %}

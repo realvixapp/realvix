@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}Leads — Realvix CRM{% endblock %}
+
+{% block content %}
+<div class="page-title">Leads</div>
+<div class="page-sub">Consultas entrantes y muestras</div>
+
+<!-- Tabs -->
+<div style="display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border);">
+  <button class="tab-btn active" onclick="switchLeadsTab('consultas',this)">🔍 Consultas</button>
+  <button class="tab-btn" onclick="switchLeadsTab('muestras',this)">🏠 Muestras</button>
+</div>
+
+<!-- ── CONSULTAS ── -->
+<div id="tabConsultas">
+  <!-- Estadios (kanban-style) -->
+  <div style="display:flex;gap:8px;margin-bottom:16px;overflow-x:auto;padding-bottom:4px;">
+    <button class="estadio-btn active" data-est="todos" onclick="filtrarEstadio('todos',this)">Todos</button>
+    <button class="estadio-btn" data-est="nuevo" onclick="filtrarEstadio('nuevo',this)">Nuevo</button>
+    <button class="estadio-btn" data-est="pendiente_visita" onclick="filtrarEstadio('pendiente_visita',this)">Pendiente Visita</button>
+    <button class="estadio-btn" data-est="contesto" onclick="filtrarEstadio('contesto',this)">Contestó</button>
+    <button class="estadio-btn" data-est="seguimiento" onclick="filtrarEstadio('seguimiento',this)">Seguimiento</button>
+    <button class="estadio-btn" data-est="visito" onclick="filtrarEstadio('visito',this)">Visitó ✓</button>
+  </div>
+
+  <div style="display:flex;gap:10px;margin-bottom:14px;align-items:center;">
+    <input type="text" id="filtroLeads" placeholder="Buscar lead..." class="input-base" style="max-width:260px;" oninput="filtrarLeads()">
+    <button class="btn-primary" onclick="abrirNuevaConsulta()">+ Nueva consulta</button>
+  </div>
+
+  <div id="leadsGrid">
+    <div class="loading-state">Cargando...</div>
+  </div>
+</div>
+
+<!-- ── MUESTRAS ── -->
+<div id="tabMuestras" style="display:none">
+  <p style="color:var(--text-secondary);font-size:0.84rem;margin-bottom:16px;">
+    Leads que llegaron al estadio <strong>Visitó</strong> — post-visita.
+  </p>
+  <div id="muestrasGrid">
+    <div class="loading-state">Cargando...</div>
+  </div>
+</div>
+
+<!-- ── MODAL CONSULTA ── -->
+<div class="modal-bg" id="modalConsulta">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <h3 id="modalLeadTitulo">Nueva consulta</h3>
+      <button class="modal-close" onclick="cerrarModal('modalConsulta')">✕</button>
+    </div>
+    <div class="modal-body" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <input type="hidden" id="leadId">
+      <div class="field">
+        <label class="field-label">Nombre</label>
+        <input type="text" id="leadNombre" class="input-base">
+      </div>
+      <div class="field">
+        <label class="field-label">Teléfono</label>
+        <input type="text" id="leadTelefono" class="input-base">
+      </div>
+      <div class="field">
+        <label class="field-label">Email</label>
+        <input type="email" id="leadEmail" class="input-base">
+      </div>
+      <div class="field">
+        <label class="field-label">Canal</label>
+        <select id="leadCanal" class="input-base">
+          <option value="whatsapp">WhatsApp</option>
+          <option value="email">Email</option>
+          <option value="portal">Portal</option>
+          <option value="referido">Referido</option>
+          <option value="instagram">Instagram</option>
+          <option value="otro">Otro</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label">Propiedad de interés</label>
+        <input type="text" id="leadPropiedad" class="input-base">
+      </div>
+      <div class="field">
+        <label class="field-label">Operación</label>
+        <select id="leadOperacion" class="input-base">
+          <option value="compra">Compra</option>
+          <option value="alquiler">Alquiler</option>
+          <option value="permuta">Permuta</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label">Presupuesto</label>
+        <input type="text" id="leadPresupuesto" class="input-base" placeholder="Ej: USD 150.000">
+      </div>
+      <div class="field">
+        <label class="field-label">Zona de interés</label>
+        <input type="text" id="leadZona" class="input-base">
+      </div>
+      <div class="field">
+        <label class="field-label">Estadio</label>
+        <select id="leadEstado" class="input-base">
+          <option value="nuevo">Nuevo</option>
+          <option value="pendiente_visita">Pendiente Visita</option>
+          <option value="contesto">Contestó</option>
+          <option value="seguimiento">Seguimiento</option>
+          <option value="visito">Visitó ✓</option>
+        </select>
+      </div>
+      <div class="field" style="grid-column:span 2">
+        <label class="field-label">Mensaje / Notas</label>
+        <textarea id="leadMensaje" class="input-base" rows="3" style="resize:vertical;"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="cerrarModal('modalConsulta')">Cancelar</button>
+      <button class="btn-primary" onclick="guardarConsulta()">Guardar</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/leads.js"></script>
+{% endblock %}
+
+{% block on_ready %}
+initLeads();
+{% endblock %}

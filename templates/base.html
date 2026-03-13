@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}Realvix CRM{% endblock %}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+{% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<header>
+  <a href="/" class="logo-wrap">
+    <div class="logo-icon">Rx</div>
+    <div class="logo-text">
+      <span class="logo-name">Realvix</span>
+      <span class="logo-sub">CRM Inmobiliario</span>
+    </div>
+  </a>
+  <div class="header-user">
+    <span class="user-chip" id="userChip">—</span>
+    <button class="btn-logout" onclick="logout()">Salir</button>
+  </div>
+</header>
+
+<!-- ── LAYOUT ── -->
+<div class="layout">
+
+  <!-- ── SIDEBAR ── -->
+  <nav class="sidebar">
+
+    <div class="nav-section">Principal</div>
+    <a href="/" class="nb-item {% if request.path == '/' %}active{% endif %}">
+      <span class="nb-icon">🏠</span>
+      <span class="nb-label">Dashboard</span>
+    </a>
+
+    <div class="nb-sep"></div>
+    <div class="nav-section">Negocio</div>
+
+    <a href="/negocio" class="nb-item {% if request.path == '/negocio' %}active{% endif %}">
+      <span class="nb-icon">🏢</span>
+      <span class="nb-label">Negocio</span>
+    </a>
+
+    <a href="/leads" class="nb-item {% if request.path == '/leads' %}active{% endif %}">
+      <span class="nb-icon">🔍</span>
+      <span class="nb-label">Leads</span>
+      <span class="nb-badge" id="badgeLeads" style="display:none">0</span>
+    </a>
+
+    <a href="/metricas" class="nb-item {% if request.path == '/metricas' %}active{% endif %}">
+      <span class="nb-icon">📈</span>
+      <span class="nb-label">Métricas</span>
+    </a>
+
+    <a href="/cierres" class="nb-item {% if request.path == '/cierres' %}active{% endif %}">
+      <span class="nb-icon">💰</span>
+      <span class="nb-label">Cierres</span>
+    </a>
+
+    <div class="nb-sep"></div>
+    <div class="nav-section">Gestión</div>
+
+    <a href="/agenda" class="nb-item {% if request.path == '/agenda' %}active{% endif %}">
+      <span class="nb-icon">📅</span>
+      <span class="nb-label">Agenda</span>
+      <span class="nb-badge" id="badgeTareas" style="display:none">0</span>
+    </a>
+
+    <a href="/firma" class="nb-item {% if request.path == '/firma' %}active{% endif %}">
+      <span class="nb-icon">✍️</span>
+      <span class="nb-label">Firma</span>
+    </a>
+
+    <a href="/asistente" class="nb-item {% if request.path == '/asistente' %}active{% endif %}">
+      <span class="nb-icon">🤖</span>
+      <span class="nb-label">Asistente IA</span>
+    </a>
+
+    <div class="nb-sep"></div>
+    <div class="nav-section">Contenido</div>
+
+    <a href="/contenido" class="nb-item {% if request.path == '/contenido' %}active{% endif %}">
+      <span class="nb-icon">📄</span>
+      <span class="nb-label">Textos</span>
+    </a>
+
+    <a href="/guiones" class="nb-item {% if request.path == '/guiones' %}active{% endif %}">
+      <span class="nb-icon">📸</span>
+      <span class="nb-label">Guiones</span>
+    </a>
+
+    <a href="/ideas" class="nb-item {% if request.path == '/ideas' %}active{% endif %}">
+      <span class="nb-icon">💡</span>
+      <span class="nb-label">Ideas</span>
+    </a>
+
+    <div class="nb-sep"></div>
+    <div class="nav-section">Sistema</div>
+
+    <a href="/admin" class="nb-item {% if request.path == '/admin' %}active{% endif %}" id="adminLink" style="display:none">
+      <span class="nb-icon">⚙️</span>
+      <span class="nb-label">Admin</span>
+    </a>
+
+  </nav>
+
+  <!-- ── CONTENIDO PRINCIPAL ── -->
+  <main class="main">
+    {% block content %}{% endblock %}
+  </main>
+
+</div>
+
+<!-- ── TOAST ── -->
+<div id="toastContainer" style="position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;"></div>
+
+<!-- ── JS COMÚN ── -->
+<script src="/static/js/common.js"></script>
+{% block extra_js %}{% endblock %}
+
+<script>
+// Cargar usuario al iniciar
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadUser();
+  {% block on_ready %}{% endblock %}
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Ideas — Realvix CRM{% endblock %}
+
+{% block content %}
+<div class="page-title">Ideas</div>
+<div class="page-sub">Notas e ideas para el negocio</div>
+
+<div style="display:flex;gap:10px;margin-bottom:16px;align-items:center;">
+  <button class="btn-primary" onclick="abrirNuevaIdea()">+ Nueva idea</button>
+  <select id="filtroIdeas" class="input-base" style="max-width:160px;" onchange="filtrarIdeas()">
+    <option value="">Todas</option>
+    <option value="pendiente">Pendientes</option>
+    <option value="en_progreso">En progreso</option>
+    <option value="completada">Completadas</option>
+  </select>
+</div>
+
+<div id="ideasGrid">
+  <div class="loading-state">Cargando...</div>
+</div>
+
+<!-- Modal -->
+<div class="modal-bg" id="modalIdea">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <h3 id="modalIdeaTitulo">Nueva idea</h3>
+      <button class="modal-close" onclick="cerrarModal('modalIdea')">✕</button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;">
+      <input type="hidden" id="ideaId">
+      <div class="field">
+        <label class="field-label">Idea / nota</label>
+        <textarea id="ideaTexto" class="input-base" rows="4" style="resize:vertical;"></textarea>
+      </div>
+      <div class="field">
+        <label class="field-label">Estado</label>
+        <select id="ideaEstado" class="input-base">
+          <option value="pendiente">Pendiente</option>
+          <option value="en_progreso">En progreso</option>
+          <option value="completada">Completada</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="cerrarModal('modalIdea')">Cancelar</button>
+      <button class="btn-primary" onclick="guardarIdea()">Guardar</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/ideas.js"></script>
+{% endblock %}
+
+{% block on_ready %}
+initIdeas();
+{% endblock %}
