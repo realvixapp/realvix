@@ -8,7 +8,6 @@
 <!-- Tabs principales -->
 <div style="display:flex;gap:0;margin-bottom:24px;border-bottom:2px solid var(--border);">
   <button class="tab-btn active" id="tab-listing" onclick="switchTab('listing',this)">🏢 Listing</button>
-  <button class="tab-btn" id="tab-estado" onclick="switchTab('estado',this)">📋 Estado de Propiedades</button>
   <button class="tab-btn" id="tab-contactos" onclick="switchTab('contactos',this)">👥 Contactos</button>
   <button class="tab-btn" id="tab-actividad" onclick="switchTab('actividad',this)">📊 Actividad</button>
 </div>
@@ -113,11 +112,26 @@
       <button class="btn-secondary" style="font-size:0.78rem;" onclick="cargarActividad()">🔄 Actualizar</button>
     </div>
   </div>
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;">
-    <div class="stat-mini"><div class="stat-mini-label">Propiedades activas</div><div class="stat-mini-num" id="actTotalProps">—</div></div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px;">
+    <div class="stat-mini"><div class="stat-mini-label">Props. activas</div><div class="stat-mini-num" id="actTotalProps">—</div></div>
     <div class="stat-mini"><div class="stat-mini-label">Total consultas</div><div class="stat-mini-num" id="actTotalLeads">—</div></div>
     <div class="stat-mini"><div class="stat-mini-label">Visitaron</div><div class="stat-mini-num" id="actTotalVisitas">—</div></div>
-    <div class="stat-mini"><div class="stat-mini-label">Pendiente visita</div><div class="stat-mini-num" id="actPendVisita">—</div></div>
+    <div class="stat-mini"><div class="stat-mini-label">Pend. visita</div><div class="stat-mini-num" id="actPendVisita">—</div></div>
+  </div>
+  <!-- Stats respuesta propietario -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;">
+    <div class="stat-mini" style="border-left:3px solid #059669;">
+      <div class="stat-mini-label">✅ Propietarios aceptaron</div>
+      <div class="stat-mini-num" id="actRespAcept" style="color:#059669;">—</div>
+    </div>
+    <div class="stat-mini" style="border-left:3px solid #DC2626;">
+      <div class="stat-mini-label">❌ Rechazaron</div>
+      <div class="stat-mini-num" id="actRespRech" style="color:#DC2626;">—</div>
+    </div>
+    <div class="stat-mini" style="border-left:3px solid #D97706;">
+      <div class="stat-mini-label">⏳ Esperando respuesta</div>
+      <div class="stat-mini-num" id="actRespEsp" style="color:#D97706;">—</div>
+    </div>
   </div>
   <div id="actividadGrid"><div class="loading-state">Cargando actividad...</div></div>
 </div>
