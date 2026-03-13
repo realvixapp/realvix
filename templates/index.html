@@ -316,6 +316,7 @@ table.planilla td{border:1px solid var(--border);padding:0;}
         <div><label style="font-size:0.7rem;font-weight:600;text-transform:uppercase;color:#aaa;display:block;margin-bottom:5px;">Estado Tasación</label><select id="lstNEstado" style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:0.88rem;outline:none;"></select></div>
         <div><label style="font-size:0.7rem;font-weight:600;text-transform:uppercase;color:#aaa;display:block;margin-bottom:5px;">Nombre Propietario</label><input type="text" id="lstNNombre" placeholder="Juan García" style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:0.88rem;outline:none;"></div>
         <div><label style="font-size:0.7rem;font-weight:600;text-transform:uppercase;color:#aaa;display:block;margin-bottom:5px;">Teléfono</label><input type="tel" id="lstNTelefono" placeholder="+54 11 ..." style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:0.88rem;outline:none;"></div>
+        <div style="grid-column:1/-1"><label style="font-size:0.7rem;font-weight:600;text-transform:uppercase;color:#aaa;display:block;margin-bottom:5px;">🔗 Link de ficha / portal</label><input type="url" id="lstNLinkFicha" placeholder="https://zonaprop.com.ar/..." style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:0.88rem;outline:none;"></div>
         <div style="grid-column:1/-1"><label style="font-size:0.7rem;font-weight:600;text-transform:uppercase;color:#aaa;display:block;margin-bottom:5px;">Observaciones</label><input type="text" id="lstNObs" placeholder="Notas iniciales..." style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:0.88rem;outline:none;"></div>
       </div>
     </div>
@@ -564,21 +565,49 @@ async function lstEjecutarEliminar() {
 }
 
 // nueva propiedad
-function lstAbrirNueva() { abrirModal('lstModalNueva'); }
+function lstAbrirNueva() {
+  // Limpiar campos
+  ['lstNDireccion','lstNLocalidad','lstNNombre','lstNTelefono','lstNObs','lstNLinkFicha'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value = '';
+  });
+  const zona = document.getElementById('lstNZona'); if(zona) zona.value = '';
+  const tipo = document.getElementById('lstNTipologia'); if(tipo) tipo.value = '';
+  const est  = document.getElementById('lstNEstado'); if(est) est.value = '';
+  abrirModal('lstModalNueva');
+}
+
 async function lstCrearPropiedad() {
   const dir = document.getElementById('lstNDireccion').value.trim();
   if (!dir) { showToast('Ingresá la dirección','error'); return; }
+  const btn = document.querySelector('#lstModalNueva .btn-ink');
+  if (btn) { btn.textContent = '⏳ Creando...'; btn.disabled = true; }
+  const val = id => { const el = document.getElementById(id); return el ? el.value : ''; };
   const data = {
-    direccion:dir, localidad:document.getElementById('lstNLocalidad').value,
-    zona:document.getElementById('lstNZona').value, tipologia:document.getElementById('lstNTipologia').value,
-    estado_tasacion:document.getElementById('lstNEstado').value||'Pendiente Visita',
-    nombre_propietario:document.getElementById('lstNNombre').value,
-    telefono:document.getElementById('lstNTelefono').value,
-    observaciones:document.getElementById('lstNObs').value,
+    direccion: dir,
+    localidad: val('lstNLocalidad'),
+    zona: val('lstNZona'),
+    tipologia: val('lstNTipologia'),
+    estado_tasacion: val('lstNEstado') || (lstEstados[0]?.nombre) || 'Pendiente Visita',
+    nombre_propietario: val('lstNNombre'),
+    telefono: val('lstNTelefono'),
+    url: val('lstNLinkFicha'),
+    observaciones: val('lstNObs'),
   };
-  const res = await fetch('/api/propiedades',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
-  const result = await res.json();
-  if (result.ok) { cerrarModal('lstModalNueva'); lstCargar(); showToast('Propiedad creada ✅','success'); }
+  try {
+    const res = await fetch('/api/propiedades', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
+    const result = await res.json();
+    if (result.ok) {
+      cerrarModal('lstModalNueva');
+      await lstCargar();
+      showToast('Propiedad creada ✅','success');
+    } else {
+      showToast('Error: ' + (result.error || 'No se pudo crear'), 'error');
+    }
+  } catch(e) {
+    showToast('Error de conexión: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.textContent = 'Crear propiedad'; btn.disabled = false; }
+  }
 }
 
 // gestionar estados
@@ -595,13 +624,31 @@ function lstRenderEstadosList() {
     </div>`).join('')||'<p style="color:#bbb;font-size:0.82rem;text-align:center;">Sin estados aún</p>';
 }
 async function lstCrearEstado() {
-  const nombre=document.getElementById('lstNuevoEstadoNombre').value.trim();
-  if (!nombre){showToast('Ingresá el nombre','error');return;}
-  await fetch('/api/estados',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre,color:document.getElementById('lstNuevoEstadoColor').value,vista:document.getElementById('lstNuevoEstadoVista').value})});
-  document.getElementById('lstNuevoEstadoNombre').value='';
-  await lstCargar();
-  lstRenderEstadosList();
-  showToast('Estado creado ✅','success');
+  const nombre = document.getElementById('lstNuevoEstadoNombre').value.trim();
+  if (!nombre) { showToast('Ingresá el nombre del estado','error'); return; }
+  const btn = document.querySelector('#lstModalEstados .btn-ink');
+  if (btn) { btn.textContent = '⏳ Creando...'; btn.disabled = true; }
+  try {
+    const r = await fetch('/api/estados', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        nombre,
+        color: document.getElementById('lstNuevoEstadoColor').value,
+        vista: document.getElementById('lstNuevoEstadoVista').value
+      })
+    });
+    const data = await r.json();
+    if (data.error) { showToast('Error: ' + data.error, 'error'); return; }
+    document.getElementById('lstNuevoEstadoNombre').value = '';
+    await lstCargar();
+    lstRenderEstadosList();
+    showToast('Estado creado ✅', 'success');
+  } catch(e) {
+    showToast('Error de conexión: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.textContent = '➕ Crear estado'; btn.disabled = false; }
+  }
 }
 
 // análisis temporal
