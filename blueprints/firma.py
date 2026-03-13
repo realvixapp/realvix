@@ -234,7 +234,6 @@ def crear_documento():
         })
     doc = {
         'id': doc_id,
-        'user_id': user['id'],
         'title': title,
         'organizer_name': organizer_name,
         'organizer_email': organizer_email,
@@ -303,11 +302,7 @@ def listar_documentos():
         return jsonify({'documentos': docs})
     try:
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        # Filtrar por user_id dentro del JSONB. Los docs sin user_id (legacy) solo los ve el admin.
-        if user.get('role') == 'admin':
-            cur.execute("SELECT id, data FROM documents WHERE data->>'user_id' = %s OR data->>'user_id' IS NULL ORDER BY created_at DESC", (user['id'],))
-        else:
-            cur.execute("SELECT id, data FROM documents WHERE data->>'user_id' = %s ORDER BY created_at DESC", (user['id'],))
+        cur.execute("SELECT id, data FROM documents ORDER BY created_at DESC")
         rows = cur.fetchall(); cur.close(); conn.close()
         docs = []
         for row in rows:
@@ -323,10 +318,6 @@ def listar_documentos():
 def eliminar_documento(doc_id):
     user = _get_current_user()
     if not user: return jsonify({'error': 'No autenticado'}), 401
-    # Verificar que el documento le pertenece (o es admin)
-    doc = get_doc(doc_id)
-    if doc and user.get('role') != 'admin' and doc.get('user_id') and doc['user_id'] != user['id']:
-        return jsonify({'error': 'Sin permiso'}), 403
     conn = _get_connection()
     if conn:
         try:
@@ -428,7 +419,11 @@ def descargar_certificado(doc_id):
         return "No encontrado", 404
     pdf_bytes = generate_full_pdf(doc)
     resp = Response(pdf_bytes, mimetype='application/pdf')
-    resp.headers['Content-Disposition'] = f'attachment; filename="firmado-{doc_id[:8]}.pdf"'
+    # Usar el título del documento como nombre del PDF
+    raw_title = doc.get('title', '') or doc_id[:8]
+    safe_title = ''.join(c if c.isalnum() or c in (' ', '-', '_') else '' for c in raw_title).strip()
+    safe_title = safe_title.replace(' ', '-') or doc_id[:8]
+    resp.headers['Content-Disposition'] = f'attachment; filename="{safe_title}.pdf"'
     return resp
 
 
