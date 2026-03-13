@@ -113,3 +113,17 @@ def admin_invite_link(user_id):
         return jsonify({'ok': True, 'link': f'{base}/set-password?token={token}'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/api/init-db', methods=['POST'])
+def init_db_endpoint():
+    """Crea todas las tablas faltantes. Accesible solo por admin."""
+    from app import get_current_user, init_db
+    user = get_current_user()
+    if not user: return jsonify({'error': 'No autenticado'}), 401
+    if user.get('role') != 'admin': abort(403)
+    try:
+        init_db()
+        return jsonify({'ok': True, 'msg': 'Tablas creadas correctamente'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
