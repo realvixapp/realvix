@@ -11,7 +11,7 @@ from io import BytesIO
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-from flask import (Flask, request, jsonify, render_template,
+from flask import (Flask, request, jsonify, render_template, render_template_string,
                    abort, redirect, url_for, session, make_response)
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
@@ -583,6 +583,68 @@ def api_me():
 @admin_required
 def admin_list_users():
     return jsonify({'users': list_users()})
+
+@app.route('/api/admin/users/<user_id>/invite', methods=['POST'])
+@admin_required
+def admin_invite_link(user_id):
+    """Genera un token de invitación de 48hs para que el usuario setee su contraseña"""
+    token = secrets.token_urlsafe(24)
+    expires = datetime.now() + timedelta(hours=48)
+    conn = get_connection()
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
+    try:
+        cur = conn.cursor()
+        # Reutilizamos user_sessions con un prefijo especial
+        cur.execute("DELETE FROM user_sessions WHERE user_id=%s AND token LIKE 'invite_%'", (user_id,))
+        cur.execute("INSERT INTO user_sessions (token,user_id,expires_at) VALUES (%s,%s,%s)",
+            (f'invite_{token}', user_id, expires))
+        conn.commit(); cur.close(); conn.close()
+        base = request.host_url.rstrip('/')
+        return jsonify({'ok': True, 'link': f'{base}/set-password?token={token}'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/set-password', methods=['GET','POST'])
+def set_password_page():
+    token = request.args.get('token') or request.form.get('token','')
+    full_token = f'invite_{token}'
+    conn = get_connection()
+    if not conn: return 'Error de conexión', 500
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT user_id FROM user_sessions WHERE token=%s AND expires_at>NOW()", (full_token,))
+        row = cur.fetchone()
+        if not row:
+            cur.close(); conn.close()
+            return '<h2>Link inválido o expirado. Pedí un nuevo link al administrador.</h2>', 400
+        user_id = row['user_id']
+        if request.method == 'POST':
+            pw = request.form.get('password','').strip()
+            if len(pw) < 6:
+                cur.close(); conn.close()
+                return render_template_string(SET_PW_HTML, token=token, error='Mínimo 6 caracteres')
+            cur.execute("UPDATE users SET password_hash=%s WHERE id=%s", (hash_password(pw), user_id))
+            cur.execute("DELETE FROM user_sessions WHERE token=%s", (full_token,))
+            conn.commit(); cur.close(); conn.close()
+            return redirect('/login?msg=Contraseña configurada. Ya podés ingresar.')
+        cur.close(); conn.close()
+        return render_template_string(SET_PW_HTML, token=token, error=None)
+    except Exception as e:
+        return str(e), 500
+
+SET_PW_HTML = """<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Configurar contraseña — Realvix</title>
+<style>body{font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f7f5f0;margin:0;}
+.box{background:white;border-radius:16px;padding:40px;max-width:380px;width:90%;box-shadow:0 4px 24px rgba(0,0,0,0.08);}
+h2{font-size:1.4rem;margin-bottom:6px;}p{color:#888;font-size:0.85rem;margin-bottom:24px;}
+label{font-size:0.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:#666;display:block;margin-bottom:6px;}
+input{width:100%;padding:10px 14px;border:1.5px solid #e0dbd0;border-radius:8px;font-size:0.9rem;box-sizing:border-box;margin-bottom:16px;}
+button{width:100%;padding:12px;background:#1a1a1a;color:white;border:none;border-radius:8px;font-size:0.9rem;font-weight:600;cursor:pointer;}
+.err{background:#fff0f0;border:1px solid #fcc;border-radius:8px;padding:10px 14px;color:#c0392b;font-size:0.83rem;margin-bottom:16px;}</style></head>
+<body><div class="box"><h2>Crear tu contraseña</h2><p>Ingresá la contraseña con la que vas a acceder a Realvix CRM.</p>
+{% if error %}<div class="err">{{ error }}</div>{% endif %}
+<form method="POST"><input type="hidden" name="token" value="{{ token }}">
+<label>Nueva contraseña</label><input type="password" name="password" placeholder="Mínimo 6 caracteres" required>
+<button type="submit">Guardar y entrar →</button></form></div></body></html>"""
 
 @app.route('/api/admin/users', methods=['POST'])
 @admin_required
