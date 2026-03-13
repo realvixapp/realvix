@@ -1737,19 +1737,75 @@ function verEstadoDoc(docId) {
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 // ── LOCAL STORAGE ──
+// ══════════════════════════════════════════
+//  STORE MULTI-USUARIO — API-backed
+// ══════════════════════════════════════════
 const LOCAL = {
-  contactos: JSON.parse(localStorage.getItem('crm_contactos') || '[]'),
-  consultas: JSON.parse(localStorage.getItem('crm_consultas') || '[]'),
-  cierres: JSON.parse(localStorage.getItem('crm_cierres') || '[]'),
-  eventos: JSON.parse(localStorage.getItem('crm_eventos') || '[]'),
-  tareas: JSON.parse(localStorage.getItem('crm_tareas') || '[]'),
-  textos: JSON.parse(localStorage.getItem('crm_textos') || '[]'),
-  guiones: JSON.parse(localStorage.getItem('crm_guiones') || '[]'),
-  ideas: JSON.parse(localStorage.getItem('crm_ideas') || '[]'),
-  planilla: JSON.parse(localStorage.getItem('crm_planilla') || 'null'),
-  objetivos: JSON.parse(localStorage.getItem('crm_objetivos') || 'null'),
+  contactos: [], consultas: [], cierres: [], eventos: [],
+  tareas: [], textos: [], guiones: [], ideas: [],
+  planilla: null, objetivos: null,
 };
-function saveLocal(key) { localStorage.setItem('crm_' + key, JSON.stringify(LOCAL[key])); }
+
+// API helper
+async function api(method, path, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(path, opts);
+  return r.ok ? r.json() : null;
+}
+
+// saveLocal now persists to the API
+async function saveLocal(key) {
+  const map = {
+    contactos: null, // handled per-item
+    consultas: null,
+    cierres: null,
+    eventos: null,
+    tareas: null,
+    textos: null,
+    guiones: null,
+    ideas: null,
+    planilla: '/api/planilla',
+    objetivos: '/api/objetivos',
+  };
+  if (key === 'planilla') {
+    await api('POST', '/api/planilla', { data: LOCAL.planilla });
+  } else if (key === 'objetivos') {
+    await api('POST', '/api/objetivos', { data: LOCAL.objetivos });
+  }
+  // Per-item saves are handled inline in each function
+}
+
+// Load all data from API on init
+async function loadAllFromAPI() {
+  try {
+    const [c, co, ci, ev, ta, tx, gu, id, pl, obj] = await Promise.all([
+      api('GET', '/api/contactos'),
+      api('GET', '/api/consultas'),
+      api('GET', '/api/cierres'),
+      api('GET', '/api/eventos'),
+      api('GET', '/api/tareas'),
+      api('GET', '/api/textos'),
+      api('GET', '/api/guiones'),
+      api('GET', '/api/ideas'),
+      api('GET', '/api/planilla'),
+      api('GET', '/api/objetivos'),
+    ]);
+    LOCAL.contactos = c?.contactos || [];
+    LOCAL.consultas = co?.consultas || [];
+    LOCAL.cierres = ci?.cierres || [];
+    LOCAL.eventos = ev?.eventos || [];
+    LOCAL.tareas = ta?.tareas || [];
+    LOCAL.textos = tx?.textos || [];
+    LOCAL.guiones = gu?.guiones || [];
+    LOCAL.ideas = id?.ideas || [];
+    LOCAL.planilla = pl?.planilla || null;
+    LOCAL.objetivos = obj?.objetivos || null;
+    console.log('[CRM] Datos cargados desde servidor ✓');
+  } catch(e) {
+    console.error('[CRM] Error cargando datos:', e);
+  }
+}
 
 // ── PDF / FIRMA VARS ──
 const firmantes = [];
@@ -1767,6 +1823,20 @@ let calDiaSeleccionado = new Date().toISOString().split('T')[0];
 let deleteDocId = null;
 let toastTimer;
 
+const SECCIONES_CRM = [
+  {id:'listing', label:'📋 Listing'},
+  {id:'contactos', label:'👥 Contactos'},
+  {id:'consultas', label:'💬 Consultas'},
+  {id:'cierres', label:'💰 Cierres'},
+  {id:'objetivos', label:'🎯 Objetivos'},
+  {id:'agenda', label:'📅 Agenda'},
+  {id:'pendientes-agenda', label:'✅ Tareas'},
+  {id:'textos', label:'📄 Textos'},
+  {id:'instagram', label:'📸 Instagram'},
+  {id:'ideas', label:'💡 Ideas'},
+  {id:'asistente', label:'🤖 Asistente IA'},
+];
+
 // ── AUTH ──
 async function cargarUsuario() {
   try {
@@ -1778,8 +1848,16 @@ async function cargarUsuario() {
     document.getElementById('userAvatar').textContent = ini;
     if (currentUser.role === 'admin') {
       document.getElementById('nav-admin').style.display = 'flex';
+    } else {
+      // Apply section permissions for non-admin users
+      const permisos = currentUser.permisos || {};
+      SECCIONES_CRM.forEach(s => {
+        if (permisos[s.id] === false) {
+          const navEl = document.getElementById('nav-' + s.id);
+          if (navEl) navEl.style.display = 'none';
+        }
+      });
     }
-    // Autocompletar organizador en nueva firma
     const orgN = document.getElementById('org-nombre');
     const orgE = document.getElementById('org-email');
     if (orgN && !orgN.value) orgN.value = currentUser.name;
@@ -2192,20 +2270,31 @@ function abrirModalContacto(c) {
   abrirModal('modalContacto');
 }
 
-function guardarContacto() {
-  const id = document.getElementById('cid').value || Date.now().toString();
+async function guardarContacto() {
+  const existingId = document.getElementById('cid').value;
   const obj = {
-    id, nombre:document.getElementById('cNombre').value, tipo:document.getElementById('cTipo').value,
-    tel:document.getElementById('cTel').value, email:document.getElementById('cEmail').value,
-    localidad:document.getElementById('cLocalidad').value, referido:document.getElementById('cReferido').value,
-    profesion:document.getElementById('cProfesion').value, familia:document.getElementById('cFamilia').value,
-    operacion:document.getElementById('cOperacion').value, notas:document.getElementById('cNotas').value,
-    fecha: new Date().toISOString().split('T')[0]
+    id: existingId || undefined,
+    nombre: document.getElementById('cNombre').value,
+    tipo: document.getElementById('cTipo').value,
+    telefono: document.getElementById('cTel').value,
+    email: document.getElementById('cEmail').value,
+    localidad: document.getElementById('cLocalidad').value,
+    referido: document.getElementById('cReferido').value,
+    profesion: document.getElementById('cProfesion').value,
+    familia: document.getElementById('cFamilia').value,
+    operacion: document.getElementById('cOperacion').value,
+    notas: document.getElementById('cNotas').value,
   };
   if (!obj.nombre) { showToast('Ingresá el nombre', 'error'); return; }
-  const idx = LOCAL.contactos.findIndex(c => c.id === obj.id);
-  if (idx >= 0) LOCAL.contactos[idx] = obj; else LOCAL.contactos.unshift(obj);
-  saveLocal('contactos');
+  let r;
+  if (existingId) {
+    r = await api('PUT', `/api/contactos/${existingId}`, obj);
+    const idx = LOCAL.contactos.findIndex(c => c.id === existingId);
+    if (idx >= 0) LOCAL.contactos[idx] = { ...LOCAL.contactos[idx], ...obj };
+  } else {
+    r = await api('POST', '/api/contactos', obj);
+    if (r?.id) { obj.id = r.id; LOCAL.contactos.unshift(obj); }
+  }
   cerrarModal('modalContacto');
   showToast('Contacto guardado ✅', 'success');
   renderContactos();
@@ -2240,10 +2329,11 @@ function renderContactos() {
     </div>`).join('');
 }
 
-function eliminarContacto(id) {
+async function eliminarContacto(id) {
   if (!confirm('¿Eliminar contacto?')) return;
+  await api('DELETE', `/api/contactos/${id}`);
   LOCAL.contactos = LOCAL.contactos.filter(c => c.id !== id);
-  saveLocal('contactos'); renderContactos(); showToast('Contacto eliminado');
+  renderContactos(); showToast('Contacto eliminado');
 }
 
 // ── CONSULTAS ──
@@ -2254,22 +2344,18 @@ function filtrarConsultas(etapa, el) {
   renderConsultas(etapa);
 }
 
-function guardarConsulta() {
+async function guardarConsulta() {
   const obj = {
-    id: Date.now().toString(),
     nombre: document.getElementById('consNombre').value,
-    tel: document.getElementById('consTel').value,
+    telefono: document.getElementById('consTel').value,
     email: document.getElementById('consEmail').value,
-    etapa: document.getElementById('consEtapa').value,
-    propiedad: document.getElementById('consPropiedad').value,
-    fechaMuestra: document.getElementById('consFechaMuestra').value,
-    calificacion: document.getElementById('consCalificacion').value,
-    obs: document.getElementById('consObs').value,
-    fecha: new Date().toISOString().split('T')[0]
+    estado: document.getElementById('consEtapa').value,
+    propiedad_nombre: document.getElementById('consPropiedad').value,
+    notas: document.getElementById('consObs').value,
   };
   if (!obj.nombre) { showToast('Ingresá el nombre', 'error'); return; }
-  LOCAL.consultas.unshift(obj);
-  saveLocal('consultas');
+  const r = await api('POST', '/api/consultas', obj);
+  if (r?.id) { obj.id = r.id; LOCAL.consultas.unshift(obj); }
   cerrarModal('modalConsulta');
   showToast('Consulta guardada ✅', 'success');
   renderConsultas('todos');
@@ -2296,7 +2382,7 @@ function renderConsultas(filtro='todos') {
       </div>
       <div class="doc-actions">
         ${c.tel ? `<a href="https://wa.me/${c.tel.replace(/[^0-9]/g,'')}" target="_blank" class="btn-sm" onclick="event.stopPropagation()">💬</a>` : ''}
-        <button class="btn-sm" style="color:var(--rust);" onclick="LOCAL.consultas=LOCAL.consultas.filter(x=>x.id!=='${c.id}');saveLocal('consultas');renderConsultas('todos')">✕</button>
+        <button class="btn-sm" style="color:var(--rust);" onclick="eliminarConsulta('${c.id}')">✕</button>
       </div>
     </div>`).join('');
 }
@@ -2358,31 +2444,33 @@ function calcularCierre() {
     </div>`;
 }
 
-function guardarCierre() {
+async function guardarCierre() {
   const valor = parseFloat(document.getElementById('ciValor').value)||0;
   const pct = parseFloat(document.getElementById('ciPct').value)||0;
   const brokerPct = parseFloat(document.getElementById('ciBrokerPct').value)||0;
   const bruto = valor * pct / 100;
   const neto = bruto - (bruto * brokerPct / 100);
   const obj = {
-    id: Date.now().toString(),
-    direccion: document.getElementById('ciDireccion').value,
-    valor, pct, brokerPct, bruto, neto,
+    propiedad: document.getElementById('ciDireccion').value,
+    valor_operacion: valor,
+    comision_pct: pct,
+    comision_bruta: bruto,
+    comision_neta: neto,
     fecha: document.getElementById('ciFecha').value,
     zona: document.getElementById('ciZona').value,
     tipo: document.getElementById('ciTipo').value,
     puntas: document.getElementById('ciPuntas').value,
     notas: document.getElementById('ciNotas').value,
   };
-  LOCAL.cierres.unshift(obj);
-  saveLocal('cierres');
+  const r = await api('POST', '/api/cierres', obj);
+  if (r?.id) { obj.id = r.id; obj.neto = neto; obj.bruto = bruto; obj.pct = pct; obj.direccion = obj.propiedad; LOCAL.cierres.unshift(obj); }
   cerrarModal('modalCierre');
   showToast('¡Cierre registrado! 🎉', 'success');
   renderCierres();
 }
 
 function renderCierres() {
-  const total = LOCAL.cierres.reduce((a,c) => a + c.neto, 0);
+  const total = LOCAL.cierres.reduce((a,c) => a + (parseFloat(c.neto||c.comision_neta)||0), 0);
   const ticket = LOCAL.cierres.length ? total / LOCAL.cierres.length : 0;
   document.getElementById('ci-neto').textContent = 'USD ' + total.toLocaleString('es-AR',{maximumFractionDigits:0});
   document.getElementById('ci-ticket').textContent = 'USD ' + ticket.toLocaleString('es-AR',{maximumFractionDigits:0});
@@ -2390,19 +2478,25 @@ function renderCierres() {
   const div = document.getElementById('listaCierres');
   if (!div) return;
   if (LOCAL.cierres.length === 0) { div.innerHTML = '<div class="empty-state"><div class="empty-icon">💰</div><p>Sin cierres registrados aún</p></div>'; return; }
-  div.innerHTML = LOCAL.cierres.map(c => `
+  div.innerHTML = LOCAL.cierres.map(c => {
+    const neto = parseFloat(c.neto||c.comision_neta)||0;
+    const bruto = parseFloat(c.bruto||c.comision_bruta)||0;
+    const pct = parseFloat(c.pct||c.comision_pct)||0;
+    const dir = c.direccion || c.propiedad || 'Sin dirección';
+    return `
     <div class="cierre-card">
       <div>
-        <div class="cierre-dir">${c.direccion || 'Sin dirección'}</div>
-        <div class="cierre-meta">${c.fecha||''} · ${c.zona||''} · ${c.tipo||''} · ${c.puntas} punta(s)</div>
+        <div class="cierre-dir">${dir}</div>
+        <div class="cierre-meta">${c.fecha||''} · ${c.zona||''} · ${c.tipo||''} · ${c.puntas||''} punta(s)</div>
         ${c.notas ? `<div style="font-size:0.78rem;color:#bbb;margin-top:3px;">${c.notas}</div>` : ''}
       </div>
       <div style="text-align:right;">
-        <div class="cierre-monto">USD ${(c.neto||0).toLocaleString('es-AR',{maximumFractionDigits:0})}</div>
-        <div class="cierre-comision">${c.pct}% · Bruto USD ${(c.bruto||0).toLocaleString('es-AR',{maximumFractionDigits:0})}</div>
-        <button class="btn-sm" style="color:var(--rust);margin-top:4px;border:none;cursor:pointer;" onclick="LOCAL.cierres=LOCAL.cierres.filter(x=>x.id!=='${c.id}');saveLocal('cierres');renderCierres()">✕ Eliminar</button>
+        <div class="cierre-monto">USD ${neto.toLocaleString('es-AR',{maximumFractionDigits:0})}</div>
+        <div class="cierre-comision">${pct}% · Bruto USD ${bruto.toLocaleString('es-AR',{maximumFractionDigits:0})}</div>
+        <button class="btn-sm" style="color:var(--rust);margin-top:4px;border:none;cursor:pointer;" onclick="eliminarCierre('${c.id}')">✕ Eliminar</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 // ── OBJETIVOS ──
@@ -2429,7 +2523,7 @@ function renderObjetivos() {
   });
 }
 
-function editarObjetivos() {
+async function editarObjetivos() {
   const metas = LOCAL.objetivos || {captaciones:10, ventas:3, caras:60, nuevos:8, comision:5000};
   const nuevo = {
     captaciones: parseInt(prompt('Meta captaciones/mes:', metas.captaciones)||metas.captaciones),
@@ -2438,7 +2532,9 @@ function editarObjetivos() {
     nuevos: parseInt(prompt('Meta nuevos contactos/mes:', metas.nuevos)||metas.nuevos),
     comision: parseInt(prompt('Meta comisión USD/mes:', metas.comision)||metas.comision),
   };
-  LOCAL.objetivos = nuevo; saveLocal('objetivos'); renderObjetivos(); showToast('Metas guardadas ✅', 'success');
+  LOCAL.objetivos = nuevo;
+  await api('POST', '/api/objetivos', { data: nuevo });
+  renderObjetivos(); showToast('Metas guardadas ✅', 'success');
 }
 
 function cambiarPeriodo(p, btn) {
@@ -2473,7 +2569,7 @@ function updatePlanilla(i,k,v) {
   if (!LOCAL.planilla) LOCAL.planilla = [{label:'Captaciones',anual:20},{label:'Ventas',anual:12},{label:'Cara a cara',anual:720},{label:'Comisión USD',anual:60000}];
   LOCAL.planilla[i][k] = v;
 }
-function guardarPlanilla() { saveLocal('planilla'); showToast('Planilla guardada ✅', 'success'); }
+async function guardarPlanilla() { await api('POST', '/api/planilla', { data: LOCAL.planilla }); showToast('Planilla guardada ✅', 'success'); }
 function agregarFilaPlanilla() { if (!LOCAL.planilla) LOCAL.planilla = []; LOCAL.planilla.push({label:'Nuevo objetivo', anual:0}); renderPlanilla(); }
 
 // ── AGENDA ──
@@ -2522,43 +2618,48 @@ function renderEventosDia(fecha) {
         ${e.notas ? `<div style="font-size:0.77rem;color:#bbb;margin-top:2px;">${e.notas}</div>` : ''}
       </div>
       <div class="agenda-actions">
-        <button class="btn-sm" style="color:var(--rust);" onclick="LOCAL.eventos=LOCAL.eventos.filter(x=>x.id!=='${e.id}');saveLocal('eventos');renderEventosDia('${fecha}')">✕</button>
+        <button class="btn-sm" style="color:var(--rust);" onclick="eliminarEvento('${e.id}','${fecha}')">✕</button>
       </div>
     </div>`).join('');
 }
 
 function abrirModalEvento() { document.getElementById('evFecha').value = calDiaSeleccionado; abrirModal('modalEvento'); }
 
-function guardarEvento() {
+async function guardarEvento() {
   const obj = {
-    id: Date.now().toString(),
     titulo: document.getElementById('evTitulo').value,
     fecha: document.getElementById('evFecha').value,
     hora: document.getElementById('evHora').value,
     tipo: document.getElementById('evTipo').value,
-    contacto: document.getElementById('evContacto').value,
     notas: document.getElementById('evNotas').value,
   };
   if (!obj.titulo) { showToast('Ingresá el título', 'error'); return; }
-  LOCAL.eventos.push(obj); saveLocal('eventos');
+  const r = await api('POST', '/api/eventos', obj);
+  if (r?.id) { obj.id = r.id; LOCAL.eventos.push(obj); }
   cerrarModal('modalEvento'); showToast('Evento guardado ✅', 'success');
   calDiaSeleccionado = obj.fecha; renderCalendario();
+}
+
+async function eliminarEvento(id, fecha) {
+  await api('DELETE', `/api/eventos/${id}`);
+  LOCAL.eventos = LOCAL.eventos.filter(x => x.id !== id);
+  renderEventosDia(fecha);
 }
 
 // ── TAREAS ──
 function abrirModalTarea() { abrirModal('modalTarea'); }
 
-function guardarTarea() {
+async function guardarTarea() {
   const obj = {
-    id: Date.now().toString(),
     titulo: document.getElementById('taTitle').value,
-    fecha: document.getElementById('taDate').value,
-    color: document.getElementById('taColor').value,
-    nota: document.getElementById('taNota').value,
+    fecha_venc: document.getElementById('taDate').value,
+    prioridad: document.getElementById('taColor').value || 'media',
+    descripcion: document.getElementById('taNota').value,
     estado: 'pendiente',
   };
   if (!obj.titulo) { showToast('Ingresá la tarea', 'error'); return; }
-  LOCAL.tareas.push(obj); saveLocal('tareas');
+  const r = await api('POST', '/api/tareas', obj);
+  if (r?.id) { obj.id = r.id; LOCAL.tareas.push(obj); }
   cerrarModal('modalTarea'); showToast('Tarea agregada ✅', 'success');
   renderTareas();
   document.getElementById('badge-pendientes-agenda').textContent = LOCAL.tareas.filter(t=>t.estado==='pendiente').length;
@@ -2578,20 +2679,30 @@ function renderTareas() {
     col.innerHTML = lista.map(t => `
       <div class="kanban-card">
         <div class="kanban-card-title">${t.titulo}</div>
-        ${t.fecha ? `<div class="kanban-card-sub">📅 ${t.fecha}</div>` : ''}
-        ${t.nota ? `<div class="kanban-card-sub">${t.nota}</div>` : ''}
+        ${t.fecha_venc||t.fecha ? `<div class="kanban-card-sub">📅 ${t.fecha_venc||t.fecha}</div>` : ''}
+        ${t.descripcion||t.nota ? `<div class="kanban-card-sub">${t.descripcion||t.nota}</div>` : ''}
         <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center;">
           ${acciones[estado](t.id)}
-          <button class="btn-sm" style="color:var(--rust);" onclick="LOCAL.tareas=LOCAL.tareas.filter(x=>x.id!=='${t.id}');saveLocal('tareas');renderTareas()">✕</button>
+          <button class="btn-sm" style="color:var(--rust);" onclick="eliminarTarea('${t.id}')">✕</button>
         </div>
       </div>`).join('');
   });
   document.getElementById('badge-pendientes-agenda').textContent = LOCAL.tareas.filter(t=>t.estado==='pendiente').length;
 }
 
-function moverTarea(id, estado) {
+async function moverTarea(id, estado) {
   const t = LOCAL.tareas.find(t => t.id === id);
-  if (t) { t.estado = estado; saveLocal('tareas'); renderTareas(); }
+  if (t) {
+    t.estado = estado;
+    await api('PUT', `/api/tareas/${id}`, { ...t, estado });
+    renderTareas();
+  }
+}
+
+async function eliminarTarea(id) {
+  await api('DELETE', `/api/tareas/${id}`);
+  LOCAL.tareas = LOCAL.tareas.filter(x => x.id !== id);
+  renderTareas();
 }
 
 // ── TEXTOS ──
@@ -2602,22 +2713,21 @@ function filtrarTextos(canal, btn) {
   renderTextos(canal);
 }
 
-function guardarTexto() {
+async function guardarTexto() {
   const obj = {
-    id: Date.now().toString(),
     titulo: document.getElementById('txTitulo').value,
-    canal: document.getElementById('txCanal').value,
+    tipo: document.getElementById('txCanal').value,
     contenido: document.getElementById('txContenido').value,
-    fecha: new Date().toISOString().split('T')[0],
   };
   if (!obj.titulo || !obj.contenido) { showToast('Completá todos los campos', 'error'); return; }
-  LOCAL.textos.unshift(obj); saveLocal('textos');
+  const r = await api('POST', '/api/textos', obj);
+  if (r?.id) { obj.id = r.id; LOCAL.textos.unshift(obj); }
   cerrarModal('modalTexto'); showToast('Texto guardado ✅', 'success'); renderTextos('todos');
 }
 
 function renderTextos(filtro='todos') {
   let lista = LOCAL.textos;
-  if (filtro && filtro !== 'todos') lista = lista.filter(t => t.canal === filtro);
+  if (filtro && filtro !== 'todos') lista = lista.filter(t => (t.tipo||t.canal) === filtro);
   const div = document.getElementById('listaTextos');
   if (!div) return;
   if (lista.length === 0) {
@@ -2628,12 +2738,12 @@ function renderTextos(filtro='todos') {
     <div class="texto-card" onclick="copiarTexto('${t.id}')">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
         <div class="texto-titulo">${t.titulo}</div>
-        <span class="badge">${t.canal}</span>
+        <span class="badge">${t.tipo||t.canal||''}</span>
       </div>
-      <div class="texto-preview">${t.contenido.substring(0,100)}...</div>
+      <div class="texto-preview">${(t.contenido||'').substring(0,100)}...</div>
       <div style="margin-top:8px;display:flex;gap:6px;" class="doc-actions">
         <button class="btn-sm" onclick="event.stopPropagation();copiarTexto('${t.id}')">📋 Copiar</button>
-        <button class="btn-sm" style="color:var(--rust);" onclick="event.stopPropagation();LOCAL.textos=LOCAL.textos.filter(x=>x.id!=='${t.id}');saveLocal('textos');renderTextos('todos')">✕</button>
+        <button class="btn-sm" style="color:var(--rust);" onclick="event.stopPropagation();eliminarTexto('${t.id}')">✕</button>
       </div>
     </div>`).join('');
 }
@@ -2643,22 +2753,27 @@ function copiarTexto(id) {
   if (t) { navigator.clipboard.writeText(t.contenido); showToast('Texto copiado ✓', 'success'); }
 }
 
+async function eliminarTexto(id) {
+  await api('DELETE', `/api/textos/${id}`);
+  LOCAL.textos = LOCAL.textos.filter(x => x.id !== id);
+  renderTextos('todos');
+}
+
 // ── INSTAGRAM ──
 function abrirModalGuion() { abrirModal('modalGuion'); }
 
-function guardarGuion() {
+async function guardarGuion() {
   const obj = {
-    id: Date.now().toString(),
     titulo: document.getElementById('guTitulo').value,
     tema: document.getElementById('guTema').value,
     hook: document.getElementById('guHook').value,
     desarrollo: document.getElementById('guDesarrollo').value,
     cta: document.getElementById('guCTA').value,
-    fecha: new Date().toISOString().split('T')[0],
-    generadoIA: false,
+    grabado: false,
   };
   if (!obj.titulo) { showToast('Ingresá el título', 'error'); return; }
-  LOCAL.guiones.unshift(obj); saveLocal('guiones');
+  const r = await api('POST', '/api/guiones', obj);
+  if (r?.id) { obj.id = r.id; LOCAL.guiones.unshift(obj); }
   cerrarModal('modalGuion'); showToast('Guion guardado ✅', 'success'); renderGuiones();
 }
 
@@ -2677,8 +2792,9 @@ async function generarGuionIA() {
     const text = data.content?.[0]?.text || '';
     const clean = text.replace(/```json|```/g,'').trim();
     const parsed = JSON.parse(clean);
-    const obj = { id:Date.now().toString(), ...parsed, tema:'tips', fecha:new Date().toISOString().split('T')[0], generadoIA:true };
-    LOCAL.guiones.unshift(obj); saveLocal('guiones');
+    const obj2 = { ...parsed, grabado: false };
+    const saved2 = await api('POST', '/api/guiones', obj2);
+    if (saved2?.id) { obj2.id = saved2.id; LOCAL.guiones.unshift(obj2); }
     showToast('Guion generado ✅', 'success'); renderGuiones();
   } catch(e) { showToast('Error al generar. Probá el modal manual.', 'error'); }
 }
@@ -2688,49 +2804,81 @@ function renderGuiones() {
   if (!div) return;
   if (LOCAL.guiones.length === 0) { div.innerHTML = '<div class="empty-state"><div class="empty-icon">📸</div><p>Generá tu primer guion</p></div>'; return; }
   div.innerHTML = LOCAL.guiones.map(g => `
-    <div class="guion-card">
-      <div class="guion-tag">${g.tema||'instagram'} ${g.generadoIA?'· ✨ IA':''}</div>
+    <div class="guion-card" style="${g.grabado?'border-color:#52b788;opacity:0.8;':''}">
+      <div class="guion-tag">${g.tema||'instagram'} ${g.grabado?'· ✅ Grabado':''}</div>
       <div class="guion-titulo">${g.titulo}</div>
       ${g.hook ? `<div style="font-size:0.84rem;color:var(--gold);font-style:italic;margin-bottom:8px;">"${g.hook}"</div>` : ''}
-      ${g.desarrollo ? `<div class="guion-cuerpo">${g.desarrollo.replace(/\n/g,'<br>')}</div>` : ''}
+      ${g.desarrollo ? `<div class="guion-cuerpo">${g.desarrollo.replace(/
+/g,'<br>')}</div>` : ''}
       ${g.cta ? `<div style="margin-top:8px;font-size:0.82rem;color:var(--sage);font-weight:500;">CTA: ${g.cta}</div>` : ''}
       <div class="guion-footer">
-        <span style="font-size:0.72rem;color:#bbb;">📅 ${g.fecha}</span>
+        <span style="font-size:0.72rem;color:#bbb;">📅 ${(g.fecha||'').substring(0,10)}</span>
         <div style="display:flex;gap:6px;">
-          <button class="btn-sm" onclick="navigator.clipboard.writeText('${(g.hook||'')+'\\n\\n'+(g.desarrollo||'')+'\\n\\n'+(g.cta||'')}');showToast('Copiado ✓')">📋 Copiar</button>
-          <button class="btn-sm" style="color:var(--rust);" onclick="LOCAL.guiones=LOCAL.guiones.filter(x=>x.id!=='${g.id}');saveLocal('guiones');renderGuiones()">✕</button>
+          <button class="btn-sm" onclick="marcarGrabado('${g.id}',${!g.grabado})">${g.grabado?'↺ Desmarcar':'🎬 Grabado'}</button>
+          <button class="btn-sm" onclick="navigator.clipboard.writeText(g.hook+'
+
+'+g.desarrollo+'
+
+'+g.cta);showToast('Copiado ✓')">📋 Copiar</button>
+          <button class="btn-sm" style="color:var(--rust);" onclick="eliminarGuion('${g.id}')">✕</button>
         </div>
       </div>
     </div>`).join('');
 }
 
+async function marcarGrabado(id, grabado) {
+  const g = LOCAL.guiones.find(x => x.id === id);
+  if (g) {
+    g.grabado = grabado;
+    await api('PUT', `/api/guiones/${id}`, g);
+    renderGuiones();
+    showToast(grabado ? '¡Marcado como grabado! 🎬' : 'Desmarcado', 'success');
+  }
+}
+
+async function eliminarGuion(id) {
+  await api('DELETE', `/api/guiones/${id}`);
+  LOCAL.guiones = LOCAL.guiones.filter(x => x.id !== id);
+  renderGuiones();
+}
+
 // ── IDEAS ──
-function agregarIdea() {
+async function agregarIdea() {
   const input = document.getElementById('inputIdea');
   const texto = input.value.trim();
   if (!texto) return;
-  LOCAL.ideas.unshift({id:Date.now().toString(), texto, fecha:new Date().toLocaleDateString('es-AR'), completada:false});
-  saveLocal('ideas'); input.value = ''; renderIdeas(); showToast('¡Idea guardada! 💡', 'success');
+  const obj = { texto, estado: 'pendiente' };
+  const r = await api('POST', '/api/ideas', obj);
+  if (r?.id) { obj.id = r.id; LOCAL.ideas.unshift(obj); }
+  input.value = ''; renderIdeas(); showToast('¡Idea guardada! 💡', 'success');
 }
 
 function renderIdeas() {
   const div = document.getElementById('listaIdeas');
   if (!div) return;
   if (LOCAL.ideas.length === 0) { div.innerHTML = '<div class="empty-state"><div class="empty-icon">💡</div><p>¡Tus ideas van a aparecer acá!</p></div>'; return; }
-  div.innerHTML = LOCAL.ideas.map(i => `
-    <div class="idea-item" style="${i.completada?'opacity:0.5;':''}">
-      <span class="idea-icon" onclick="toggleIdea('${i.id}')" style="cursor:pointer;">${i.completada?'✅':'💡'}</span>
-      <div style="flex:1;">
-        <div class="idea-text" style="${i.completada?'text-decoration:line-through;':''}">${i.texto}</div>
-        <div class="idea-date">📅 ${i.fecha}</div>
-      </div>
-      <button class="btn-sm" style="color:var(--rust);" onclick="LOCAL.ideas=LOCAL.ideas.filter(x=>x.id!=='${i.id}');saveLocal('ideas');renderIdeas()">✕</button>
-    </div>`).join('');
+  const pendientes = LOCAL.ideas.filter(i => i.estado !== 'realizada');
+  const realizadas = LOCAL.ideas.filter(i => i.estado === 'realizada');
+  const renderItem = (i) => `
+    <div class="idea-item" style="${i.estado==='realizada'?'opacity:0.55;':''}">
+      <span class="idea-icon" onclick="toggleIdea('${i.id}')" style="cursor:pointer;">${i.estado==='realizada'?'✅':'💡'}</span>
+      <div style="flex:1;"><div class="idea-text" style="${i.estado==='realizada'?'text-decoration:line-through;':''}">${i.texto}</div></div>
+      <button class="btn-sm" style="color:var(--rust);" onclick="eliminarIdea('${i.id}')">✕</button>
+    </div>`;
+  div.innerHTML = (pendientes.length ? `<div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;color:var(--gold);letter-spacing:1px;margin-bottom:8px;">💡 Pendientes (${pendientes.length})</div>${pendientes.map(renderItem).join('')}` : '') +
+    (realizadas.length ? `<div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;color:var(--sage);letter-spacing:1px;margin:16px 0 8px;">✅ ¡Realizadas! 🏆 (${realizadas.length})</div>${realizadas.map(renderItem).join('')}` : '');
 }
 
-function toggleIdea(id) {
+async function toggleIdea(id) {
   const idea = LOCAL.ideas.find(i => i.id === id);
-  if (idea) { idea.completada = !idea.completada; saveLocal('ideas'); renderIdeas(); }
+  if (idea) { idea.estado = idea.estado === 'realizada' ? 'pendiente' : 'realizada'; await api('PUT', `/api/ideas/${id}`, idea); renderIdeas(); }
+}
+
+async function eliminarIdea(id) {
+  await api('DELETE', `/api/ideas/${id}`);
+  LOCAL.ideas = LOCAL.ideas.filter(x => x.id !== id);
+  renderIdeas();
+}
 }
 
 // ── ASISTENTE IA ──
@@ -2833,16 +2981,41 @@ async function cargarUsuariosAdmin() {
     const data = await r.json();
     const div = document.getElementById('listaUsuarios');
     if (!div) return;
-    div.innerHTML = data.users.map(u => `
-      <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
-        <div class="avatar" style="background:var(--gold)">${u.name.charAt(0)}</div>
-        <div style="flex:1;">
-          <div style="font-weight:600;font-size:0.88rem;">${u.name}</div>
-          <div style="font-size:0.75rem;color:#888;">${u.email} · ${u.role}</div>
+    div.innerHTML = data.users.map(u => {
+      const permisos = u.permisos || {};
+      const isMe = u.id === currentUser?.id;
+      const permStr = isMe ? '<span style="color:var(--sage);font-size:0.75rem;">Admin — acceso total</span>' :
+        SECCIONES_CRM.map(s => `<label style="font-size:0.72rem;display:inline-flex;align-items:center;gap:3px;margin-right:8px;cursor:pointer;">
+          <input type="checkbox" ${permisos[s.id]!==false?'checked':''} onchange="togglePermiso('${u.id}','${s.id}',this.checked)" style="cursor:pointer;">
+          ${s.label}
+        </label>`).join('');
+      return `
+      <div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:${isMe?0:10}px;">
+          <div class="avatar" style="background:var(--gold)">${u.name.charAt(0)}</div>
+          <div style="flex:1;">
+            <div style="font-weight:600;font-size:0.88rem;">${u.name}</div>
+            <div style="font-size:0.75rem;color:#888;">${u.email} · <span class="badge">${u.role}</span></div>
+          </div>
+          ${!isMe ? `<button class="btn-sm" style="color:var(--rust);" onclick="eliminarUsuario('${u.id}')">✕</button>` : '<span style="font-size:0.72rem;color:#bbb;">Sos vos</span>'}
         </div>
-        ${u.id!==currentUser?.id ? `<button class="btn-sm" style="color:var(--rust);" onclick="eliminarUsuario('${u.id}')">✕</button>` : ''}
-      </div>`).join('');
+        ${!isMe ? `<div style="padding-top:8px;border-top:1px solid var(--border);">${permStr}</div>` : ''}
+      </div>`;
+    }).join('');
   } catch(e) {}
+}
+
+async function togglePermiso(userId, seccion, enabled) {
+  const r = await fetch('/api/admin/users/' + userId);
+  // Get current user permisos via list
+  const list = await fetch('/api/admin/users');
+  const data = await list.json();
+  const u = data.users.find(x => x.id === userId);
+  if (!u) return;
+  const permisos = u.permisos || {};
+  permisos[seccion] = enabled;
+  await api('PUT', `/api/admin/users/${userId}`, { permisos });
+  showToast('Permiso actualizado ✅', 'success');
 }
 
 async function crearUsuario() {
@@ -2870,6 +3043,9 @@ async function eliminarUsuario(id) {
 // ── INIT ──
 document.addEventListener('DOMContentLoaded', async () => {
   await cargarUsuario();
+
+  // Load all data from API (multi-user)
+  await loadAllFromAPI();
 
   const hoy = new Date().toISOString().split('T')[0];
   const evFecha = document.getElementById('evFecha');
@@ -2904,10 +3080,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (el) el.addEventListener('input', calcularCierre);
   });
 
-  // Badges iniciales
+  // Badges
   document.getElementById('badge-consultas').textContent = LOCAL.consultas.length;
   document.getElementById('badge-pendientes-agenda').textContent = LOCAL.tareas.filter(t=>t.estado==='pendiente').length;
 });
+
+// ── Helper functions needed by inline onclick handlers ──
+async function eliminarConsulta(id) {
+  await api('DELETE', `/api/consultas/${id}`);
+  LOCAL.consultas = LOCAL.consultas.filter(x => x.id !== id);
+  renderConsultas('todos');
+  document.getElementById('badge-consultas').textContent = LOCAL.consultas.length;
+}
+
+async function eliminarCierre(id) {
+  await api('DELETE', `/api/cierres/${id}`);
+  LOCAL.cierres = LOCAL.cierres.filter(x => x.id !== id);
+  renderCierres();
+}
+
 </script>
 </body>
 </html>
