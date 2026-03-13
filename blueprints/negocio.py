@@ -9,7 +9,6 @@ from psycopg2.extras import RealDictCursor
 
 bp = Blueprint('negocio', __name__)
 
-# Importamos helpers desde app principal
 def _app():
     from app import get_connection, get_current_user, login_required
     return get_connection, get_current_user, login_required
@@ -18,7 +17,7 @@ def _app():
 
 @bp.route('/api/propiedades', methods=['GET'])
 def listar_propiedades():
-    from app import get_connection, get_current_user, login_required
+    from app import get_connection, get_current_user
     user = get_current_user()
     if not user: return jsonify({'error': 'No autenticado'}), 401
     conn = get_connection()
@@ -42,14 +41,13 @@ def crear_propiedad():
     if not conn: return jsonify({'error': 'Sin DB'}), 500
     try:
         pid = data.get('id') or str(uuid.uuid4())
-        # Fechas vacías deben ser NULL, no string vacío
         def d(v): return v if v and str(v).strip() else None
         cur = conn.cursor()
         cur.execute("""
             INSERT INTO propiedades (id, user_id, direccion, localidad, zona, tipologia,
                 nombre_propietario, telefono, email, estado_tasacion, estadio, observaciones,
-                referido, url, ultimo_contacto, proximo_contacto, fecha_prelisting)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                referido, url, ultimo_contacto, proximo_contacto, fecha_prelisting, respuesta_listing)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
             ON CONFLICT (id) DO UPDATE SET
                 direccion=EXCLUDED.direccion, localidad=EXCLUDED.localidad,
                 zona=EXCLUDED.zona, tipologia=EXCLUDED.tipologia,
@@ -58,15 +56,16 @@ def crear_propiedad():
                 estadio=EXCLUDED.estadio, observaciones=EXCLUDED.observaciones,
                 referido=EXCLUDED.referido, url=EXCLUDED.url,
                 ultimo_contacto=EXCLUDED.ultimo_contacto, proximo_contacto=EXCLUDED.proximo_contacto,
-                fecha_prelisting=EXCLUDED.fecha_prelisting, updated_at=NOW()
+                fecha_prelisting=EXCLUDED.fecha_prelisting,
+                respuesta_listing=EXCLUDED.respuesta_listing, updated_at=NOW()
         """, (pid, user['id'], data.get('direccion',''), data.get('localidad',''),
               data.get('zona',''), data.get('tipologia',''),
               data.get('nombre_propietario',''), data.get('telefono',''),
-              data.get('email',''), data.get('estado_tasacion','Pendiente Visita'),
+              data.get('email',''), data.get('estado_tasacion',''),
               data.get('estadio',''), data.get('observaciones',''),
               data.get('referido',''), data.get('url',''),
               d(data.get('ultimo_contacto')), d(data.get('proximo_contacto')),
-              d(data.get('fecha_prelisting'))))
+              d(data.get('fecha_prelisting')), data.get('respuesta_listing','')))
         conn.commit(); cur.close(); conn.close()
         return jsonify({'ok': True, 'id': pid})
     except Exception as e:
@@ -89,15 +88,16 @@ def actualizar_propiedad(pid):
                 nombre_propietario=%s, telefono=%s, email=%s,
                 estado_tasacion=%s, estadio=%s, observaciones=%s,
                 referido=%s, url=%s, ultimo_contacto=%s,
-                proximo_contacto=%s, fecha_prelisting=%s, updated_at=NOW()
+                proximo_contacto=%s, fecha_prelisting=%s,
+                respuesta_listing=%s, updated_at=NOW()
             WHERE id=%s AND user_id=%s
         """, (data.get('direccion',''), data.get('localidad',''), data.get('zona',''),
               data.get('tipologia',''), data.get('nombre_propietario',''),
               data.get('telefono',''), data.get('email',''),
-              data.get('estado_tasacion','Pendiente Visita'), data.get('estadio',''),
+              data.get('estado_tasacion',''), data.get('estadio',''),
               data.get('observaciones',''), data.get('referido',''), data.get('url',''),
               d(data.get('ultimo_contacto')), d(data.get('proximo_contacto')),
-              d(data.get('fecha_prelisting')), pid, user['id']))
+              d(data.get('fecha_prelisting')), data.get('respuesta_listing',''), pid, user['id']))
         conn.commit(); cur.close(); conn.close()
         return jsonify({'ok': True})
     except Exception as e:
@@ -130,7 +130,6 @@ def listar_estados():
     if not conn: return jsonify({'estados': []})
     try:
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        # Retorna los estados del usuario + los globales como fallback
         cur.execute("""
             SELECT * FROM estado_opciones
             WHERE user_id=%s OR user_id='global'
@@ -179,7 +178,7 @@ def eliminar_estado(eid):
         return jsonify({'error': str(e)}), 500
 
 
-# ── CONTACTOS ──
+# ── CONTACTOS (con perfil enriquecido) ──
 
 @bp.route('/api/contactos', methods=['GET'])
 def listar_contactos():
@@ -207,20 +206,26 @@ def crear_contacto():
     if not conn: return jsonify({'error': 'Sin DB'}), 500
     try:
         cid = data.get('id') or str(uuid.uuid4())
+        def d(v): return v if v and str(v).strip() else None
         cur = conn.cursor()
         cur.execute("""
             INSERT INTO contactos (id, user_id, nombre, tipo, telefono, email, localidad,
-                referido, profesion, familia, operacion, notas)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                referido, profesion, familia, operacion, notas,
+                cumpleanos, hijos, hobbies, gustos)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
             ON CONFLICT (id) DO UPDATE SET
                 nombre=EXCLUDED.nombre, tipo=EXCLUDED.tipo, telefono=EXCLUDED.telefono,
                 email=EXCLUDED.email, localidad=EXCLUDED.localidad, referido=EXCLUDED.referido,
                 profesion=EXCLUDED.profesion, familia=EXCLUDED.familia,
-                operacion=EXCLUDED.operacion, notas=EXCLUDED.notas, updated_at=NOW()
+                operacion=EXCLUDED.operacion, notas=EXCLUDED.notas,
+                cumpleanos=EXCLUDED.cumpleanos, hijos=EXCLUDED.hijos,
+                hobbies=EXCLUDED.hobbies, gustos=EXCLUDED.gustos, updated_at=NOW()
         """, (cid, user['id'], data.get('nombre',''), data.get('tipo','otro'),
               data.get('telefono',''), data.get('email',''), data.get('localidad',''),
               data.get('referido',''), data.get('profesion',''), data.get('familia',''),
-              data.get('operacion',''), data.get('notas','')))
+              data.get('operacion',''), data.get('notas',''),
+              d(data.get('cumpleanos')), data.get('hijos',''),
+              data.get('hobbies',''), data.get('gustos','')))
         conn.commit(); cur.close(); conn.close()
         return jsonify({'ok': True, 'id': cid})
     except Exception as e:
@@ -235,15 +240,18 @@ def actualizar_contacto(cid):
     conn = get_connection()
     if not conn: return jsonify({'error': 'Sin DB'}), 500
     try:
+        def d(v): return v if v and str(v).strip() else None
         cur = conn.cursor()
         cur.execute("""
             UPDATE contactos SET nombre=%s, tipo=%s, telefono=%s, email=%s, localidad=%s,
-                referido=%s, profesion=%s, familia=%s, operacion=%s, notas=%s, updated_at=NOW()
+                referido=%s, profesion=%s, familia=%s, operacion=%s, notas=%s,
+                cumpleanos=%s, hijos=%s, hobbies=%s, gustos=%s, updated_at=NOW()
             WHERE id=%s AND user_id=%s
         """, (data.get('nombre',''), data.get('tipo','otro'), data.get('telefono',''),
               data.get('email',''), data.get('localidad',''), data.get('referido',''),
               data.get('profesion',''), data.get('familia',''), data.get('operacion',''),
-              data.get('notas',''), cid, user['id']))
+              data.get('notas',''), d(data.get('cumpleanos')), data.get('hijos',''),
+              data.get('hobbies',''), data.get('gustos',''), cid, user['id']))
         conn.commit(); cur.close(); conn.close()
         return jsonify({'ok': True})
     except Exception as e:
