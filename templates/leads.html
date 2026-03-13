@@ -9,6 +9,7 @@
 <div style="display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border);">
   <button class="tab-btn active" onclick="switchLeadsTab('consultas',this)">🔍 Consultas</button>
   <button class="tab-btn" onclick="switchLeadsTab('muestras',this)">🏠 Muestras</button>
+  <button class="tab-btn" onclick="switchLeadsTab('actividad',this)">📊 Actividad</button>
 </div>
 
 <!-- ── CONSULTAS ── -->
@@ -125,6 +126,51 @@
     </div>
   </div>
 </div>
+<!-- ── ACTIVIDAD ── -->
+<div id="tabActividad" style="display:none">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+    <div>
+      <div style="font-size:1rem;font-weight:700;">Actividad por Propiedad</div>
+      <div style="font-size:0.78rem;color:var(--text-secondary);">Propiedades publicadas/reservadas · consultas · respuesta propietario</div>
+    </div>
+    <button class="btn-secondary" style="font-size:0.78rem;" onclick="cargarActividadLeads()">🔄 Actualizar</button>
+  </div>
+
+  <!-- Stats respuesta propietario (desde listing) -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;">
+    <div class="stat-mini" style="border-left:3px solid #059669;">
+      <div class="stat-mini-label">✅ Aceptaron tasación</div>
+      <div class="stat-mini-num" id="lActRespAcept" style="color:#059669;">—</div>
+    </div>
+    <div class="stat-mini" style="border-left:3px solid #DC2626;">
+      <div class="stat-mini-label">❌ Rechazaron</div>
+      <div class="stat-mini-num" id="lActRespRech" style="color:#DC2626;">—</div>
+    </div>
+    <div class="stat-mini" style="border-left:3px solid #D97706;">
+      <div class="stat-mini-label">⏳ Esperando resp.</div>
+      <div class="stat-mini-num" id="lActRespEsp" style="color:#D97706;">—</div>
+    </div>
+  </div>
+  <!-- Stats consultas -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;">
+    <div class="stat-mini"><div class="stat-mini-label">Props. activas</div><div class="stat-mini-num" id="lActTotalProps">—</div></div>
+    <div class="stat-mini"><div class="stat-mini-label">Total consultas</div><div class="stat-mini-num" id="lActTotalLeads">—</div></div>
+    <div class="stat-mini"><div class="stat-mini-label">Visitaron</div><div class="stat-mini-num" id="lActTotalVisitas">—</div></div>
+    <div class="stat-mini"><div class="stat-mini-label">Pend. visita</div><div class="stat-mini-num" id="lActPendVisita">—</div></div>
+  </div>
+
+  <!-- 🏆 Top 5 -->
+  <div id="lTop5Section" style="margin-bottom:20px;display:none;">
+    <div style="font-size:0.85rem;font-weight:700;color:var(--rx-blue);margin-bottom:10px;">🏆 Top 5 propiedades más consultadas</div>
+    <div id="lTop5Grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;"></div>
+  </div>
+
+  <!-- Índice por propiedad -->
+  <div id="lPropNombreIndex" style="margin-bottom:14px;"></div>
+  <div id="lActividadGrid"><div class="loading-state">Cargando...</div></div>
+</div>
+
+
 {% endblock %}
 
 {% block extra_js %}
