@@ -335,6 +335,7 @@ function renderContactos() {
   if (lista.length === 0) {
     container.innerHTML = `<div class="empty-state">No hay contactos cargados</div>`; return;
   }
+
   const TIPO_COLORS = {
     propietario: { bg:'#EEF2FF', color:'#1B3FE4' },
     cliente:     { bg:'#ECFDF5', color:'#059669' },
@@ -342,47 +343,88 @@ function renderContactos() {
     proveedor:   { bg:'#F3F4F6', color:'#6B7280' },
     otro:        { bg:'#F3F4F6', color:'#6B7280' },
   };
-  container.innerHTML = `
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;">
-      ${lista.map(c => {
+
+  // Agrupar por inicial
+  const grupos = {};
+  lista.forEach(c => {
+    const inicial = (c.nombre || '?')[0].toUpperCase();
+    if (!grupos[inicial]) grupos[inicial] = [];
+    grupos[inicial].push(c);
+  });
+  const letrasUsadas = Object.keys(grupos).sort();
+
+  // Índice alfabético
+  const todasLetras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  const indiceHtml = `
+    <div id="contactosAlfaIndex" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:16px;padding:10px 14px;background:var(--cream);border-radius:8px;border:1px solid var(--border);">
+      ${todasLetras.map(l => {
+        const activa = letrasUsadas.includes(l);
+        return activa
+          ? `<a href="#ctcLetra-${l}" style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-size:0.78rem;font-weight:700;background:var(--rx-blue);color:white;text-decoration:none;cursor:pointer;" onclick="scrollToLetra('${l}')">${l}</a>`
+          : `<span style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-size:0.78rem;color:#ccc;">${l}</span>`;
+      }).join('')}
+      ${letrasUsadas.some(l => !'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.includes(l))
+        ? `<a href="#ctcLetra-?" style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-size:0.78rem;font-weight:700;background:var(--rx-blue);color:white;text-decoration:none;" onclick="scrollToLetra('?')">#</a>`
+        : ''}
+    </div>`;
+
+  // Lista agrupada
+  const listaHtml = letrasUsadas.map(letra => `
+    <div id="ctcLetra-${letra}" style="margin-bottom:4px;">
+      <div style="font-size:0.72rem;font-weight:700;color:var(--rx-blue);padding:6px 2px 4px;border-bottom:2px solid var(--rx-blue-light);margin-bottom:6px;letter-spacing:1px;">${letra}</div>
+      ${grupos[letra].map(c => {
         const tc = TIPO_COLORS[c.tipo] || TIPO_COLORS.otro;
-        // Calcular días hasta cumpleaños
+        // Cumpleaños badge
         let cumpleBadge = '';
         if (c.cumpleanos) {
           const hoy = new Date(); const cum = new Date(c.cumpleanos);
           const proxCum = new Date(hoy.getFullYear(), cum.getMonth(), cum.getDate());
           if (proxCum < hoy) proxCum.setFullYear(hoy.getFullYear() + 1);
           const dias = Math.ceil((proxCum - hoy) / 86400000);
-          if (dias <= 30) cumpleBadge = `<span style="font-size:0.7rem;background:#FFF7ED;color:#F97316;border-radius:10px;padding:2px 7px;font-weight:600;">🎂 ${dias === 0 ? '¡Hoy!' : dias + 'd'}</span>`;
+          if (dias <= 30) cumpleBadge = `<span style="font-size:0.68rem;background:#FFF7ED;color:#F97316;border-radius:8px;padding:1px 6px;font-weight:600;white-space:nowrap;">🎂 ${dias === 0 ? '¡Hoy!' : 'en ' + dias + 'd'}</span>`;
         }
         return `
-          <div class="card" style="padding:14px;">
-            <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px;">
-              <div>
-                <div style="font-weight:600;font-size:0.9rem;margin-bottom:3px;">${escHtml(c.nombre)}</div>
-                <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">
-                  <span style="font-size:0.7rem;padding:2px 8px;border-radius:10px;font-weight:600;background:${tc.bg};color:${tc.color};">${c.tipo||'otro'}</span>
-                  ${cumpleBadge}
-                </div>
-              </div>
-              <div style="display:flex;gap:4px;">
-                ${c.telefono ? `<button class="btn-icon-sm" onclick="window.open('${buildWhatsAppUrl(c.telefono,'')}','_blank')">💬</button>` : ''}
-                <button class="btn-icon-sm" onclick="editarContacto('${c.id}')">✏️</button>
-                <button class="btn-icon-sm danger" onclick="eliminarContacto('${c.id}')">🗑️</button>
-              </div>
+          <div class="card" style="padding:12px 16px;display:flex;align-items:center;gap:14px;margin-bottom:6px;">
+            <!-- Avatar inicial -->
+            <div style="width:38px;height:38px;border-radius:50%;background:${tc.bg};color:${tc.color};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem;flex-shrink:0;">
+              ${escHtml((c.nombre||'?')[0].toUpperCase())}
             </div>
-            ${c.profesion   ? `<div style="font-size:0.78rem;color:#555;margin-top:4px;">💼 ${escHtml(c.profesion)}</div>` : ''}
-            ${c.telefono    ? `<div style="font-size:0.79rem;color:#555;margin-top:3px;">📞 ${escHtml(c.telefono)}</div>` : ''}
-            ${c.email       ? `<div style="font-size:0.79rem;color:#555;">✉️ ${escHtml(c.email)}</div>` : ''}
-            ${c.cumpleanos  ? `<div style="font-size:0.77rem;color:#F97316;margin-top:3px;">🎂 ${formatFecha(c.cumpleanos)}</div>` : ''}
-            ${c.hijos       ? `<div style="font-size:0.77rem;color:#888;">👨‍👧‍👦 ${escHtml(c.hijos)}</div>` : ''}
-            ${c.hobbies     ? `<div style="font-size:0.77rem;color:#888;">🎯 ${escHtml(c.hobbies)}</div>` : ''}
-            ${c.gustos      ? `<div style="font-size:0.77rem;color:#888;">🏠 ${escHtml(c.gustos)}</div>` : ''}
-            ${c.notas       ? `<div style="font-size:0.75rem;color:#aaa;margin-top:7px;padding-top:7px;border-top:1px solid var(--border);">${escHtml(c.notas)}</div>` : ''}
+            <!-- Info -->
+            <div style="flex:1;min-width:0;">
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                <span style="font-weight:600;font-size:0.9rem;">${escHtml(c.nombre)}</span>
+                <span style="font-size:0.68rem;padding:1px 7px;border-radius:10px;font-weight:600;background:${tc.bg};color:${tc.color};">${c.tipo||'otro'}</span>
+                ${cumpleBadge}
+              </div>
+              <div style="display:flex;gap:14px;margin-top:3px;font-size:0.79rem;color:#666;flex-wrap:wrap;">
+                ${c.profesion  ? `<span>💼 ${escHtml(c.profesion)}</span>` : ''}
+                ${c.telefono   ? `<span>📞 ${escHtml(c.telefono)}</span>` : ''}
+                ${c.email      ? `<span>✉️ ${escHtml(c.email)}</span>` : ''}
+                ${c.localidad  ? `<span>📍 ${escHtml(c.localidad)}</span>` : ''}
+              </div>
+              ${c.hijos   ? `<div style="font-size:0.76rem;color:#aaa;margin-top:2px;">👨‍👧‍👦 ${escHtml(c.hijos)}${c.hobbies ? ' · 🎯 ' + escHtml(c.hobbies) : ''}</div>` : c.hobbies ? `<div style="font-size:0.76rem;color:#aaa;margin-top:2px;">🎯 ${escHtml(c.hobbies)}</div>` : ''}
+              ${c.gustos  ? `<div style="font-size:0.76rem;color:#aaa;margin-top:1px;">🏠 ${escHtml(c.gustos)}</div>` : ''}
+              ${c.notas   ? `<div style="font-size:0.75rem;color:#ccc;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:500px;">${escHtml(c.notas)}</div>` : ''}
+            </div>
+            <!-- Acciones -->
+            <div style="display:flex;gap:4px;flex-shrink:0;">
+              ${c.telefono ? `<button class="btn-icon-sm" onclick="window.open('${buildWhatsAppUrl(c.telefono,'')}','_blank')" title="WhatsApp">💬</button>` : ''}
+              <button class="btn-icon-sm" onclick="editarContacto('${c.id}')" title="Editar">✏️</button>
+              <button class="btn-icon-sm danger" onclick="eliminarContacto('${c.id}')" title="Eliminar">🗑️</button>
+            </div>
           </div>`;
       }).join('')}
-    </div>`;
+    </div>
+  `).join('');
+
+  container.innerHTML = indiceHtml + listaHtml;
 }
+
+function scrollToLetra(letra) {
+  const el = document.getElementById(`ctcLetra-${letra}`);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 
 function abrirNuevoContacto() {
   ['ctcId','ctcNombre','ctcTelefono','ctcEmail','ctcLocalidad','ctcNotas',
