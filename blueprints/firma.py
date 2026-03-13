@@ -400,11 +400,35 @@ def guardar_firma(doc_id, token):
   </table>
 </td></tr></table></body></html>"""
         import threading
-        threading.Thread(target=_send_email, args=(
-            doc['organizer_email'], doc.get('organizer_name', ''),
-            f"✅ Firmado: {doc.get('title')}", html,
-            pdf_bytes, f"documento-firmado-{doc_id[:8]}.pdf"
-        )).start()
+        # Enviar a cada firmante con el documento firmado adjunto
+        for f_send in doc['firmantes']:
+            if f_send.get('email'):
+                html_firmante = f"""<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f4f1eb;font-family:'Helvetica Neue',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 0;">
+  <table width="520" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;">
+    <tr><td style="background:#0f0f0f;padding:24px 32px;border-bottom:3px solid #1B3FE4;">
+      <div style="font-weight:700;font-size:1.3rem;color:#fff;">Realvix<span style="color:#1B3FE4;">.</span></div>
+    </td></tr>
+    <tr><td style="padding:32px;text-align:center;">
+      <div style="font-size:2rem;margin-bottom:12px;">✅</div>
+      <h2 style="margin:0 0 8px;font-size:1.4rem;color:#0f0f0f;">Documento completado</h2>
+      <p style="color:#666;font-size:0.9rem;margin:0 0 8px;">Hola <strong style="color:#0f0f0f;">{f_send['name']}</strong>,</p>
+      <p style="color:#666;font-size:0.9rem;margin:0 0 24px;">Todos los firmantes completaron el documento. Te adjuntamos una copia firmada para tus registros.</p>
+      <div style="background:#EEF2FF;border-left:4px solid #1B3FE4;border-radius:6px;padding:14px 18px;text-align:left;">
+        <div style="font-weight:700;font-size:1rem;color:#0f0f0f;">{doc.get('title')}</div>
+      </div>
+    </td></tr>
+    <tr><td style="background:#f8f7f4;border-top:1px solid #e8e4dc;padding:16px 32px;text-align:center;">
+      <p style="font-size:0.72rem;color:#bbb;margin:0;">Realvix CRM — Sistema de Firma Electrónica</p>
+    </td></tr>
+  </table>
+</td></tr></table></body></html>"""
+                threading.Thread(target=_send_email, args=(
+                    f_send['email'], f_send['name'],
+                    f"✅ Copia firmada: {doc.get('title')}", html_firmante,
+                    pdf_bytes, f"documento-firmado-{doc_id[:8]}.pdf"
+                )).start()
     signed_count = sum(1 for f in doc['firmantes'] if f['signed'])
     total = len(doc['firmantes'])
     return jsonify({'ok': True, 'all_signed': all_signed, 'signed_count': signed_count, 'total': total})
