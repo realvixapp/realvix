@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Setup inicial — Tintorero CRM</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+<style>
+body{background:var(--ink);color:var(--paper);display:flex;align-items:center;justify-content:center;}
+.setup-wrap{width:100%;max-width:420px;padding:24px;}
+.brand{text-align:center;margin-bottom:40px;}
+.brand-name{font-family:var(--font-serif);font-size:2rem;color:var(--paper);}
+.brand-name span{color:var(--gold);}
+.brand-tag{font-size:0.7rem;letter-spacing:2px;text-transform:uppercase;color:#666;margin-top:4px;}
+.card{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:16px;padding:32px;}
+.card-title{font-family:var(--font-serif);font-size:1.3rem;margin-bottom:6px;color:var(--paper);}
+.card-sub{font-size:0.8rem;color:#666;margin-bottom:28px;}
+label{color:#888;}
+input{border-color:#2a2a2a;background:#111;color:var(--paper);}
+input::placeholder{color:#444;}
+.btn-setup{width:100%;padding:14px;background:var(--gold);color:var(--ink);border:none;border-radius:10px;font-family:inherit;font-size:0.95rem;font-weight:700;cursor:pointer;transition:all 0.2s;}
+.btn-setup:hover{background:#b8940a;}
+.btn-setup:disabled{opacity:0.5;cursor:not-allowed;}
+.error-msg{display:none;background:#2a1a1a;border:1px solid #5a2a2a;border-radius:8px;padding:11px 14px;font-size:0.82rem;color:#f87171;margin-bottom:16px;}
+.error-msg.show{display:block;}
+.footer-note{text-align:center;margin-top:20px;font-size:0.72rem;color:#444;}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>⚙️ Setup inicial</h1>
+  <p class="sub">Creá la cuenta de administrador para arrancar.</p>
+  <div class="notice">⚠️ Esta pantalla solo está disponible cuando no hay usuarios en el sistema. Una vez creado el admin, desaparece.</div>
+  <div class="form-group"><label>Clave de setup</label><input type="password" id="setupKey" placeholder="La que configuraste en Railway"></div>
+  <div class="form-group"><label>Tu nombre</label><input type="text" id="name" placeholder="Federico Lujan"></div>
+  <div class="form-group"><label>Email</label><input type="email" id="email" placeholder="confiaenfede@gmail.com"></div>
+  <div class="form-group"><label>Contraseña</label><input type="password" id="password" placeholder="Mínimo 6 caracteres"></div>
+  <button class="btn" onclick="doSetup()">Crear admin y comenzar</button>
+  <div class="msg" id="msg"></div>
+</div>
+<script>
+async function doSetup(){
+  const data={setup_key:document.getElementById('setupKey').value,
+    name:document.getElementById('name').value.trim(),
+    email:document.getElementById('email').value.trim(),
+    password:document.getElementById('password').value};
+  const msg=document.getElementById('msg');
+  try{
+    const res=await fetch('/setup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    const d=await res.json();
+    if(res.ok&&d.ok){
+      msg.className='msg ok';msg.textContent='✅ Admin creado. Redirigiendo al login...';msg.style.display='block';
+      setTimeout(()=>window.location.href='/login',1500);
+    }else{
+      msg.className='msg err';msg.textContent=d.error||'Error';msg.style.display='block';
+    }
+  }catch(e){msg.className='msg err';msg.textContent='Error de conexión';msg.style.display='block';}
+}
+document.addEventListener('keydown',e=>{if(e.key==='Enter')doSetup();});
+</script>
+</body>
+</html>

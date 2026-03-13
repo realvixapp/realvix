@@ -1,0 +1,2243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Realvix CRM</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+<style>
+/* ── PAGE-SPECIFIC ── */
+.header-search {
+  flex: 1;
+  max-width: 300px;
+  position: relative;
+}
+.header-search input {
+  width: 100%;
+  padding: 6px 12px 6px 32px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 0.83rem;
+  outline: none;
+  background: var(--cream) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='%23aaa' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 11px center;
+}
+.header-search input:focus {
+  border-color: var(--rx-blue);
+  background-color: white;
+  box-shadow: 0 0 0 3px var(--rx-blue-glow);
+}
+
+/* Dashboard cards */
+.dash-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+.dash-col { display: flex; flex-direction: column; gap: 14px; }
+@media (max-width: 900px) { .dash-grid { grid-template-columns: 1fr; } }
+
+/* Nota Notion-style dentro de vista */
+.block-editable {
+  min-height: 120px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  font-size: 0.88rem;
+  color: var(--text-primary);
+  line-height: 1.7;
+  outline: none;
+  transition: all 0.15s;
+  font-family: var(--font-sans);
+}
+.block-editable:hover { border-color: var(--border); background: var(--cream); }
+.block-editable:focus { border-color: var(--rx-blue); background: white; box-shadow: 0 0 0 3px var(--rx-blue-glow); }
+.block-editable:empty::before { content: attr(data-placeholder); color: var(--text-tertiary); }
+
+/* Embudo */
+.embudo-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 10px; margin-bottom: 24px; }
+.embudo-step {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+}
+.embudo-step:hover { border-color: var(--rx-blue); box-shadow: var(--shadow-sm); }
+.embudo-step.active { border-color: var(--rx-blue); background: var(--rx-blue-light); }
+.embudo-step::after {
+  content: '›';
+  position: absolute;
+  right: -16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-tertiary);
+  font-size: 1.2rem;
+  pointer-events: none;
+}
+.embudo-step:last-child::after { display: none; }
+.embudo-num { font-size: 1.6rem; font-weight: 700; color: var(--rx-blue); line-height: 1; }
+.embudo-label { font-size: 0.7rem; color: var(--text-secondary); margin-top: 4px; font-weight: 500; }
+.embudo-pct { font-size: 0.68rem; color: var(--text-tertiary); margin-top: 2px; }
+@media (max-width: 768px) { .embudo-grid { grid-template-columns: repeat(2,1fr); } }
+
+/* Cierres */
+.cierres-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 20px; }
+
+/* Guiones Instagram */
+.ig-header { background: linear-gradient(135deg, #405DE6 0%, #C13584 50%, #FD1D1D 100%); border-radius: var(--radius-lg); padding: 16px 20px; color: white; margin-bottom: 16px; }
+.ig-header h3 { font-size: 0.96rem; font-weight: 700; margin-bottom: 4px; }
+.ig-header p { font-size: 0.8rem; opacity: 0.85; }
+
+/* Objetivos */
+.obj-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.obj-period { display: flex; gap: 6px; }
+.obj-period button { padding: 4px 10px; border-radius: 20px; border: 1px solid var(--border); font-size: 0.75rem; cursor: pointer; background: white; font-family: var(--font-sans); transition: all 0.12s; }
+.obj-period button.active { background: var(--rx-blue); color: white; border-color: var(--rx-blue); }
+
+/* Consultas panel */
+.consultas-tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 0; }
+.ctab { padding: 7px 14px; font-size: 0.82rem; font-weight: 500; cursor: pointer; border-bottom: 2px solid transparent; color: var(--text-secondary); transition: all 0.15s; }
+.ctab:hover { color: var(--rx-blue); }
+.ctab.active { border-bottom-color: var(--rx-blue); color: var(--rx-blue); }
+
+/* Agenda tags */
+.tag-pendiente { background: var(--warning-bg); color: #92400E; }
+.tag-proceso   { background: var(--rx-blue-light); color: var(--rx-blue); }
+.tag-done      { background: var(--success-bg); color: #065F46; }
+
+/* Mini calendar strip */
+.cal-strip { display: flex; gap: 6px; overflow-x: auto; padding: 4px 0 10px; }
+.cal-day {
+  flex-shrink: 0;
+  width: 44px;
+  height: 58px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.12s;
+  background: white;
+}
+.cal-day:hover { border-color: var(--rx-blue); background: var(--rx-blue-bg); }
+.cal-day.active { background: var(--rx-blue); border-color: var(--rx-blue); color: white; }
+.cal-day.has-event { position: relative; }
+.cal-day.has-event::after { content:''; position: absolute; bottom: 6px; width: 5px; height: 5px; border-radius: 50%; background: var(--rx-blue); }
+.cal-day.active::after { background: white; }
+.cal-dow { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-tertiary); }
+.cal-day.active .cal-dow { color: rgba(255,255,255,0.7); }
+.cal-num { font-size: 0.9rem; font-weight: 600; margin-top: 2px; }
+
+/* Planilla objetivos */
+.planilla-cell {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  font-size: 0.83rem;
+  background: white;
+  color: var(--text-primary);
+  width: 100%;
+  font-family: var(--font-sans);
+  outline: none;
+  transition: border-color 0.12s;
+}
+.planilla-cell:focus { border-color: var(--rx-blue); box-shadow: 0 0 0 2px var(--rx-blue-glow); }
+table.planilla { border-collapse: collapse; width: 100%; }
+table.planilla th { padding: 8px 10px; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-tertiary); background: var(--cream); border: 1px solid var(--border); }
+table.planilla td { border: 1px solid var(--border); padding: 0; }
+</style>
+</head>
+<body>
+
+<!-- ══ HEADER ══ -->
+<header>
+  <a class="logo-wrap" href="/" onclick="showPage('dashboard');return false;">
+    <div class="logo-icon">Rx</div>
+    <div class="logo-text">
+      <span class="logo-name">Realvix</span>
+      <span class="logo-sub">CRM Inmobiliario</span>
+    </div>
+  </a>
+
+  <div class="header-search">
+    <input type="text" placeholder="Buscar propiedades, contactos..." id="globalSearch">
+  </div>
+
+  <div class="header-right">
+    <div class="user-chip">
+      <div id="userAvatar" class="avatar avatar-blue">—</div>
+      <span class="user-name" id="userName">...</span>
+    </div>
+    <button class="btn-logout" onclick="doLogout()">Salir</button>
+  </div>
+</header>
+
+<!-- ══ LAYOUT ══ -->
+<div class="layout">
+
+  <!-- ══ SIDEBAR ══ -->
+  <nav class="sidebar">
+    <a class="nb-item" onclick="showPage('dashboard')" id="nav-dashboard">
+      <span class="nb-icon">🏠</span><span class="nb-label">Inicio</span>
+    </a>
+
+    <div class="nb-sep"></div>
+    <div class="nav-section">Negocio</div>
+
+    <!-- CRM -->
+    <div class="nb-group">
+      <div class="nb-parent" onclick="toggleGroup('grpCRM')">
+        <span class="nb-chevron" id="chv-grpCRM">▸</span>
+        <span class="nb-icon">🏢</span>
+        <span class="nb-label">Propiedades</span>
+      </div>
+      <div class="nb-children collapsed" id="grpCRM">
+        <a class="nb-child" href="/listing"><span class="nb-icon-sm">📋</span> Listing</a>
+        <div class="nb-child" onclick="showPage('estado-props')" id="nav-estado-props">
+          <span class="nb-icon-sm">📊</span> Estado de Propiedades
+        </div>
+      </div>
+    </div>
+
+    <!-- Contactos -->
+    <div class="nb-group">
+      <div class="nb-parent" onclick="toggleGroup('grpContactos')">
+        <span class="nb-chevron" id="chv-grpContactos">▸</span>
+        <span class="nb-icon">👥</span>
+        <span class="nb-label">Contactos</span>
+      </div>
+      <div class="nb-children collapsed" id="grpContactos">
+        <div class="nb-child" onclick="showPage('contactos')" id="nav-contactos">
+          <span class="nb-icon-sm">📇</span> Base de Relaciones
+        </div>
+        <div class="nb-child" onclick="showPage('consultas')" id="nav-consultas">
+          <span class="nb-icon-sm">🔍</span> Consultas & Muestras
+          <span class="nb-count" id="badge-consultas">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Embudo -->
+    <div class="nb-group">
+      <div class="nb-parent" onclick="toggleGroup('grpNegocio')">
+        <span class="nb-chevron" id="chv-grpNegocio">▸</span>
+        <span class="nb-icon">📈</span>
+        <span class="nb-label">Métricas</span>
+      </div>
+      <div class="nb-children collapsed" id="grpNegocio">
+        <div class="nb-child" onclick="showPage('embudo')" id="nav-embudo">
+          <span class="nb-icon-sm">🎯</span> Embudo de Conversión
+        </div>
+        <div class="nb-child" onclick="showPage('cierres')" id="nav-cierres">
+          <span class="nb-icon-sm">💰</span> Cierres
+        </div>
+        <div class="nb-child" onclick="showPage('objetivos')" id="nav-objetivos">
+          <span class="nb-icon-sm">🏆</span> Objetivos
+        </div>
+        <div class="nb-child" onclick="showPage('planilla')" id="nav-planilla">
+          <span class="nb-icon-sm">📑</span> Planilla Objetivos
+        </div>
+      </div>
+    </div>
+
+    <div class="nb-sep"></div>
+    <div class="nav-section">Gestión</div>
+
+    <!-- Agenda -->
+    <div class="nb-group">
+      <div class="nb-parent" onclick="toggleGroup('grpAgenda')">
+        <span class="nb-chevron" id="chv-grpAgenda">▸</span>
+        <span class="nb-icon">📅</span>
+        <span class="nb-label">Agenda</span>
+      </div>
+      <div class="nb-children collapsed" id="grpAgenda">
+        <div class="nb-child" onclick="showPage('agenda')" id="nav-agenda">
+          <span class="nb-icon-sm">📆</span> Calendario
+        </div>
+        <div class="nb-child" onclick="showPage('pendientes-agenda')" id="nav-pendientes-agenda">
+          <span class="nb-icon-sm">⏳</span> Pendientes
+          <span class="nb-count" id="badge-pendientes-agenda">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Firma -->
+    <div class="nb-group">
+      <div class="nb-parent" onclick="toggleGroup('grpFirma')">
+        <span class="nb-chevron" id="chv-grpFirma">▸</span>
+        <span class="nb-icon">✍️</span>
+        <span class="nb-label">Firma Electrónica</span>
+      </div>
+      <div class="nb-children collapsed" id="grpFirma">
+        <div class="nb-child" onclick="showPage('pendientes')" id="nav-pendientes">
+          <span class="nb-icon-sm">⏳</span> Pendientes
+          <span class="nb-count" id="badge-pendientes" style="display:none">0</span>
+        </div>
+        <div class="nb-child" onclick="showPage('completados')" id="nav-completados">
+          <span class="nb-icon-sm">✅</span> Completados
+        </div>
+        <div class="nb-sep" style="margin:4px 0;"></div>
+        <div class="nb-child" onclick="showPage('nuevo')" id="nav-nuevo">
+          <span class="nb-icon-sm">➕</span> Nueva firma
+        </div>
+      </div>
+    </div>
+
+    <div class="nb-sep"></div>
+    <div class="nav-section">Contenido</div>
+
+    <!-- Textos & Mails -->
+    <div class="nb-group">
+      <div class="nb-parent" onclick="toggleGroup('grpContenido')">
+        <span class="nb-chevron" id="chv-grpContenido">▸</span>
+        <span class="nb-icon">📝</span>
+        <span class="nb-label">Contenido</span>
+      </div>
+      <div class="nb-children collapsed" id="grpContenido">
+        <div class="nb-child" onclick="showPage('textos')" id="nav-textos">
+          <span class="nb-icon-sm">📄</span> Textos Precargados
+        </div>
+        <div class="nb-child" onclick="showPage('instagram')" id="nav-instagram">
+          <span class="nb-icon-sm">📸</span> Guiones Instagram
+        </div>
+        <div class="nb-child" onclick="showPage('ideas')" id="nav-ideas">
+          <span class="nb-icon-sm">💡</span> Ideas
+        </div>
+      </div>
+    </div>
+
+    <div class="nb-sep"></div>
+    <div class="nav-section">Asistente</div>
+
+    <div class="nb-item" onclick="showPage('asistente')" id="nav-asistente">
+      <span class="nb-icon">🤖</span><span class="nb-label">Asistente IA</span>
+      <span style="width:6px;height:6px;border-radius:50%;background:var(--success);margin-left:auto;flex-shrink:0;"></span>
+    </div>
+
+    <div class="nb-sep"></div>
+    <div class="nav-section">Admin</div>
+
+    <div class="nb-group" id="grpSetup">
+      <div class="nb-parent" onclick="toggleGroup('grpConfigura')">
+        <span class="nb-chevron" id="chv-grpConfigura">▸</span>
+        <span class="nb-icon">⚙️</span>
+        <span class="nb-label">Configuración</span>
+      </div>
+      <div class="nb-children collapsed" id="grpConfigura">
+        <div class="nb-child" onclick="showPage('configuracion')" id="nav-configuracion">
+          <span class="nb-icon-sm">🎨</span> Panel de Control
+        </div>
+        <div class="nb-child" id="nav-admin" style="display:none" onclick="showPage('admin')">
+          <span class="nb-icon-sm">👤</span> Usuarios
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ══ MAIN ══ -->
+  <main class="main">
+
+    <!-- ════ DASHBOARD ════ -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-title">Buenos días 👋</div>
+      <div class="page-sub" id="dashGreetSub">Cargando tu resumen del día...</div>
+
+      <div class="stats" id="dashStats">
+        <div class="stat blue">
+          <div class="stat-label">Propiedades activas</div>
+          <div class="stat-num" id="ds-props">—</div>
+        </div>
+        <div class="stat green">
+          <div class="stat-label">Cierres del mes</div>
+          <div class="stat-num" id="ds-cierres">—</div>
+        </div>
+        <div class="stat orange">
+          <div class="stat-label">Consultas pendientes</div>
+          <div class="stat-num" id="ds-consultas">—</div>
+        </div>
+        <div class="stat purple">
+          <div class="stat-label">Pendientes de firma</div>
+          <div class="stat-num" id="ds-firmas">—</div>
+        </div>
+      </div>
+
+      <div class="dash-grid">
+        <div class="dash-col">
+          <!-- Pendientes hoy -->
+          <div class="card">
+            <div class="card-title">⏰ Pendientes del día</div>
+            <div id="dashPendientes">
+              <div class="empty-state" style="padding:24px">
+                <div class="empty-icon">✅</div>
+                <p>No hay pendientes para hoy</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Actividad reciente -->
+          <div class="card">
+            <div class="card-title">🕐 Actividad reciente</div>
+            <div id="dashActividad">
+              <div style="color:var(--text-tertiary);font-size:0.83rem;padding:8px 0;">Cargando...</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dash-col">
+          <!-- Embudo rápido -->
+          <div class="card">
+            <div class="card-title">🎯 Embudo del mes</div>
+            <div class="funnel-wrap" id="dashEmbudo">
+              <div style="color:var(--text-tertiary);font-size:0.83rem;">Cargando...</div>
+            </div>
+            <div style="margin-top:12px;"><a href="#" onclick="showPage('embudo');return false;" class="text-sm" style="color:var(--rx-blue);">Ver completo →</a></div>
+          </div>
+
+          <!-- Próximas acciones -->
+          <div class="card">
+            <div class="card-title">📅 Próximos vencimientos</div>
+            <div id="dashVencimientos">
+              <div style="color:var(--text-tertiary);font-size:0.83rem;">Sin vencimientos cercanos</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ ESTADO DE PROPIEDADES ════ -->
+    <div class="page" id="page-estado-props">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+        <div>
+          <div class="page-title">Estado de Propiedades</div>
+          <div class="page-sub">Gestión independiente de tu cartera activa</div>
+        </div>
+        <button class="btn btn-primary" onclick="abrirModalPropiedad()">+ Nueva propiedad</button>
+      </div>
+      <div class="stats" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px;">
+        <div class="stat blue"><div class="stat-label">Total cartera</div><div class="stat-num" id="ep-total">—</div></div>
+        <div class="stat green"><div class="stat-label">Captadas</div><div class="stat-num" id="ep-captadas">—</div></div>
+        <div class="stat orange"><div class="stat-label">En seguimiento</div><div class="stat-num" id="ep-seguimiento">—</div></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Dirección</th>
+              <th>Propietario</th>
+              <th>Tipo</th>
+              <th>Estado</th>
+              <th>Último contacto</th>
+              <th>Próximo contacto</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tablaEstadoProps">
+            <tr><td colspan="7" style="text-align:center;color:var(--text-tertiary);padding:32px;">Cargando propiedades...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ════ CONTACTOS / BASE DE RELACIONES ════ -->
+    <div class="page" id="page-contactos">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+        <div>
+          <div class="page-title">Base de Relaciones</div>
+          <div class="page-sub">Tu activo más valioso — cada persona cuenta</div>
+        </div>
+        <button class="btn btn-primary" onclick="abrirModalContacto()">+ Nuevo contacto</button>
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:16px;">
+        <input type="text" placeholder="🔍 Buscar contactos..." id="buscarContacto" oninput="filtrarContactos()" style="max-width:280px;">
+        <select id="filtroTipoContacto" onchange="filtrarContactos()" style="width:auto;min-width:140px;">
+          <option value="">Todos</option>
+          <option value="propietario">Propietario</option>
+          <option value="comprador">Comprador</option>
+          <option value="inversor">Inversor</option>
+          <option value="referido">Referido</option>
+          <option value="broker">Broker</option>
+        </select>
+      </div>
+      <div id="listaContactos" style="display:flex;flex-direction:column;gap:8px;">
+        <div style="color:var(--text-tertiary);font-size:0.83rem;padding:24px 0;text-align:center;">Cargando contactos...</div>
+      </div>
+    </div>
+
+    <!-- ════ CONSULTAS & MUESTRAS ════ -->
+    <div class="page" id="page-consultas">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <div>
+          <div class="page-title">Consultas & Muestras</div>
+          <div class="page-sub">Seguimiento de leads, calificación y muestras</div>
+        </div>
+        <button class="btn btn-primary" onclick="abrirModalConsulta()">+ Nueva consulta</button>
+      </div>
+      <div class="consultas-tabs">
+        <div class="ctab active" onclick="filtrarConsultas('todos',this)">Todos</div>
+        <div class="ctab" onclick="filtrarConsultas('nuevo',this)">Nuevos leads</div>
+        <div class="ctab" onclick="filtrarConsultas('muestra',this)">Muestras</div>
+        <div class="ctab" onclick="filtrarConsultas('seguimiento',this)">Seguimiento</div>
+        <div class="ctab" onclick="filtrarConsultas('calificado',this)">Calificados</div>
+      </div>
+      <div id="listaConsultas">
+        <div class="empty-state"><div class="empty-icon">🔍</div><p>No hay consultas registradas</p></div>
+      </div>
+    </div>
+
+    <!-- ════ EMBUDO DE CONVERSIÓN ════ -->
+    <div class="page" id="page-embudo">
+      <div class="page-title">Embudo de Conversión</div>
+      <div class="page-sub">Medí tu negocio — lo que no se mide no se mejora (Pablo Viti)</div>
+
+      <div class="embudo-grid" id="embudoGrid">
+        <div class="embudo-step" onclick="showEmbudoDetalle('contactos')">
+          <div class="embudo-num" id="emb-contactos">0</div>
+          <div class="embudo-label">Contactos</div>
+          <div class="embudo-pct">Base</div>
+        </div>
+        <div class="embudo-step" onclick="showEmbudoDetalle('consultas')">
+          <div class="embudo-num" id="emb-consultas">0</div>
+          <div class="embudo-label">Consultas</div>
+          <div class="embudo-pct" id="pct-consultas">—%</div>
+        </div>
+        <div class="embudo-step" onclick="showEmbudoDetalle('muestras')">
+          <div class="embudo-num" id="emb-muestras">0</div>
+          <div class="embudo-label">Muestras</div>
+          <div class="embudo-pct" id="pct-muestras">—%</div>
+        </div>
+        <div class="embudo-step" onclick="showEmbudoDetalle('reservas')">
+          <div class="embudo-num" id="emb-reservas">0</div>
+          <div class="embudo-label">Reservas</div>
+          <div class="embudo-pct" id="pct-reservas">—%</div>
+        </div>
+        <div class="embudo-step" onclick="showEmbudoDetalle('ventas')">
+          <div class="embudo-num" id="emb-ventas">0</div>
+          <div class="embudo-label">Ventas</div>
+          <div class="embudo-pct" id="pct-ventas">—%</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📊 Detalle por etapa</div>
+        <div class="funnel-wrap" id="embudoDetalle">
+          <div style="color:var(--text-tertiary);font-size:0.83rem;">Seleccioná una etapa del embudo</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px;">
+        <div class="card-title">📅 Evolución mensual</div>
+        <div id="embudoEvolucion" style="color:var(--text-tertiary);font-size:0.83rem;">Sin datos suficientes aún</div>
+      </div>
+    </div>
+
+    <!-- ════ CIERRES ════ -->
+    <div class="page" id="page-cierres">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+        <div>
+          <div class="page-title">Cierres</div>
+          <div class="page-sub">Comisiones, ventas y estadísticas de tu negocio</div>
+        </div>
+        <button class="btn btn-primary" onclick="abrirModalCierre()">+ Nuevo cierre</button>
+      </div>
+
+      <div class="cierres-stats">
+        <div class="stat green">
+          <div class="stat-label">Comisión neta total</div>
+          <div class="stat-num" id="ci-neto" style="font-size:1.3rem;">$—</div>
+        </div>
+        <div class="stat blue">
+          <div class="stat-label">Ticket promedio</div>
+          <div class="stat-num" id="ci-ticket" style="font-size:1.3rem;">$—</div>
+        </div>
+        <div class="stat purple">
+          <div class="stat-label">Operaciones</div>
+          <div class="stat-num" id="ci-ops">—</div>
+        </div>
+      </div>
+
+      <div id="listaCierres">
+        <div class="empty-state"><div class="empty-icon">💰</div><p>Sin cierres registrados aún</p></div>
+      </div>
+    </div>
+
+    <!-- ════ OBJETIVOS ════ -->
+    <div class="page" id="page-objetivos">
+      <div class="page-title">Objetivos</div>
+      <div class="page-sub">Cuánto querés ganar y dónde estás — seguí tu progreso</div>
+
+      <div class="obj-header">
+        <div style="font-size:0.88rem;font-weight:600;">Período</div>
+        <div class="obj-period">
+          <button class="active" onclick="cambiarPeriodo('mensual',this)">Mensual</button>
+          <button onclick="cambiarPeriodo('trimestral',this)">Trimestral</button>
+          <button onclick="cambiarPeriodo('anual',this)">Anual</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🎯 Mis objetivos actuales</div>
+        <div id="objetivosLista">
+          <div class="objetivo-row">
+            <span class="objetivo-label">Captaciones</span>
+            <div class="objetivo-bar-wrap"><div class="objetivo-bar" id="bar-captaciones" style="width:0%"></div></div>
+            <span class="objetivo-actual" id="act-captaciones">0</span>
+            <span class="objetivo-meta" id="meta-captaciones">/ 10</span>
+          </div>
+          <div class="objetivo-row">
+            <span class="objetivo-label">Ventas</span>
+            <div class="objetivo-bar-wrap"><div class="objetivo-bar" id="bar-ventas" style="width:0%"></div></div>
+            <span class="objetivo-actual" id="act-ventas">0</span>
+            <span class="objetivo-meta" id="meta-ventas">/ 3</span>
+          </div>
+          <div class="objetivo-row">
+            <span class="objetivo-label">Cara a cara</span>
+            <div class="objetivo-bar-wrap"><div class="objetivo-bar" id="bar-caras" style="width:0%"></div></div>
+            <span class="objetivo-actual" id="act-caras">0</span>
+            <span class="objetivo-meta" id="meta-caras">/ 60</span>
+          </div>
+          <div class="objetivo-row">
+            <span class="objetivo-label">Nuevos contactos base</span>
+            <div class="objetivo-bar-wrap"><div class="objetivo-bar" id="bar-nuevos" style="width:0%"></div></div>
+            <span class="objetivo-actual" id="act-nuevos">0</span>
+            <span class="objetivo-meta" id="meta-nuevos">/ 8</span>
+          </div>
+          <div class="objetivo-row">
+            <span class="objetivo-label">Comisión (USD)</span>
+            <div class="objetivo-bar-wrap"><div class="objetivo-bar" id="bar-comision" style="width:0%"></div></div>
+            <span class="objetivo-actual" id="act-comision">0</span>
+            <span class="objetivo-meta" id="meta-comision">/ 5000</span>
+          </div>
+        </div>
+        <div style="margin-top:16px;"><button class="btn btn-outline btn-sm" onclick="editarObjetivos()">✏️ Editar metas</button></div>
+      </div>
+
+      <div class="card" style="margin-top:14px;">
+        <div class="card-title">📖 Ritmo OSBA (Pablo Viti)</div>
+        <div style="font-size:0.83rem;color:var(--text-secondary);line-height:1.7;">
+          <p><strong>O</strong>rganización · <strong>S</strong>istematización · <strong>B</strong>ase de relaciones · <strong>A</strong>ctividad</p>
+          <p style="margin-top:8px;">El negocio inmobiliario requiere medición constante. Lo que no se mide, no se mejora.</p>
+          <p style="margin-top:4px;">🎯 Sistema semanal: 15 cara-a-cara · 3 pre-listing · 2 nuevos contactos</p>
+          <p style="margin-top:4px;">📊 Estacionalidad: Q1 17% · Q2 23% · Q3 25% · Q4 35%</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ PLANILLA OBJETIVOS ════ -->
+    <div class="page" id="page-planilla">
+      <div class="page-title">Planilla de Objetivos</div>
+      <div class="page-sub">Proyección anual — distribuido por trimestres y semestres</div>
+      <div class="card" style="overflow-x:auto;">
+        <table class="planilla" id="tablaPlanilla">
+          <thead>
+            <tr>
+              <th>Objetivo</th>
+              <th>Anual</th>
+              <th>Q1 (17%)</th>
+              <th>Q2 (23%)</th>
+              <th>Q3 (25%)</th>
+              <th>Q4 (35%)</th>
+              <th>S1</th>
+              <th>S2</th>
+            </tr>
+          </thead>
+          <tbody id="bodyPlanilla">
+            <!-- JS renders rows -->
+          </tbody>
+        </table>
+        <div style="margin-top:12px;display:flex;gap:8px;">
+          <button class="btn btn-outline btn-sm" onclick="guardarPlanilla()">💾 Guardar</button>
+          <button class="btn btn-outline btn-sm" onclick="agregarFilaPlanilla()">+ Agregar fila</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ AGENDA ════ -->
+    <div class="page" id="page-agenda">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <div>
+          <div class="page-title">Agenda</div>
+          <div class="page-sub">Calendario, recordatorios y seguimientos</div>
+        </div>
+        <button class="btn btn-primary" onclick="abrirModalEvento()">+ Nuevo evento</button>
+      </div>
+
+      <!-- Mini calendario strip -->
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <button class="btn btn-ghost btn-sm" onclick="cambiarMes(-1)">‹</button>
+          <span id="calMesLabel" style="font-weight:600;font-size:0.9rem;"></span>
+          <button class="btn btn-ghost btn-sm" onclick="cambiarMes(1)">›</button>
+        </div>
+        <div class="cal-strip" id="calStrip"></div>
+      </div>
+
+      <div class="card" style="margin-top:14px;">
+        <div class="card-title" id="agendaDiaLabel">📅 Eventos de hoy</div>
+        <div id="listaEventosDia">
+          <div class="empty-state" style="padding:20px;"><div class="empty-icon">📅</div><p>Sin eventos</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ PENDIENTES AGENDA ════ -->
+    <div class="page" id="page-pendientes-agenda">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+        <div>
+          <div class="page-title">Pendientes</div>
+          <div class="page-sub">Tasks pendientes, en proceso y completadas</div>
+        </div>
+        <button class="btn btn-primary" onclick="abrirModalTarea()">+ Nueva tarea</button>
+      </div>
+
+      <div style="display:flex;gap:16px;align-items:flex-start;">
+        <div style="flex:1;">
+          <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--warning);margin-bottom:8px;">⏳ Pendiente</div>
+          <div id="col-pendiente"></div>
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--rx-blue);margin-bottom:8px;">🔄 En proceso</div>
+          <div id="col-proceso"></div>
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--success);margin-bottom:8px;">✅ Finalizado</div>
+          <div id="col-finalizado"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ FIRMA — PENDIENTES ════ -->
+    <div class="page" id="page-pendientes">
+      <div class="page-title">Pendientes de firma</div>
+      <div class="page-sub">Documentos esperando firma de los firmantes</div>
+      <div id="listaPendientes">
+        <div class="spinner"><div class="spinner-ring"></div></div>
+      </div>
+    </div>
+
+    <!-- ════ FIRMA — COMPLETADOS ════ -->
+    <div class="page" id="page-completados">
+      <div class="page-title">Firmados</div>
+      <div class="page-sub">Documentos con todas las firmas completadas</div>
+      <div id="listaCompletados">
+        <div class="spinner"><div class="spinner-ring"></div></div>
+      </div>
+    </div>
+
+    <!-- ════ NUEVA FIRMA ════ -->
+    <div class="page" id="page-nuevo">
+      <div class="page-title">Nueva firma electrónica</div>
+      <div class="page-sub">Cargá el documento, agregá firmantes y generá los links</div>
+      <div id="nuevoFirmaContainer"><!-- populated by script --></div>
+    </div>
+
+    <!-- ════ TEXTOS PRECARGADOS ════ -->
+    <div class="page" id="page-textos">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+        <div>
+          <div class="page-title">Textos Precargados</div>
+          <div class="page-sub">Plantillas de WhatsApp, email y más — listas para usar</div>
+        </div>
+        <button class="btn btn-primary" onclick="abrirModalTexto()">+ Nuevo texto</button>
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+        <button class="btn btn-sm active" onclick="filtrarTextos('todos',this)">Todos</button>
+        <button class="btn btn-sm" onclick="filtrarTextos('whatsapp',this)">WhatsApp</button>
+        <button class="btn btn-sm" onclick="filtrarTextos('email',this)">Email</button>
+        <button class="btn btn-sm" onclick="filtrarTextos('visita',this)">Visita</button>
+        <button class="btn btn-sm" onclick="filtrarTextos('captacion',this)">Captación</button>
+      </div>
+      <div id="listaTextos">
+        <div class="empty-state"><div class="empty-icon">📄</div><p>Agregá tus primeros textos</p></div>
+      </div>
+    </div>
+
+    <!-- ════ GUIONES INSTAGRAM ════ -->
+    <div class="page" id="page-instagram">
+      <div class="ig-header">
+        <h3>📸 Guiones para Instagram</h3>
+        <p>Contenido inmobiliario diario — IA genera ideas adaptadas a tu negocio</p>
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center;">
+        <button class="btn btn-primary" onclick="generarGuionIA()">✨ Generar guion con IA</button>
+        <button class="btn btn-outline" onclick="abrirModalGuion()">+ Crear manual</button>
+      </div>
+      <div id="listaGuiones">
+        <div class="empty-state"><div class="empty-icon">📸</div><p>Generá tu primer guion</p></div>
+      </div>
+    </div>
+
+    <!-- ════ IDEAS ════ -->
+    <div class="page" id="page-ideas">
+      <div class="page-title">Panel de Ideas 💡</div>
+      <div class="page-sub">Mandame una idea y la agendo acá — nada se pierde</div>
+
+      <div style="display:flex;gap:10px;margin-bottom:20px;">
+        <input type="text" id="inputIdea" placeholder="Tengo una idea..." style="flex:1;" onkeydown="if(event.key==='Enter')agregarIdea()">
+        <button class="btn btn-primary" onclick="agregarIdea()">💡 Agregar</button>
+      </div>
+
+      <div id="listaIdeas">
+        <div class="empty-state"><div class="empty-icon">💡</div><p>¡Tus ideas van a aparecer acá!</p></div>
+      </div>
+    </div>
+
+    <!-- ════ ASISTENTE IA ════ -->
+    <div class="page" id="page-asistente">
+      <div class="page-title">Asistente IA 🤖</div>
+      <div class="page-sub">Preguntame sobre tus métricas, objetivos, estrategia y crecimiento</div>
+
+      <div class="chat-wrap">
+        <div class="chat-messages" id="chatMessages">
+          <div class="chat-msg assistant">
+            <div class="chat-avatar" style="background:var(--rx-blue-light);color:var(--rx-blue);">Rx</div>
+            <div class="chat-bubble">
+              ¡Hola! Soy tu asistente Realvix. Puedo ayudarte a analizar tus métricas, revisar tu embudo de conversión, planear tu semana, generar guiones de Instagram y mucho más. ¿Por dónde empezamos?
+            </div>
+          </div>
+        </div>
+        <div class="chat-input-wrap">
+          <textarea class="chat-input" id="chatInput" placeholder="Preguntame sobre tu negocio..." rows="1"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();enviarMensajeIA()}"
+            oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'"></textarea>
+          <button class="chat-send" onclick="enviarMensajeIA()">➤</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ CONFIGURACIÓN ════ -->
+    <div class="page" id="page-configuracion">
+      <div class="page-title">Panel de Control ⚙️</div>
+      <div class="page-sub">Configurá tu CRM — estadios, etiquetas, textos y más</div>
+
+      <div class="card">
+        <div class="card-title">🏷️ Estadios de Listing</div>
+        <div id="configEstadios">Cargando...</div>
+        <div style="margin-top:12px;display:flex;gap:8px;">
+          <input type="text" id="nuevoEstadioNombre" placeholder="Nombre del estadio..." style="max-width:200px;">
+          <select id="nuevoEstadioColor" style="width:auto;">
+            <option value="gray">Gris</option>
+            <option value="blue">Azul</option>
+            <option value="green">Verde</option>
+            <option value="yellow">Amarillo</option>
+            <option value="orange">Naranja</option>
+            <option value="red">Rojo</option>
+            <option value="purple">Violeta</option>
+            <option value="pink">Rosa</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="crearEstadio()">+ Agregar</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px;">
+        <div class="card-title">🎨 Personalización</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Nombre del negocio</label>
+            <input type="text" id="configNombre" placeholder="Realvix CRM">
+          </div>
+          <div class="form-group">
+            <label>Tu nombre</label>
+            <input type="text" id="configAgente" placeholder="Nombre del agente">
+          </div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="guardarConfiguracion()">💾 Guardar</button>
+      </div>
+
+      <div class="card" style="margin-top:14px;" id="cardAdminUsers" style="display:none">
+        <div class="card-title">👥 Usuarios del sistema</div>
+        <div id="configUsuarios">Cargando...</div>
+        <div style="margin-top:12px;">
+          <button class="btn btn-outline btn-sm" onclick="showPage('admin')">Gestionar usuarios →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ ADMIN — USUARIOS ════ -->
+    <div class="page" id="page-admin">
+      <div class="page-title">Usuarios</div>
+      <div class="page-sub">Gestión de acceso al sistema</div>
+      <div class="card">
+        <div class="card-title">Crear usuario</div>
+        <div class="form-row">
+          <div class="form-group"><label>Nombre</label><input type="text" id="adminNombre" placeholder="Nombre completo"></div>
+          <div class="form-group"><label>Email</label><input type="email" id="adminEmail" placeholder="email@ejemplo.com"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Contraseña</label><input type="password" id="adminPass" placeholder="Mínimo 6 caracteres"></div>
+          <div class="form-group"><label>Rol</label>
+            <select id="adminRol"><option value="member">Miembro</option><option value="admin">Admin</option></select>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="crearUsuario()">Crear usuario</button>
+      </div>
+      <div class="card" style="margin-top:14px;">
+        <div class="card-title">Usuarios activos</div>
+        <div id="listaUsuarios">Cargando...</div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ════ MODALES ════ -->
+
+<!-- Modal Contacto -->
+<div class="modal-bg" id="modalContacto">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3 id="modalContactoTitle">Nuevo contacto</h3>
+      <button class="modal-close" onclick="cerrarModal('modalContacto')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="cid">
+      <div class="form-row">
+        <div class="form-group"><label>Nombre completo</label><input type="text" id="cNombre" placeholder="Juan García"></div>
+        <div class="form-group"><label>Tipo</label>
+          <select id="cTipo"><option>propietario</option><option>comprador</option><option>inversor</option><option>referido</option><option>broker</option><option>otro</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Teléfono</label><input type="tel" id="cTel" placeholder="+54 11..."></div>
+        <div class="form-group"><label>Email</label><input type="email" id="cEmail" placeholder="email@..."></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Localidad / Zona</label><input type="text" id="cLocalidad" placeholder="Castelar, zona oeste..."></div>
+        <div class="form-group"><label>Referido por</label><input type="text" id="cReferido" placeholder="¿Quién te recomendó?"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Profesión</label><input type="text" id="cProfesion" placeholder="Médico, comerciante..."></div>
+        <div class="form-group"><label>Hijos / Familia</label><input type="text" id="cFamilia" placeholder="3 hijos, casado..."></div>
+      </div>
+      <div class="form-group"><label>Operación de interés</label>
+        <select id="cOperacion"><option value="">Sin definir</option><option>Compra</option><option>Venta</option><option>Alquiler</option><option>Inversión</option></select>
+      </div>
+      <div class="form-group"><label>Notas</label><textarea id="cNotas" rows="3" placeholder="Datos importantes, qué necesita, contexto..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="cerrarModal('modalContacto')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarContacto()">Guardar contacto</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Consulta -->
+<div class="modal-bg" id="modalConsulta">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3>Nueva consulta / lead</h3>
+      <button class="modal-close" onclick="cerrarModal('modalConsulta')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>Nombre del interesado</label><input type="text" id="consNombre"></div>
+        <div class="form-group"><label>Teléfono / WhatsApp</label><input type="tel" id="consTel"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Email</label><input type="email" id="consEmail"></div>
+        <div class="form-group"><label>Etapa</label>
+          <select id="consEtapa"><option value="nuevo">Nuevo lead</option><option value="muestra">Muestra agendada</option><option value="seguimiento">En seguimiento</option><option value="calificado">Calificado</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Propiedad de interés</label><input type="text" id="consPropiedad" placeholder="Dirección o ID de propiedad"></div>
+        <div class="form-group"><label>Fecha de muestra</label><input type="date" id="consFechaMuestra"></div>
+      </div>
+      <div class="form-group"><label>Calificación</label>
+        <select id="consCalificacion"><option value="">Sin calificar</option><option value="caliente">🔥 Caliente</option><option value="tibio">🌡️ Tibio</option><option value="frio">❄️ Frío</option></select>
+      </div>
+      <div class="form-group"><label>Observaciones</label><textarea id="consObs" rows="3" placeholder="Qué dijo, qué busca, qué le gustó..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="cerrarModal('modalConsulta')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarConsulta()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Cierre -->
+<div class="modal-bg" id="modalCierre">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Registrar cierre</h3>
+      <button class="modal-close" onclick="cerrarModal('modalCierre')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label>Dirección / Propiedad</label><input type="text" id="ciDireccion"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Valor de venta (USD)</label><input type="number" id="ciValor" placeholder="0"></div>
+        <div class="form-group"><label>% Comisión</label><input type="number" id="ciPct" placeholder="3" step="0.1" min="0" max="10"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>% Broker (si aplica)</label><input type="number" id="ciBrokerPct" placeholder="0" step="0.1"></div>
+        <div class="form-group"><label>Fecha de cierre</label><input type="date" id="ciFecha"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Zona</label><input type="text" id="ciZona" placeholder="Castelar, Haedo..."></div>
+        <div class="form-group"><label>Tipo</label><input type="text" id="ciTipo" placeholder="Casa, PH, depto..."></div>
+      </div>
+      <div class="form-group"><label>Puntas (1 o 2)</label><select id="ciPuntas"><option value="2">2 puntas</option><option value="1">1 punta</option></select></div>
+      <div class="form-group"><label>Notas</label><textarea id="ciNotas" rows="2"></textarea></div>
+      <div id="ciCalculo" style="background:var(--rx-blue-light);border-radius:var(--radius-md);padding:12px 14px;margin-top:8px;font-size:0.85rem;display:none;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="cerrarModal('modalCierre')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarCierre()">Guardar cierre</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Evento Agenda -->
+<div class="modal-bg" id="modalEvento">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h3>Nuevo evento</h3>
+      <button class="modal-close" onclick="cerrarModal('modalEvento')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label>Título</label><input type="text" id="evTitulo" placeholder="Muestra, pre-listing, firma..."></div>
+      <div class="form-row">
+        <div class="form-group"><label>Fecha</label><input type="date" id="evFecha"></div>
+        <div class="form-group"><label>Hora</label><input type="time" id="evHora"></div>
+      </div>
+      <div class="form-group"><label>Tipo</label>
+        <select id="evTipo">
+          <option value="muestra">🏠 Muestra</option>
+          <option value="prelisting">📋 Pre-listing</option>
+          <option value="firma">✍️ Firma</option>
+          <option value="llamada">📞 Llamada</option>
+          <option value="reunion">🤝 Reunión</option>
+          <option value="otro">📌 Otro</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Contacto</label><input type="text" id="evContacto" placeholder="Nombre del cliente/propietario"></div>
+      <div class="form-group"><label>Notas</label><textarea id="evNotas" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="cerrarModal('modalEvento')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarEvento()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Tarea -->
+<div class="modal-bg" id="modalTarea">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h3>Nueva tarea</h3>
+      <button class="modal-close" onclick="cerrarModal('modalTarea')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label>Tarea</label><input type="text" id="taTitle" placeholder="Llamar a Juan, enviar documentación..."></div>
+      <div class="form-row">
+        <div class="form-group"><label>Vencimiento</label><input type="date" id="taDate"></div>
+        <div class="form-group"><label>Color</label>
+          <select id="taColor">
+            <option value="blue">Azul</option>
+            <option value="green">Verde</option>
+            <option value="orange">Naranja</option>
+            <option value="red">Rojo</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group"><label>Notas</label><textarea id="taNota" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="cerrarModal('modalTarea')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarTarea()">Agregar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Texto Precargado -->
+<div class="modal-bg" id="modalTexto">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Texto precargado</h3>
+      <button class="modal-close" onclick="cerrarModal('modalTexto')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>Título</label><input type="text" id="txTitulo" placeholder="Primer contacto WhatsApp..."></div>
+        <div class="form-group"><label>Canal</label>
+          <select id="txCanal">
+            <option value="whatsapp">WhatsApp</option>
+            <option value="email">Email</option>
+            <option value="visita">Visita</option>
+            <option value="captacion">Captación</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Contenido del mensaje</label>
+        <textarea id="txContenido" rows="6" placeholder="Hola {nombre}, te contacto de Realvix..."></textarea>
+        <div style="font-size:0.72rem;color:var(--text-tertiary);margin-top:4px;">Usá {nombre}, {propiedad}, {fecha} como variables</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="cerrarModal('modalTexto')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarTexto()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Guion IG -->
+<div class="modal-bg" id="modalGuion">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Guion Instagram</h3>
+      <button class="modal-close" onclick="cerrarModal('modalGuion')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>Título del video</label><input type="text" id="guTitulo" placeholder="5 errores al comprar..."></div>
+        <div class="form-group"><label>Tema</label>
+          <select id="guTema">
+            <option value="tips">Tips inmobiliarios</option>
+            <option value="mercado">Mercado actual</option>
+            <option value="motivacion">Motivación</option>
+            <option value="proceso">Proceso de compra/venta</option>
+            <option value="zona">Mi zona</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group"><label>Hook (gancho inicial)</label><textarea id="guHook" rows="2" placeholder="¿Sabías que el 80% de compradores comete este error?"></textarea></div>
+      <div class="form-group"><label>Desarrollo</label><textarea id="guDesarrollo" rows="5" placeholder="El guion del video..."></textarea></div>
+      <div class="form-group"><label>Call to action</label><textarea id="guCTA" rows="2" placeholder="Seguime para más tips, escribime al DM..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="cerrarModal('modalGuion')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarGuion()">Guardar guion</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm modal -->
+<div class="confirm-modal-bg" id="confirmModal">
+  <div class="confirm-modal">
+    <h3 id="confirmTitle">¿Confirmás?</h3>
+    <p id="confirmText"></p>
+    <div class="confirm-btns">
+      <button class="btn-cancel" onclick="cerrarModal('confirmModal')">Cancelar</button>
+      <button class="btn-delete" id="confirmBtn">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- ══ SCRIPT ══ -->
+<script>
+// ── GLOBALS ──
+const LOCAL = {
+  contactos: JSON.parse(localStorage.getItem('crm_contactos') || '[]'),
+  consultas: JSON.parse(localStorage.getItem('crm_consultas') || '[]'),
+  cierres: JSON.parse(localStorage.getItem('crm_cierres') || '[]'),
+  eventos: JSON.parse(localStorage.getItem('crm_eventos') || '[]'),
+  tareas: JSON.parse(localStorage.getItem('crm_tareas') || '[]'),
+  textos: JSON.parse(localStorage.getItem('crm_textos') || '[]'),
+  guiones: JSON.parse(localStorage.getItem('crm_guiones') || '[]'),
+  ideas: JSON.parse(localStorage.getItem('crm_ideas') || '[]'),
+  planilla: JSON.parse(localStorage.getItem('crm_planilla') || 'null'),
+  objetivos: JSON.parse(localStorage.getItem('crm_objetivos') || 'null'),
+};
+
+function saveLocal(key) {
+  localStorage.setItem('crm_' + key, JSON.stringify(LOCAL[key]));
+}
+
+let currentUser = null;
+let calFecha = new Date();
+let calDiaSeleccionado = new Date().toISOString().split('T')[0];
+
+// ── AUTH ──
+async function cargarUsuario() {
+  try {
+    const r = await fetch('/api/auth/me');
+    if (!r.ok) { window.location.href = '/login'; return; }
+    currentUser = await r.json();
+    document.getElementById('userName').textContent = currentUser.name;
+    const ini = currentUser.name.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+    document.getElementById('userAvatar').textContent = ini;
+    if (currentUser.role === 'admin') {
+      document.getElementById('nav-admin').style.display = 'flex';
+      cargarUsuariosAdmin();
+    }
+  } catch(e) { window.location.href = '/login'; }
+}
+
+async function doLogout() {
+  await fetch('/api/auth/logout', { method:'POST' });
+  window.location.href = '/login';
+}
+
+// ── PAGES ──
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nb-item, .nb-child').forEach(el => el.classList.remove('active'));
+  const page = document.getElementById('page-' + id);
+  if (page) page.classList.add('active');
+  const nav = document.getElementById('nav-' + id);
+  if (nav) nav.classList.add('active');
+
+  // Lazy loads
+  const loaders = {
+    'dashboard': cargarDashboard,
+    'pendientes': () => cargarDocumentos(false),
+    'completados': () => cargarDocumentos(true),
+    'nuevo': renderNuevoFirma,
+    'configuracion': cargarConfiguracion,
+    'admin': cargarUsuariosAdmin,
+    'contactos': renderContactos,
+    'consultas': renderConsultas,
+    'embudo': calcularEmbudo,
+    'cierres': renderCierres,
+    'objetivos': renderObjetivos,
+    'planilla': renderPlanilla,
+    'agenda': renderCalendario,
+    'pendientes-agenda': renderTareas,
+    'textos': renderTextos,
+    'instagram': renderGuiones,
+    'ideas': renderIdeas,
+    'estado-props': cargarEstadoProps,
+  };
+  if (loaders[id]) loaders[id]();
+}
+
+function toggleGroup(id) {
+  const el = document.getElementById(id);
+  const chv = document.getElementById('chv-' + id);
+  if (!el) return;
+  el.classList.toggle('collapsed');
+  if (chv) {
+    chv.textContent = el.classList.contains('collapsed') ? '▸' : '▾';
+  }
+}
+
+// ── MODAL ──
+function abrirModal(id) { document.getElementById(id).classList.add('open'); }
+function cerrarModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ── TOAST ──
+let toastTimer;
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show' + (type ? ' ' + type : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.classList.remove('show'); }, 3000);
+}
+
+// ── DASHBOARD ──
+async function cargarDashboard() {
+  // Update greeting
+  const hora = new Date().getHours();
+  const saludo = hora < 12 ? 'Buenos días' : hora < 19 ? 'Buenas tardes' : 'Buenas noches';
+  document.querySelector('#page-dashboard .page-title').textContent = saludo + ' ' + (currentUser?.name?.split(' ')[0] || '') + ' 👋';
+  document.getElementById('dashGreetSub').textContent = new Date().toLocaleDateString('es-AR', {weekday:'long',year:'numeric',month:'long',day:'numeric'});
+
+  // Stats
+  try {
+    const r = await fetch('/api/propiedades');
+    const data = await r.json();
+    document.getElementById('ds-props').textContent = data.propiedades?.length || 0;
+  } catch(e) { document.getElementById('ds-props').textContent = '—'; }
+
+  document.getElementById('ds-consultas').textContent = LOCAL.consultas.filter(c=>c.etapa!=='calificado').length;
+  document.getElementById('ds-cierres').textContent = LOCAL.cierres.filter(c => {
+    const d = new Date(c.fecha);
+    const hoy = new Date();
+    return d.getMonth() === hoy.getMonth() && d.getFullYear() === hoy.getFullYear();
+  }).length;
+
+  // Firmas pendientes
+  try {
+    const r2 = await fetch('/api/documentos');
+    const d2 = await r2.json();
+    const pend = d2.documentos?.filter(d=>!d.completado).length || 0;
+    document.getElementById('ds-firmas').textContent = pend;
+    document.getElementById('badge-pendientes').textContent = pend;
+    document.getElementById('badge-pendientes').style.display = pend > 0 ? 'inline-block' : 'none';
+  } catch(e) {}
+
+  // Pendientes hoy
+  const hoyStr = new Date().toISOString().split('T')[0];
+  const pendientes = LOCAL.tareas.filter(t => t.estado !== 'finalizado' && t.fecha <= hoyStr);
+  const divPend = document.getElementById('dashPendientes');
+  if (pendientes.length === 0) {
+    divPend.innerHTML = '<div class="empty-state" style="padding:20px"><div class="empty-icon">✅</div><p>Todo al día — ¡excelente!</p></div>';
+  } else {
+    divPend.innerHTML = pendientes.slice(0,5).map(t => `
+      <div class="agenda-item">
+        <div class="agenda-dot" style="background:var(--${t.color==='red'?'danger':t.color==='green'?'success':t.color==='orange'?'warning':'rx-blue'})"></div>
+        <div class="agenda-info">
+          <div class="agenda-titulo">${t.titulo}</div>
+          <div class="agenda-meta">${t.fecha||'Sin fecha'}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  // Embudo resumen
+  const emb = document.getElementById('dashEmbudo');
+  const total = LOCAL.contactos.length;
+  const etapas = [
+    {label:'Contactos', n: total},
+    {label:'Consultas', n: LOCAL.consultas.length},
+    {label:'Muestras', n: LOCAL.consultas.filter(c=>c.etapa==='muestra'||c.fechaMuestra).length},
+    {label:'Ventas', n: LOCAL.cierres.length},
+  ];
+  emb.innerHTML = etapas.map(e => `
+    <div class="funnel-row">
+      <span class="funnel-label">${e.label}</span>
+      <div class="funnel-bar-wrap"><div class="funnel-bar" style="width:${total>0?Math.round(e.n/total*100):0}%"></div></div>
+      <span class="funnel-count">${e.n}</span>
+    </div>`).join('');
+}
+
+// ── DOCUMENTOS ──
+async function cargarDocumentos(completados) {
+  const cont = document.getElementById(completados ? 'listaCompletados' : 'listaPendientes');
+  cont.innerHTML = '<div class="spinner" style="display:block"><div class="spinner-ring"></div></div>';
+  try {
+    const r = await fetch('/api/documentos');
+    const data = await r.json();
+    const docs = data.documentos.filter(d => !!d.completado === completados);
+    if (docs.length === 0) {
+      cont.innerHTML = '<div class="empty-state"><div class="empty-icon">' + (completados?'✅':'📄') + '</div><p>' + (completados?'Aún no hay documentos completados':'Sin documentos pendientes') + '</p></div>';
+      return;
+    }
+    cont.innerHTML = '<div class="doc-list">' + docs.map(d => {
+      const sc = d.firmantes.filter(f=>f.signed).length;
+      const tot = d.firmantes.length;
+      const pct = Math.round(sc/tot*100);
+      return `<div class="doc-card">
+        <div class="doc-icon">${d.completado ? '✅' : '⏳'}</div>
+        <div class="doc-info">
+          <div class="doc-title">${d.title}</div>
+          <div class="doc-meta">${sc}/${tot} firmantes · ${new Date(d.created_at).toLocaleDateString('es-AR')}</div>
+          <div class="progress-bar-wrap" style="margin-top:5px;"><div class="progress-bar" style="width:${pct}%"></div></div>
+        </div>
+        <div class="doc-actions">
+          ${d.completado ? `<a href="/api/documento/${d.id}/certificado" class="btn btn-sm">⬇ PDF</a>` : ''}
+          <a href="/estado/${d.id}" class="btn btn-sm">Ver →</a>
+          <button class="btn btn-sm" onclick="eliminarDoc('${d.id}');event.stopPropagation();" style="color:var(--danger);">✕</button>
+        </div>
+      </div>`;
+    }).join('') + '</div>';
+  } catch(e) {
+    cont.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><p>Error al cargar documentos</p></div>';
+  }
+}
+
+async function eliminarDoc(id) {
+  if (!confirm('¿Eliminar este documento?')) return;
+  await fetch('/api/documento/' + id, { method:'DELETE' });
+  showToast('Documento eliminado');
+  cargarDocumentos(false);
+  cargarDocumentos(true);
+}
+
+// ── NUEVA FIRMA ──
+function renderNuevoFirma() {
+  document.getElementById('nuevoFirmaContainer').innerHTML = `
+    <div class="card">
+      <div class="card-title">📄 Documento</div>
+      <div class="form-row">
+        <div class="form-group"><label>Título del documento</label><input type="text" id="firmaTitle" placeholder="Compromiso de venta, Autorización..."></div>
+        <div class="form-row" style="margin-bottom:0;">
+          <div class="form-group"><label>Tu nombre</label><input type="text" id="firmaOrgName" value="${currentUser?.name||''}"></div>
+          <div class="form-group"><label>Tu email</label><input type="email" id="firmaOrgEmail" value="${currentUser?.email||''}"></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Archivo PDF</label>
+        <div class="upload-zone" onclick="document.getElementById('firmaPdf').click()" id="uploadZone">
+          <div class="upload-icon">📎</div>
+          <div style="font-size:0.84rem;">Hacé clic para subir un PDF</div>
+          <div id="pdfNombre" style="font-size:0.78rem;color:var(--rx-blue);margin-top:5px;"></div>
+        </div>
+        <input type="file" id="firmaPdf" accept=".pdf" style="display:none" onchange="mostrarNombrePdf(this)">
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px;">
+      <div class="card-title">👥 Firmantes</div>
+      <div id="firmantesList"></div>
+      <div class="add-row" style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;margin-top:10px;">
+        <div class="form-group" style="margin-bottom:0;"><label>Nombre</label><input type="text" id="newFirmanteNombre" placeholder="Juan García"></div>
+        <div class="form-group" style="margin-bottom:0;"><label>Email</label><input type="email" id="newFirmanteEmail" placeholder="juan@..."></div>
+        <button class="btn btn-outline" onclick="agregarFirmanteUI()">+ Agregar</button>
+      </div>
+    </div>
+    <div style="margin-top:16px;display:flex;gap:10px;">
+      <button class="btn btn-primary" onclick="crearFirma()">✉️ Crear y enviar links</button>
+    </div>
+    <div class="result-box" id="resultBox">
+      <h3>✅ Links de firma generados</h3>
+      <div id="resultLinks"></div>
+    </div>`;
+  window.firmantesTmp = [];
+  renderFirmantesUI();
+}
+
+function mostrarNombrePdf(input) {
+  if (input.files[0]) {
+    document.getElementById('pdfNombre').textContent = '📄 ' + input.files[0].name;
+  }
+}
+
+function agregarFirmanteUI() {
+  const n = document.getElementById('newFirmanteNombre').value.trim();
+  const e = document.getElementById('newFirmanteEmail').value.trim();
+  if (!n || !e) { showToast('Completá nombre y email','error'); return; }
+  window.firmantesTmp.push({ name:n, email:e });
+  document.getElementById('newFirmanteNombre').value = '';
+  document.getElementById('newFirmanteEmail').value = '';
+  renderFirmantesUI();
+}
+
+function renderFirmantesUI() {
+  const list = document.getElementById('firmantesList');
+  if (!list) return;
+  if (!window.firmantesTmp || window.firmantesTmp.length === 0) {
+    list.innerHTML = '<div style="color:var(--text-tertiary);font-size:0.83rem;padding:8px 0;">Sin firmantes aún</div>';
+    return;
+  }
+  list.innerHTML = window.firmantesTmp.map((f,i) => `
+    <div class="firmante-row" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--cream);border:1px solid var(--border);border-radius:var(--radius-md);margin-bottom:8px;">
+      <div class="avatar avatar-blue">${f.name.charAt(0)}</div>
+      <div style="flex:1;"><strong style="font-size:0.88rem;">${f.name}</strong><small style="display:block;color:var(--text-secondary);font-size:0.76rem;">${f.email}</small></div>
+      <button class="btn btn-ghost btn-sm" onclick="window.firmantesTmp.splice(${i},1);renderFirmantesUI();" style="color:var(--danger);">✕</button>
+    </div>`).join('');
+}
+
+async function crearFirma() {
+  const title = document.getElementById('firmaTitle').value.trim();
+  const orgName = document.getElementById('firmaOrgName').value.trim();
+  const orgEmail = document.getElementById('firmaOrgEmail').value.trim();
+  if (!title) { showToast('Ingresá el título del documento','error'); return; }
+  if (!window.firmantesTmp || window.firmantesTmp.length === 0) { showToast('Agregá al menos un firmante','error'); return; }
+  const fd = new FormData();
+  fd.append('title', title);
+  fd.append('organizer_name', orgName);
+  fd.append('organizer_email', orgEmail);
+  fd.append('firmantes', JSON.stringify(window.firmantesTmp));
+  const pdf = document.getElementById('firmaPdf').files[0];
+  if (pdf) fd.append('pdf_file', pdf);
+  try {
+    const r = await fetch('/api/documento', { method:'POST', body:fd });
+    const data = await r.json();
+    if (data.error) { showToast(data.error,'error'); return; }
+    showToast('Links generados y emails enviados ✅','success');
+    const rb = document.getElementById('resultBox');
+    rb.style.display = 'block';
+    document.getElementById('resultLinks').innerHTML = data.firmantes.map(f => `
+      <div class="link-row" style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);">
+        <strong style="display:block;font-size:0.85rem;margin-bottom:2px;">${f.name}</strong>
+        <small style="display:block;font-size:0.72rem;color:var(--text-tertiary);margin-bottom:6px;">${f.email}</small>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input readonly value="${f.sign_url}" style="flex:1;font-size:0.75rem;font-family:monospace;color:var(--text-secondary);background:var(--cream);">
+          <button class="btn btn-sm primary" onclick="navigator.clipboard.writeText('${f.sign_url}');showToast('Copiado ✓')">Copiar</button>
+        </div>
+      </div>`).join('');
+    window.firmantesTmp = [];
+    renderFirmantesUI();
+  } catch(e) { showToast('Error al crear firma','error'); }
+}
+
+// ── CONTACTOS ──
+function abrirModalContacto(c) {
+  document.getElementById('modalContactoTitle').textContent = c ? 'Editar contacto' : 'Nuevo contacto';
+  document.getElementById('cid').value = c?.id || '';
+  document.getElementById('cNombre').value = c?.nombre || '';
+  document.getElementById('cTipo').value = c?.tipo || 'propietario';
+  document.getElementById('cTel').value = c?.tel || '';
+  document.getElementById('cEmail').value = c?.email || '';
+  document.getElementById('cLocalidad').value = c?.localidad || '';
+  document.getElementById('cReferido').value = c?.referido || '';
+  document.getElementById('cProfesion').value = c?.profesion || '';
+  document.getElementById('cFamilia').value = c?.familia || '';
+  document.getElementById('cOperacion').value = c?.operacion || '';
+  document.getElementById('cNotas').value = c?.notas || '';
+  abrirModal('modalContacto');
+}
+
+function guardarContacto() {
+  const id = document.getElementById('cid').value || Date.now().toString();
+  const obj = {
+    id, nombre:document.getElementById('cNombre').value, tipo:document.getElementById('cTipo').value,
+    tel:document.getElementById('cTel').value, email:document.getElementById('cEmail').value,
+    localidad:document.getElementById('cLocalidad').value, referido:document.getElementById('cReferido').value,
+    profesion:document.getElementById('cProfesion').value, familia:document.getElementById('cFamilia').value,
+    operacion:document.getElementById('cOperacion').value, notas:document.getElementById('cNotas').value,
+    fecha: new Date().toISOString().split('T')[0]
+  };
+  if (!obj.nombre) { showToast('Ingresá el nombre','error'); return; }
+  const idx = LOCAL.contactos.findIndex(c=>c.id===obj.id);
+  if (idx>=0) LOCAL.contactos[idx] = obj; else LOCAL.contactos.unshift(obj);
+  saveLocal('contactos');
+  cerrarModal('modalContacto');
+  showToast('Contacto guardado ✅','success');
+  renderContactos();
+  document.getElementById('badge-consultas').textContent = LOCAL.consultas.length;
+}
+
+function filtrarContactos() {
+  renderContactos();
+}
+
+function renderContactos() {
+  const q = (document.getElementById('buscarContacto')?.value || '').toLowerCase();
+  const tipo = document.getElementById('filtroTipoContacto')?.value || '';
+  let lista = LOCAL.contactos.filter(c => {
+    const match = !q || c.nombre?.toLowerCase().includes(q) || c.tel?.includes(q) || c.localidad?.toLowerCase().includes(q);
+    const matchTipo = !tipo || c.tipo === tipo;
+    return match && matchTipo;
+  });
+  const div = document.getElementById('listaContactos');
+  if (!div) return;
+  if (lista.length === 0) {
+    div.innerHTML = '<div class="empty-state"><div class="empty-icon">👥</div><p>Sin contactos' + (q?' para "'+q+'"':'') + '</p><button class="btn btn-primary" style="margin-top:12px;" onclick="abrirModalContacto()">+ Agregar contacto</button></div>';
+    return;
+  }
+  div.innerHTML = lista.map(c => `
+    <div class="contact-card" onclick="abrirModalContacto(${JSON.stringify(c).replace(/"/g,'&quot;')})">
+      <div class="avatar avatar-blue">${(c.nombre||'?').charAt(0).toUpperCase()}</div>
+      <div class="contact-info">
+        <div class="contact-name">${c.nombre}</div>
+        <div class="contact-sub">${c.tel||''} ${c.localidad?'· '+c.localidad:''} ${c.tipo?'· <span class="badge badge-blue">'+c.tipo+'</span>':''}</div>
+      </div>
+      <div style="display:flex;gap:6px;opacity:0;" class="doc-actions">
+        ${c.tel ? `<a href="https://wa.me/${c.tel.replace(/[^0-9]/g,'')}" target="_blank" class="btn btn-sm" onclick="event.stopPropagation()">💬</a>` : ''}
+        <button class="btn btn-sm" style="color:var(--danger);" onclick="event.stopPropagation();eliminarContacto('${c.id}')">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+function eliminarContacto(id) {
+  if (!confirm('¿Eliminar contacto?')) return;
+  LOCAL.contactos = LOCAL.contactos.filter(c=>c.id!==id);
+  saveLocal('contactos');
+  renderContactos();
+  showToast('Contacto eliminado');
+}
+
+// ── CONSULTAS ──
+function abrirModalConsulta() { abrirModal('modalConsulta'); }
+function filtrarConsultas(etapa, el) {
+  document.querySelectorAll('.ctab').forEach(t=>t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderConsultas(etapa);
+}
+
+function guardarConsulta() {
+  const obj = {
+    id: Date.now().toString(),
+    nombre: document.getElementById('consNombre').value,
+    tel: document.getElementById('consTel').value,
+    email: document.getElementById('consEmail').value,
+    etapa: document.getElementById('consEtapa').value,
+    propiedad: document.getElementById('consPropiedad').value,
+    fechaMuestra: document.getElementById('consFechaMuestra').value,
+    calificacion: document.getElementById('consCalificacion').value,
+    obs: document.getElementById('consObs').value,
+    fecha: new Date().toISOString().split('T')[0]
+  };
+  if (!obj.nombre) { showToast('Ingresá el nombre','error'); return; }
+  LOCAL.consultas.unshift(obj);
+  saveLocal('consultas');
+  cerrarModal('modalConsulta');
+  showToast('Consulta guardada ✅','success');
+  renderConsultas('todos');
+}
+
+function renderConsultas(filtro='todos') {
+  let lista = LOCAL.consultas;
+  if (filtro && filtro !== 'todos') lista = lista.filter(c=>c.etapa===filtro);
+  const div = document.getElementById('listaConsultas');
+  if (!div) return;
+  if (lista.length === 0) {
+    div.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><p>Sin consultas' + (filtro && filtro!=='todos'?' en esta etapa':'') + '</p></div>';
+    return;
+  }
+  const calMap = {caliente:'🔥',tibio:'🌡️',frio:'❄️'};
+  div.innerHTML = lista.map(c => `
+    <div class="contact-card" style="margin-bottom:8px;">
+      <div class="avatar avatar-blue">${(c.nombre||'?').charAt(0).toUpperCase()}</div>
+      <div class="contact-info">
+        <div class="contact-name">${c.nombre} ${c.calificacion?calMap[c.calificacion]||'':''}</div>
+        <div class="contact-sub">${c.etapa||''} ${c.propiedad?'· '+c.propiedad:''} ${c.fechaMuestra?'· Muestra: '+c.fechaMuestra:''}</div>
+        ${c.obs?`<div style="font-size:0.77rem;color:var(--text-tertiary);margin-top:3px;">${c.obs.substring(0,80)}...</div>`:''}
+      </div>
+      <div class="doc-actions">
+        ${c.tel?`<a href="https://wa.me/${c.tel.replace(/[^0-9]/g,'')}" target="_blank" class="btn btn-sm" onclick="event.stopPropagation()">💬</a>`:''}
+        <button class="btn btn-sm" style="color:var(--danger);" onclick="LOCAL.consultas=LOCAL.consultas.filter(x=>x.id!=='${c.id}');saveLocal('consultas');renderConsultas('todos')">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+// ── EMBUDO ──
+function calcularEmbudo() {
+  const nums = {
+    contactos: LOCAL.contactos.length,
+    consultas: LOCAL.consultas.length,
+    muestras: LOCAL.consultas.filter(c=>c.etapa==='muestra'||c.fechaMuestra).length,
+    reservas: LOCAL.cierres.filter(c=>c.tipo==='reserva').length,
+    ventas: LOCAL.cierres.length,
+  };
+  Object.entries(nums).forEach(([k,v]) => {
+    const el = document.getElementById('emb-'+k);
+    if (el) el.textContent = v;
+  });
+  const base = nums.contactos || 1;
+  ['consultas','muestras','reservas','ventas'].forEach(k => {
+    const el = document.getElementById('pct-'+k);
+    if (el) el.textContent = Math.round(nums[k]/base*100) + '%';
+  });
+}
+
+// ── CIERRES ──
+function abrirModalCierre() {
+  document.getElementById('ciFecha').value = new Date().toISOString().split('T')[0];
+  abrirModal('modalCierre');
+  ['ciValor','ciPct','ciBrokerPct'].forEach(id => {
+    document.getElementById(id)?.addEventListener('input', calcularCierre);
+  });
+}
+
+function calcularCierre() {
+  const valor = parseFloat(document.getElementById('ciValor').value)||0;
+  const pct = parseFloat(document.getElementById('ciPct').value)||0;
+  const brokerPct = parseFloat(document.getElementById('ciBrokerPct').value)||0;
+  if (!valor||!pct) { document.getElementById('ciCalculo').style.display='none'; return; }
+  const bruto = valor * pct / 100;
+  const broker = bruto * brokerPct / 100;
+  const neto = bruto - broker;
+  document.getElementById('ciCalculo').style.display = 'block';
+  document.getElementById('ciCalculo').innerHTML = `
+    <div style="display:flex;gap:20px;flex-wrap:wrap;">
+      <div><div style="font-size:0.68rem;text-transform:uppercase;color:var(--text-tertiary);">Comisión bruta</div><div style="font-size:1.1rem;font-weight:700;color:var(--rx-blue);">USD ${bruto.toLocaleString('es-AR',{maximumFractionDigits:0})}</div></div>
+      ${brokerPct?`<div><div style="font-size:0.68rem;text-transform:uppercase;color:var(--text-tertiary);">Broker (${brokerPct}%)</div><div style="font-size:1.1rem;font-weight:700;color:var(--warning);">-USD ${broker.toLocaleString('es-AR',{maximumFractionDigits:0})}</div></div>`:''}
+      <div><div style="font-size:0.68rem;text-transform:uppercase;color:var(--text-tertiary);">Comisión neta</div><div style="font-size:1.1rem;font-weight:700;color:var(--success);">USD ${neto.toLocaleString('es-AR',{maximumFractionDigits:0})}</div></div>
+    </div>`;
+}
+
+function guardarCierre() {
+  const valor = parseFloat(document.getElementById('ciValor').value)||0;
+  const pct = parseFloat(document.getElementById('ciPct').value)||0;
+  const brokerPct = parseFloat(document.getElementById('ciBrokerPct').value)||0;
+  const bruto = valor * pct / 100;
+  const neto = bruto - (bruto * brokerPct / 100);
+  const obj = {
+    id: Date.now().toString(),
+    direccion: document.getElementById('ciDireccion').value,
+    valor, pct, brokerPct, bruto, neto,
+    fecha: document.getElementById('ciFecha').value,
+    zona: document.getElementById('ciZona').value,
+    tipo: document.getElementById('ciTipo').value,
+    puntas: document.getElementById('ciPuntas').value,
+    notas: document.getElementById('ciNotas').value,
+  };
+  LOCAL.cierres.unshift(obj);
+  saveLocal('cierres');
+  cerrarModal('modalCierre');
+  showToast('¡Cierre registrado! 🎉','success');
+  renderCierres();
+}
+
+function renderCierres() {
+  const total = LOCAL.cierres.reduce((a,c)=>a+c.neto,0);
+  const ticket = LOCAL.cierres.length ? total/LOCAL.cierres.length : 0;
+  document.getElementById('ci-neto').textContent = 'USD ' + total.toLocaleString('es-AR',{maximumFractionDigits:0});
+  document.getElementById('ci-ticket').textContent = 'USD ' + ticket.toLocaleString('es-AR',{maximumFractionDigits:0});
+  document.getElementById('ci-ops').textContent = LOCAL.cierres.length;
+  const div = document.getElementById('listaCierres');
+  if (!div) return;
+  if (LOCAL.cierres.length === 0) {
+    div.innerHTML = '<div class="empty-state"><div class="empty-icon">💰</div><p>Sin cierres registrados aún</p></div>';
+    return;
+  }
+  div.innerHTML = LOCAL.cierres.map(c => `
+    <div class="cierre-card">
+      <div>
+        <div class="cierre-dir">${c.direccion || 'Sin dirección'}</div>
+        <div class="cierre-meta">${c.fecha||''} · ${c.zona||''} · ${c.tipo||''} · ${c.puntas} punta(s)</div>
+        ${c.notas?`<div style="font-size:0.78rem;color:var(--text-tertiary);margin-top:3px;">${c.notas}</div>`:''}
+      </div>
+      <div style="text-align:right;">
+        <div class="cierre-monto">USD ${(c.neto||0).toLocaleString('es-AR',{maximumFractionDigits:0})}</div>
+        <div class="cierre-comision">${c.pct}% · Bruto USD ${(c.bruto||0).toLocaleString('es-AR',{maximumFractionDigits:0})}</div>
+        <button class="btn btn-ghost btn-sm" style="color:var(--danger);margin-top:4px;" onclick="LOCAL.cierres=LOCAL.cierres.filter(x=>x.id!=='${c.id}');saveLocal('cierres');renderCierres()">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+// ── OBJETIVOS ──
+function renderObjetivos() {
+  const metas = LOCAL.objetivos || { captaciones:10, ventas:3, caras:60, nuevos:8, comision:5000 };
+  const actuals = {
+    captaciones: LOCAL.cierres.length, // simplificado
+    ventas: LOCAL.cierres.length,
+    caras: 0,
+    nuevos: LOCAL.contactos.filter(c => {
+      const d = new Date(c.fecha);
+      const h = new Date();
+      return d.getMonth()===h.getMonth()&&d.getFullYear()===h.getFullYear();
+    }).length,
+    comision: LOCAL.cierres.reduce((a,c)=>a+c.neto,0)
+  };
+  const campos = ['captaciones','ventas','caras','nuevos','comision'];
+  campos.forEach(k => {
+    const pct = Math.min(Math.round(actuals[k]/(metas[k]||1)*100), 100);
+    const barEl = document.getElementById('bar-'+k);
+    if (barEl) {
+      barEl.style.width = pct + '%';
+      barEl.className = 'objetivo-bar' + (pct>=100?' ':(pct>=60?'':' danger'));
+    }
+    const actEl = document.getElementById('act-'+k);
+    if (actEl) actEl.textContent = k==='comision'?'USD '+actuals[k].toFixed(0):actuals[k];
+    const metaEl = document.getElementById('meta-'+k);
+    if (metaEl) metaEl.textContent = '/ ' + (k==='comision'?'USD '+metas[k]:metas[k]);
+  });
+}
+
+function editarObjetivos() {
+  const metas = LOCAL.objetivos || { captaciones:10, ventas:3, caras:60, nuevos:8, comision:5000 };
+  const nuevo = {
+    captaciones: parseInt(prompt('Meta captaciones/mes:', metas.captaciones)||metas.captaciones),
+    ventas: parseInt(prompt('Meta ventas/mes:', metas.ventas)||metas.ventas),
+    caras: parseInt(prompt('Meta cara-a-cara/mes:', metas.caras)||metas.caras),
+    nuevos: parseInt(prompt('Meta nuevos contactos/mes:', metas.nuevos)||metas.nuevos),
+    comision: parseInt(prompt('Meta comisión USD/mes:', metas.comision)||metas.comision),
+  };
+  LOCAL.objetivos = nuevo;
+  saveLocal('objetivos');
+  renderObjetivos();
+  showToast('Metas guardadas ✅','success');
+}
+
+function cambiarPeriodo(p, btn) {
+  document.querySelectorAll('.obj-period button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ── PLANILLA ──
+function renderPlanilla() {
+  const filas = LOCAL.planilla || [
+    {label:'Captaciones', anual:20},
+    {label:'Ventas', anual:12},
+    {label:'Cara a cara', anual:720},
+    {label:'Comisión USD', anual:60000},
+  ];
+  const tbody = document.getElementById('bodyPlanilla');
+  if (!tbody) return;
+  tbody.innerHTML = filas.map((f,i) => {
+    const q1=Math.round(f.anual*0.17), q2=Math.round(f.anual*0.23), q3=Math.round(f.anual*0.25), q4=Math.round(f.anual*0.35);
+    return `<tr>
+      <td><input class="planilla-cell" value="${f.label}" onchange="updatePlanilla(${i},'label',this.value)"></td>
+      <td><input class="planilla-cell" type="number" value="${f.anual}" onchange="updatePlanilla(${i},'anual',+this.value);renderPlanilla()"></td>
+      <td><input class="planilla-cell" value="${q1}" readonly style="background:var(--cream)"></td>
+      <td><input class="planilla-cell" value="${q2}" readonly style="background:var(--cream)"></td>
+      <td><input class="planilla-cell" value="${q3}" readonly style="background:var(--cream)"></td>
+      <td><input class="planilla-cell" value="${q4}" readonly style="background:var(--cream)"></td>
+      <td><input class="planilla-cell" value="${q1+q2}" readonly style="background:var(--cream)"></td>
+      <td><input class="planilla-cell" value="${q3+q4}" readonly style="background:var(--cream)"></td>
+    </tr>`;
+  }).join('');
+}
+
+function updatePlanilla(i,k,v) {
+  if (!LOCAL.planilla) LOCAL.planilla = [{label:'Captaciones',anual:20},{label:'Ventas',anual:12},{label:'Cara a cara',anual:720},{label:'Comisión USD',anual:60000}];
+  LOCAL.planilla[i][k] = v;
+}
+
+function guardarPlanilla() {
+  saveLocal('planilla');
+  showToast('Planilla guardada ✅','success');
+}
+
+function agregarFilaPlanilla() {
+  if (!LOCAL.planilla) LOCAL.planilla = [];
+  LOCAL.planilla.push({label:'Nuevo objetivo',anual:0});
+  renderPlanilla();
+}
+
+// ── AGENDA ──
+function renderCalendario() {
+  const d = calFecha;
+  const mes = d.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
+  document.getElementById('calMesLabel').textContent = mes.charAt(0).toUpperCase()+mes.slice(1);
+  const strip = document.getElementById('calStrip');
+  const hoy = new Date();
+  const diasEnMes = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
+  let html = '';
+  for (let i=1; i<=diasEnMes; i++) {
+    const fecha = new Date(d.getFullYear(), d.getMonth(), i);
+    const fechaStr = fecha.toISOString().split('T')[0];
+    const tieneEvento = LOCAL.eventos.some(e=>e.fecha===fechaStr) || LOCAL.tareas.some(t=>t.fecha===fechaStr);
+    const esHoy = fechaStr === hoy.toISOString().split('T')[0];
+    const seleccionado = fechaStr === calDiaSeleccionado;
+    html += `<div class="cal-day ${seleccionado?'active':''} ${tieneEvento&&!seleccionado?'has-event':''}" onclick="selDia('${fechaStr}')">
+      <span class="cal-dow">${fecha.toLocaleDateString('es-AR',{weekday:'short'}).substring(0,2)}</span>
+      <span class="cal-num">${i}</span>
+    </div>`;
+  }
+  strip.innerHTML = html;
+  // scroll to today
+  const todayIdx = hoy.getDate() - 1;
+  setTimeout(() => {
+    const days = strip.children;
+    if (days[todayIdx]) days[todayIdx].scrollIntoView({inline:'center',behavior:'smooth'});
+  }, 50);
+  renderEventosDia(calDiaSeleccionado);
+}
+
+function cambiarMes(dir) {
+  calFecha = new Date(calFecha.getFullYear(), calFecha.getMonth()+dir, 1);
+  renderCalendario();
+}
+
+function selDia(fecha) {
+  calDiaSeleccionado = fecha;
+  renderCalendario();
+}
+
+function renderEventosDia(fecha) {
+  document.getElementById('agendaDiaLabel').textContent = '📅 ' + new Date(fecha+'T12:00:00').toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'});
+  const evs = LOCAL.eventos.filter(e=>e.fecha===fecha);
+  const div = document.getElementById('listaEventosDia');
+  if (!div) return;
+  if (evs.length === 0) {
+    div.innerHTML = '<div class="empty-state" style="padding:20px"><div class="empty-icon">📅</div><p>Sin eventos este día</p></div>';
+    return;
+  }
+  div.innerHTML = evs.map(e => `
+    <div class="agenda-item">
+      <div class="agenda-dot" style="background:var(--rx-blue)"></div>
+      <div class="agenda-info">
+        <div class="agenda-titulo">${e.titulo}</div>
+        <div class="agenda-meta">${e.hora||''} ${e.contacto?'· '+e.contacto:''} ${e.tipo?'· '+e.tipo:''}</div>
+        ${e.notas?`<div style="font-size:0.77rem;color:var(--text-tertiary);margin-top:2px;">${e.notas}</div>`:''}
+      </div>
+      <div class="agenda-actions">
+        <button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="LOCAL.eventos=LOCAL.eventos.filter(x=>x.id!=='${e.id}');saveLocal('eventos');renderEventosDia('${fecha}')">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+function abrirModalEvento() {
+  document.getElementById('evFecha').value = calDiaSeleccionado;
+  abrirModal('modalEvento');
+}
+
+function guardarEvento() {
+  const obj = {
+    id: Date.now().toString(),
+    titulo: document.getElementById('evTitulo').value,
+    fecha: document.getElementById('evFecha').value,
+    hora: document.getElementById('evHora').value,
+    tipo: document.getElementById('evTipo').value,
+    contacto: document.getElementById('evContacto').value,
+    notas: document.getElementById('evNotas').value,
+  };
+  if (!obj.titulo) { showToast('Ingresá el título','error'); return; }
+  LOCAL.eventos.push(obj);
+  saveLocal('eventos');
+  cerrarModal('modalEvento');
+  showToast('Evento guardado ✅','success');
+  calDiaSeleccionado = obj.fecha;
+  renderCalendario();
+}
+
+// ── TAREAS ──
+function abrirModalTarea() { abrirModal('modalTarea'); }
+
+function guardarTarea() {
+  const obj = {
+    id: Date.now().toString(),
+    titulo: document.getElementById('taTitle').value,
+    fecha: document.getElementById('taDate').value,
+    color: document.getElementById('taColor').value,
+    nota: document.getElementById('taNota').value,
+    estado: 'pendiente',
+  };
+  if (!obj.titulo) { showToast('Ingresá la tarea','error'); return; }
+  LOCAL.tareas.push(obj);
+  saveLocal('tareas');
+  cerrarModal('modalTarea');
+  showToast('Tarea agregada ✅','success');
+  renderTareas();
+  document.getElementById('badge-pendientes-agenda').textContent = LOCAL.tareas.filter(t=>t.estado==='pendiente').length;
+}
+
+function renderTareas() {
+  ['pendiente','proceso','finalizado'].forEach(estado => {
+    const col = document.getElementById('col-'+estado);
+    if (!col) return;
+    const lista = LOCAL.tareas.filter(t=>t.estado===estado);
+    if (lista.length===0) {
+      col.innerHTML = '<div style="color:var(--text-tertiary);font-size:0.82rem;text-align:center;padding:16px 0;">Sin tareas</div>';
+      return;
+    }
+    col.innerHTML = lista.map(t => {
+      const acciones = {
+        pendiente: `<button class="btn btn-sm" onclick="moverTarea('${t.id}','proceso')">→ Iniciar</button>`,
+        proceso: `<button class="btn btn-sm" onclick="moverTarea('${t.id}','finalizado')">✅ Completar</button>`,
+        finalizado: `<button class="btn btn-sm" onclick="moverTarea('${t.id}','pendiente')">↺ Reabrir</button>`,
+      };
+      return `<div class="kanban-card">
+        <div class="kanban-card-title">${t.titulo}</div>
+        ${t.fecha?`<div class="kanban-card-sub">📅 ${t.fecha}</div>`:''}
+        ${t.nota?`<div class="kanban-card-sub">${t.nota}</div>`:''}
+        <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center;">
+          ${acciones[estado]}
+          <button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="LOCAL.tareas=LOCAL.tareas.filter(x=>x.id!=='${t.id}');saveLocal('tareas');renderTareas()">✕</button>
+        </div>
+      </div>`;
+    }).join('');
+  });
+  document.getElementById('badge-pendientes-agenda').textContent = LOCAL.tareas.filter(t=>t.estado==='pendiente').length;
+}
+
+function moverTarea(id, estado) {
+  const t = LOCAL.tareas.find(t=>t.id===id);
+  if (t) { t.estado = estado; saveLocal('tareas'); renderTareas(); }
+}
+
+// ── TEXTOS ──
+function abrirModalTexto() { abrirModal('modalTexto'); }
+function filtrarTextos(canal, btn) {
+  document.querySelectorAll('#page-textos .btn-sm').forEach(b=>b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderTextos(canal);
+}
+
+function guardarTexto() {
+  const obj = {
+    id: Date.now().toString(),
+    titulo: document.getElementById('txTitulo').value,
+    canal: document.getElementById('txCanal').value,
+    contenido: document.getElementById('txContenido').value,
+    fecha: new Date().toISOString().split('T')[0],
+  };
+  if (!obj.titulo||!obj.contenido) { showToast('Completá todos los campos','error'); return; }
+  LOCAL.textos.unshift(obj);
+  saveLocal('textos');
+  cerrarModal('modalTexto');
+  showToast('Texto guardado ✅','success');
+  renderTextos('todos');
+}
+
+function renderTextos(filtro='todos') {
+  let lista = LOCAL.textos;
+  if (filtro && filtro!=='todos') lista = lista.filter(t=>t.canal===filtro);
+  const div = document.getElementById('listaTextos');
+  if (!div) return;
+  if (lista.length===0) {
+    div.innerHTML = '<div class="empty-state"><div class="empty-icon">📄</div><p>Sin textos' + (filtro&&filtro!=='todos'?' en esta categoría':'') + '</p><button class="btn btn-primary" style="margin-top:12px;" onclick="abrirModalTexto()">+ Agregar texto</button></div>';
+    return;
+  }
+  div.innerHTML = lista.map(t => `
+    <div class="texto-card" onclick="copiarTexto('${t.id}')">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <div class="texto-titulo">${t.titulo}</div>
+        <span class="badge badge-blue">${t.canal}</span>
+      </div>
+      <div class="texto-preview">${t.contenido.substring(0,100)}...</div>
+      <div style="margin-top:8px;display:flex;gap:6px;opacity:0;" class="doc-actions">
+        <button class="btn btn-sm primary" onclick="event.stopPropagation();copiarTexto('${t.id}')">📋 Copiar</button>
+        <button class="btn btn-sm" style="color:var(--danger);" onclick="event.stopPropagation();LOCAL.textos=LOCAL.textos.filter(x=>x.id!=='${t.id}');saveLocal('textos');renderTextos('todos')">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+function copiarTexto(id) {
+  const t = LOCAL.textos.find(x=>x.id===id);
+  if (t) { navigator.clipboard.writeText(t.contenido); showToast('Texto copiado ✓','success'); }
+}
+
+// ── INSTAGRAM ──
+function abrirModalGuion() { abrirModal('modalGuion'); }
+
+function guardarGuion() {
+  const obj = {
+    id: Date.now().toString(),
+    titulo: document.getElementById('guTitulo').value,
+    tema: document.getElementById('guTema').value,
+    hook: document.getElementById('guHook').value,
+    desarrollo: document.getElementById('guDesarrollo').value,
+    cta: document.getElementById('guCTA').value,
+    fecha: new Date().toISOString().split('T')[0],
+    generadoIA: false,
+  };
+  if (!obj.titulo) { showToast('Ingresá el título','error'); return; }
+  LOCAL.guiones.unshift(obj);
+  saveLocal('guiones');
+  cerrarModal('modalGuion');
+  showToast('Guion guardado ✅','success');
+  renderGuiones();
+}
+
+async function generarGuionIA() {
+  showToast('Generando guion con IA...','info');
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514', max_tokens:800,
+        messages:[{role:'user',content:'Generá un guion corto de video para Instagram de un agente inmobiliario en Argentina. Tema: tips para compradores de primera vivienda. Formato: gancho inicial (1 oración impactante), 3 puntos del desarrollo (bullet style), call to action. Respondé SOLO en JSON: {"titulo":"...","hook":"...","desarrollo":"...","cta":"..."}'}]
+      })
+    });
+    const data = await r.json();
+    const text = data.content?.[0]?.text || '';
+    const clean = text.replace(/```json|```/g,'').trim();
+    const parsed = JSON.parse(clean);
+    const obj = { id:Date.now().toString(), ...parsed, tema:'tips', fecha:new Date().toISOString().split('T')[0], generadoIA:true };
+    LOCAL.guiones.unshift(obj);
+    saveLocal('guiones');
+    showToast('Guion generado ✅','success');
+    renderGuiones();
+  } catch(e) {
+    showToast('Generá guiones desde el modal manual por ahora','error');
+  }
+}
+
+function renderGuiones() {
+  const div = document.getElementById('listaGuiones');
+  if (!div) return;
+  if (LOCAL.guiones.length===0) {
+    div.innerHTML = '<div class="empty-state"><div class="empty-icon">📸</div><p>Generá tu primer guion</p></div>';
+    return;
+  }
+  div.innerHTML = LOCAL.guiones.map(g => `
+    <div class="guion-card">
+      <div class="guion-tag">${g.tema||'instagram'} ${g.generadoIA?'· ✨ IA':''}</div>
+      <div class="guion-titulo">${g.titulo}</div>
+      ${g.hook?`<div style="font-size:0.84rem;color:var(--rx-blue);font-style:italic;margin-bottom:8px;">"${g.hook}"</div>`:''}
+      ${g.desarrollo?`<div class="guion-cuerpo">${g.desarrollo.replace(/\n/g,'<br>')}</div>`:''}
+      ${g.cta?`<div style="margin-top:8px;font-size:0.82rem;color:var(--success);font-weight:500;">CTA: ${g.cta}</div>`:''}
+      <div class="guion-footer">
+        <span style="font-size:0.72rem;color:var(--text-tertiary);">📅 ${g.fecha}</span>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-sm" onclick="navigator.clipboard.writeText('${(g.hook||'')+'\\n\\n'+(g.desarrollo||'')+'\\n\\n'+(g.cta||'')}');showToast('Copiado ✓')">📋 Copiar</button>
+          <button class="btn btn-sm" style="color:var(--danger);" onclick="LOCAL.guiones=LOCAL.guiones.filter(x=>x.id!=='${g.id}');saveLocal('guiones');renderGuiones()">✕</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+// ── IDEAS ──
+function agregarIdea() {
+  const input = document.getElementById('inputIdea');
+  const texto = input.value.trim();
+  if (!texto) return;
+  LOCAL.ideas.unshift({ id:Date.now().toString(), texto, fecha:new Date().toLocaleDateString('es-AR'), completada:false });
+  saveLocal('ideas');
+  input.value = '';
+  renderIdeas();
+  showToast('¡Idea guardada! 💡','success');
+}
+
+function renderIdeas() {
+  const div = document.getElementById('listaIdeas');
+  if (!div) return;
+  if (LOCAL.ideas.length===0) {
+    div.innerHTML = '<div class="empty-state"><div class="empty-icon">💡</div><p>¡Tus ideas van a aparecer acá!</p></div>';
+    return;
+  }
+  div.innerHTML = LOCAL.ideas.map(i => `
+    <div class="idea-item" style="${i.completada?'opacity:0.5;':''}">
+      <span class="idea-icon" onclick="toggleIdea('${i.id}')" style="cursor:pointer;">${i.completada?'✅':'💡'}</span>
+      <div style="flex:1;">
+        <div class="idea-text" style="${i.completada?'text-decoration:line-through;':''}">${i.texto}</div>
+        <div class="idea-date">📅 ${i.fecha}</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="LOCAL.ideas=LOCAL.ideas.filter(x=>x.id!=='${i.id}');saveLocal('ideas');renderIdeas()">✕</button>
+    </div>`).join('');
+}
+
+function toggleIdea(id) {
+  const idea = LOCAL.ideas.find(i=>i.id===id);
+  if (idea) { idea.completada = !idea.completada; saveLocal('ideas'); renderIdeas(); }
+}
+
+// ── ASISTENTE IA ──
+async function enviarMensajeIA() {
+  const input = document.getElementById('chatInput');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+  input.style.height = 'auto';
+
+  const msgs = document.getElementById('chatMessages');
+  msgs.innerHTML += `<div class="chat-msg user"><div class="chat-avatar avatar-blue">${(currentUser?.name||'U').charAt(0)}</div><div class="chat-bubble">${msg}</div></div>`;
+  msgs.scrollTop = msgs.scrollHeight;
+
+  // Loading
+  const loadId = 'load-' + Date.now();
+  msgs.innerHTML += `<div class="chat-msg assistant" id="${loadId}"><div class="chat-avatar" style="background:var(--rx-blue-light);color:var(--rx-blue);">Rx</div><div class="chat-bubble"><span style="color:var(--text-tertiary);">Pensando...</span></div></div>`;
+  msgs.scrollTop = msgs.scrollHeight;
+
+  // Contexto de negocio
+  const ctx = {
+    propiedades: '(ver listing)',
+    contactos: LOCAL.contactos.length,
+    consultas: LOCAL.consultas.length,
+    cierres: LOCAL.cierres.length,
+    comisionTotal: LOCAL.cierres.reduce((a,c)=>a+c.neto,0),
+    ideas: LOCAL.ideas.length,
+    tareasPendientes: LOCAL.tareas.filter(t=>t.estado==='pendiente').length,
+  };
+
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514', max_tokens:1000,
+        system:`Sos el asistente de Realvix CRM, un CRM inmobiliario para el mercado argentino. Sos experto en el negocio inmobiliario, conocés la metodología OSBA de Pablo Viti, la estacionalidad del mercado (Q1 17%, Q2 23%, Q3 25%, Q4 35%), y el sistema de prospección de 15 cara-a-cara semanales. Respondé en español, de forma clara, motivadora y práctica. Datos actuales del usuario: ${JSON.stringify(ctx)}. Ayudalo a crecer su negocio.`,
+        messages:[{role:'user',content:msg}]
+      })
+    });
+    const data = await r.json();
+    const respuesta = data.content?.[0]?.text || 'No pude responder ahora.';
+    document.getElementById(loadId).querySelector('.chat-bubble').innerHTML = respuesta.replace(/\n/g,'<br>');
+  } catch(e) {
+    document.getElementById(loadId).querySelector('.chat-bubble').innerHTML = 'Error de conexión. Verificá tu acceso a internet.';
+  }
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+// ── CONFIGURACIÓN ──
+async function cargarConfiguracion() {
+  try {
+    const r = await fetch('/api/estados');
+    const data = await r.json();
+    const div = document.getElementById('configEstadios');
+    if (!div) return;
+    if (!data.estados?.length) { div.innerHTML = '<p style="color:var(--text-tertiary)">Sin estadios configurados</p>'; return; }
+    div.innerHTML = data.estados.map(e => `
+      <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);">
+        <span class="badge color-${e.color}">${e.nombre}</span>
+        <span style="font-size:0.75rem;color:var(--text-tertiary);flex:1;">${e.vista||''}</span>
+      </div>`).join('');
+  } catch(e) {}
+}
+
+async function crearEstadio() {
+  const nombre = document.getElementById('nuevoEstadioNombre').value.trim();
+  const color = document.getElementById('nuevoEstadioColor').value;
+  if (!nombre) { showToast('Ingresá el nombre','error'); return; }
+  await fetch('/api/estados', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({nombre,color}) });
+  document.getElementById('nuevoEstadioNombre').value = '';
+  showToast('Estadio creado ✅','success');
+  cargarConfiguracion();
+}
+
+function guardarConfiguracion() {
+  showToast('Configuración guardada ✅','success');
+}
+
+// ── ESTADO PROPS ──
+async function cargarEstadoProps() {
+  try {
+    const r = await fetch('/api/propiedades');
+    const data = await r.json();
+    const props = data.propiedades || [];
+    document.getElementById('ep-total').textContent = props.length;
+    document.getElementById('ep-captadas').textContent = props.filter(p=>p.estado_tasacion==='Aceptada').length;
+    document.getElementById('ep-seguimiento').textContent = props.filter(p=>!['Aceptada','Rechazada','Vendio con Otro'].includes(p.estado_tasacion)).length;
+
+    const tbody = document.getElementById('tablaEstadoProps');
+    if (!tbody) return;
+    if (props.length===0) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-tertiary);padding:32px;">Sin propiedades</td></tr>';
+      return;
+    }
+    tbody.innerHTML = props.map(p => `<tr onclick="window.location='/listing'">
+      <td style="font-weight:600;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.direccion||'—'}</td>
+      <td style="color:var(--text-secondary);">${p.nombre_propietario||'—'}</td>
+      <td><span class="badge badge-gray">${p.tipologia||'—'}</span></td>
+      <td><span class="badge color-${data.estados?.find(e=>e.nombre===p.estado_tasacion)?.color||'gray'}">${p.estado_tasacion||'—'}</span></td>
+      <td style="color:var(--text-secondary);">${p.ultimo_contacto||'—'}</td>
+      <td style="color:var(--text-secondary);">${p.proximo_contacto||'—'}</td>
+      <td><a href="/listing" class="btn btn-sm">Ver →</a></td>
+    </tr>`).join('');
+  } catch(e) {
+    document.getElementById('tablaEstadoProps').innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-tertiary);">Error al cargar</td></tr>';
+  }
+}
+
+// ── ADMIN ──
+async function cargarUsuariosAdmin() {
+  try {
+    const r = await fetch('/api/admin/users');
+    if (!r.ok) return;
+    const data = await r.json();
+    const div = document.getElementById('listaUsuarios');
+    if (!div) return;
+    div.innerHTML = data.users.map(u => `
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
+        <div class="avatar avatar-blue">${u.name.charAt(0)}</div>
+        <div style="flex:1;">
+          <div style="font-weight:600;font-size:0.88rem;">${u.name}</div>
+          <div style="font-size:0.75rem;color:var(--text-secondary);">${u.email} · ${u.role}</div>
+        </div>
+        ${u.id!==currentUser?.id?`<button class="btn btn-sm" style="color:var(--danger);" onclick="eliminarUsuario('${u.id}')">✕</button>`:''}
+      </div>`).join('');
+  } catch(e) {}
+}
+
+async function crearUsuario() {
+  const body = {
+    name: document.getElementById('adminNombre').value.trim(),
+    email: document.getElementById('adminEmail').value.trim(),
+    password: document.getElementById('adminPass').value,
+    role: document.getElementById('adminRol').value,
+  };
+  if (!body.name||!body.email||!body.password) { showToast('Completá todos los campos','error'); return; }
+  const r = await fetch('/api/admin/users', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+  const data = await r.json();
+  if (data.error) { showToast(data.error,'error'); return; }
+  showToast('Usuario creado ✅','success');
+  ['adminNombre','adminEmail','adminPass'].forEach(id => document.getElementById(id).value='');
+  cargarUsuariosAdmin();
+}
+
+async function eliminarUsuario(id) {
+  if (!confirm('¿Eliminar usuario?')) return;
+  await fetch('/api/admin/users/'+id, { method:'DELETE' });
+  showToast('Usuario eliminado');
+  cargarUsuariosAdmin();
+}
+
+// ── INIT ──
+document.addEventListener('DOMContentLoaded', async () => {
+  await cargarUsuario();
+
+  // Set today date in event/task modals
+  const hoy = new Date().toISOString().split('T')[0];
+  if (document.getElementById('evFecha')) document.getElementById('evFecha').value = hoy;
+  if (document.getElementById('taDate')) document.getElementById('taDate').value = hoy;
+
+  // Init calendar
+  calFecha = new Date();
+  calDiaSeleccionado = hoy;
+
+  // Mostrar dashboard por defecto
+  showPage('dashboard');
+
+  // Close modals on background click
+  document.querySelectorAll('.modal-bg').forEach(bg => {
+    bg.addEventListener('click', e => { if(e.target===bg) bg.classList.remove('open'); });
+  });
+
+  // Calcular cierres cuando se escriben valores
+  ['ciValor','ciPct','ciBrokerPct'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', calcularCierre);
+  });
+});
+</script>
+</body>
+</html>

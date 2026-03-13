@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>#confiaenfede — Estado del documento</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+<style>
+/* ── Específico de estado.html ── */
+.firmante-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.firmante-card.signed { border-color: var(--sage-light); background: #f6fdf8; }
+.fname { font-weight: 700; font-size: 0.95rem; }
+.femail { font-size: 0.75rem; color: #888; margin-top: 2px; }
+.ftime { font-size: 0.72rem; color: #666; margin-top: 4px; }
+.refresh-note { font-size: 0.75rem; color: #aaa; margin-top: 12px; }
+.link-copy-row { display: flex; gap: 6px; margin-top: 8px; align-items: center; }
+.link-copy-row input {
+  flex: 1; padding: 6px 10px; border: 1px solid var(--border);
+  border-radius: 6px; font-size: 0.72rem; font-family: monospace;
+  background: #fafafa; color: #555; width: auto;
+}
+.btn-copy-inline {
+  padding: 6px 12px; background: var(--ink); color: white; border: none;
+  border-radius: 6px; font-size: 0.72rem; font-weight: 600; cursor: pointer;
+  white-space: nowrap; font-family: inherit; transition: background 0.15s;
+}
+.btn-copy-inline:hover { background: #333; }
+.btn-copy-inline.copied { background: var(--sage); }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">#confiaenfede<span>.</span></div>
+    <div class="sub">Sistema de Firma Electrónica</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:14px;">
+    <div style="width:30px;height:30px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;color:var(--ink);" id="userAvatar">—</div>
+    <span style="font-size:0.8rem;color:#888;" id="userName">...</span>
+    <button onclick="doLogout()" style="background:none;border:1px solid #333;border-radius:6px;padding:6px 12px;color:#666;font-size:0.75rem;cursor:pointer;font-family:inherit;transition:all 0.15s;" onmouseover="this.style.borderColor='#c9a84c';this.style.color='#c9a84c'" onmouseout="this.style.borderColor='#333';this.style.color='#666'">Salir</button>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="sidebar">
+    <a class="nb-item" href="/"><span class="nb-icon">🏠</span><span class="nb-label">Inicio</span></a>
+    <div class="nb-sep"></div>
+    <div class="nb-group">
+      <div class="nb-parent" onclick="toggleGroup('grpCRM')">
+        <span class="nb-chevron" id="chv-grpCRM">▸</span>
+        <span class="nb-icon">📊</span>
+        <span class="nb-label">CRM</span>
+      </div>
+      <div class="nb-children collapsed" id="grpCRM">
+        <a class="nb-child" href="/listing"><span class="nb-icon-sm">✍️</span> Listing</a>
+      </div>
+    </div>
+    <div class="nb-group">
+      <div class="nb-parent active" onclick="toggleGroup('grpFirma')">
+        <span class="nb-chevron" id="chv-grpFirma">▾</span>
+        <span class="nb-icon">📝</span>
+        <span class="nb-label">Firma Electrónica</span>
+      </div>
+      <div class="nb-children" id="grpFirma">
+        <a class="nb-child" href="/?page=pendientes"><span class="nb-icon-sm">⏳</span> Pendientes</a>
+        <a class="nb-child" href="/?page=completados"><span class="nb-icon-sm">✅</span> Completados</a>
+        <div class="nb-sep" style="margin:4px 0;"></div>
+        <a class="nb-child nb-action" href="/?page=nuevo"><span class="nb-icon-sm">➕</span> Nueva firma</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="main">
+    <div class="page-title">Estado del documento</div>
+    <div class="page-sub">📄 {{ doc.title }}</div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div class="card-title" style="margin:0;">Progreso de firmas</div>
+        <span id="statusBadge" class="badge"></span>
+      </div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar" id="progressBar" style="width:0%"></div>
+      </div>
+      <div style="font-size:0.82rem;color:#666;margin-top:6px;" id="progressText"></div>
+      <div class="refresh-note">
+        <span class="live-dot"></span>Esta página se actualiza automáticamente cada 15 segundos.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">✍️ Firmantes</div>
+      <div id="firmantesList"></div>
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <a href="/api/documento/{{ doc_id }}/certificado" class="btn btn-ink">⬇️ Descargar PDF firmado</a>
+      <button class="btn btn-outline" onclick="loadStatus()">🔄 Actualizar ahora</button>
+    </div>
+  </main>
+</div>
+
+<script>
+const DOC_ID = "{{ doc_id }}";
+
+function toggleGroup(id) {
+  const el = document.getElementById(id);
+  const chv = document.getElementById('chv-' + id);
+  if (!el) return;
+  el.classList.toggle('collapsed');
+  chv.textContent = el.classList.contains('collapsed') ? '▸' : '▾';
+}
+
+function initials(name) {
+  return name.trim().split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase();
+}
+
+async function loadStatus() {
+  try {
+    const res = await fetch(`/api/documento/${DOC_ID}/estado`);
+    const data = await res.json();
+    if (!res.ok) return;
+    const signed = data.firmantes.filter(f => f.signed).length;
+    const total = data.firmantes.length;
+    const pct = total ? Math.round(signed / total * 100) : 0;
+    document.getElementById('progressBar').style.width = pct + '%';
+    document.getElementById('progressText').textContent = `${signed} de ${total} firmantes completaron la firma`;
+    const badge = document.getElementById('statusBadge');
+    if (data.all_signed) {
+      badge.className = 'badge badge-ok'; badge.textContent = '✓ Completado';
+    } else {
+      badge.className = 'badge badge-pending';
+      badge.textContent = `${signed}/${total} firmado${signed !== 1 ? 's' : ''}`;
+    }
+    document.getElementById('firmantesList').innerHTML = data.firmantes.map(f => `
+      <div class="firmante-card ${f.signed ? 'signed' : ''}">
+        <div class="avatar ${f.signed ? 'signed' : 'pending'}">${initials(f.name)}</div>
+        <div style="flex:1;">
+          <div class="fname">${f.name}</div>
+          <div class="femail">${f.email}</div>
+          ${f.signed && f.signed_at
+            ? `<div class="ftime">✓ Firmado el ${new Date(f.signed_at).toLocaleString('es-AR')}</div>`
+            : `<div class="ftime" style="color:#b8860b;">⏳ Pendiente de firma</div>`}
+          ${!f.signed && f.sign_url ? `
+            <div class="link-copy-row">
+              <input type="text" value="${f.sign_url}" readonly id="lnk-${f.token}">
+              <button class="btn-copy-inline" onclick="copiarLink(this,'${f.token}')">Copiar</button>
+            </div>` : ''}
+        </div>
+        <span class="badge ${f.signed ? 'badge-ok' : 'badge-pending'}" style="align-self:flex-start;">
+          ${f.signed ? 'Firmado' : 'Pendiente'}
+        </span>
+      </div>`).join('');
+  } catch(e) { console.error(e); }
+}
+
+function copiarLink(btn, token) {
+  const input = document.getElementById('lnk-' + token);
+  if (input) navigator.clipboard.writeText(input.value);
+  btn.textContent = '¡Copiado!'; btn.classList.add('copied');
+  setTimeout(() => { btn.textContent = 'Copiar'; btn.classList.remove('copied'); }, 2000);
+}
+
+async function doLogout() {
+  await fetch('/api/auth/logout', { method: 'POST' });
+  window.location.href = '/login';
+}
+
+fetch('/api/auth/me').then(r => r.json()).then(u => {
+  if (u.name) {
+    document.getElementById('userName').textContent = u.name;
+    document.getElementById('userAvatar').textContent = u.name.trim().split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+  }
+}).catch(() => {});
+
+loadStatus();
+setInterval(loadStatus, 15000);
+</script>
+</body>
+</html>
