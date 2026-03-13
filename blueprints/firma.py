@@ -36,7 +36,7 @@ def _send_email(to_email, to_name, subject, html_body, attachment_pdf_bytes=None
         print(f"[EMAIL] Sin BREVO_API_KEY. Para: {to_email}"); return False
     try:
         payload = {
-            "sender": {"name": "Realvix CRM", "email": "confiaenfede@gmail.com"},
+            "sender": {"name": "Realvix CRM", "email": "realvixapp@gmail.com"},
             "to": [{"email": to_email, "name": to_name or to_email}],
             "subject": subject,
             "htmlContent": html_body
