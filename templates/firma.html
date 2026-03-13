@@ -10,6 +10,7 @@
   <button class="tab-btn active" onclick="switchFirmaTab('nueva',this)" id="tabBtnNueva">🚀 Nueva firma</button>
   <button class="tab-btn" onclick="switchFirmaTab('pendientes',this)" id="tabBtnPendientes">⏳ Pendientes</button>
   <button class="tab-btn" onclick="switchFirmaTab('completados',this)" id="tabBtnCompletados">✅ Completados</button>
+  <button class="tab-btn" onclick="switchFirmaTab('historial',this)" id="tabBtnHistorial">📁 Historial</button>
 </div>
 
 <!-- ══ TAB NUEVA FIRMA ══ -->
@@ -109,6 +110,13 @@
 <div id="tabCompletados" style="display:none;">
   <div style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:16px;">Documentos firmados por todos</div>
   <div id="listaCompletados"><div class="loading-state">Cargando...</div></div>
+</div>
+
+
+<!-- ══ TAB HISTORIAL ══ -->
+<div id="tabHistorial" style="display:none;">
+  <div style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:16px;">Documentos completados con más de 1 mes, organizados por carpeta mensual</div>
+  <div id="listaHistorial"><div class="loading-state">Cargando...</div></div>
 </div>
 
 
