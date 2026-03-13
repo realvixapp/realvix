@@ -573,7 +573,7 @@ def init_propiedades():
 @app.route('/listing')
 @login_required
 def pagina_listing():
-    return render_template('listing.html')
+    return redirect('/?page=listing')
 
 @app.route('/api/propiedades', methods=['GET'])
 @login_required
@@ -975,10 +975,7 @@ def guardar_firma(doc_id, token):
 @app.route('/estado/<doc_id>')
 @login_required
 def pagina_estado(doc_id):
-    doc = get_doc(doc_id)
-    if not doc:
-        return "Documento no encontrado", 404
-    return render_template('estado.html', doc=doc, doc_id=doc_id)
+    return redirect(f'/?page=estado-doc&doc={doc_id}')
 
 
 @app.route('/api/documento/<doc_id>/certificado')
