@@ -5,7 +5,8 @@ const PROPS = {
   propiedades: [],
   consultas:   [],
   estadioFiltro: 'todos',
-  propFiltroActividad: '', // nombre de propiedad seleccionada en índice
+  propFiltroActividad: '',
+  respFiltro: '', // filtro por respuesta propietario
 };
 
 async function initPropiedades() {
@@ -58,15 +59,14 @@ function renderEstadoProp() {
 
   // Stats
   const s = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-  s('stCaptadas',   PROPS.propiedades.filter(p => (p.estado_tasacion||'').toLowerCase() === 'captado').length);
   s('stPublicadas', PROPS.propiedades.filter(p => (p.estado_tasacion||'').toLowerCase() === 'publicado').length);
   s('stReservadas', PROPS.propiedades.filter(p => (p.estado_tasacion||'').toLowerCase() === 'reservado').length);
   s('stCerradas',   PROPS.propiedades.filter(p => (p.estado_tasacion||'').toLowerCase() === 'cerrado').length);
 
-  // Filtrar solo captado/publicado/reservado/cerrado + filtro usuario
+  // Filtrar solo publicado/reservado/cerrado + filtro usuario
   let lista = PROPS.propiedades.filter(p => {
     const pEst = (p.estado_tasacion || p.estadio || '').toLowerCase();
-    const enEstados = ['captado','publicado','reservado','cerrado'].includes(pEst);
+    const enEstados = ['publicado','reservado','cerrado'].includes(pEst);
     const matchEst  = est === 'todos' || pEst === est;
     const matchQ    = !q || (p.direccion||'').toLowerCase().includes(q) || (p.nombre_propietario||'').toLowerCase().includes(q);
     return enEstados && matchEst && matchQ;
@@ -79,14 +79,22 @@ function renderEstadoProp() {
   }
 
   const hoy = new Date().toISOString().split('T')[0];
+  const RESP_LABELS = {
+    'aceptado':           '✅ Aceptado',
+    'rechazado':          '❌ Rechazado',
+    'esperando_respuesta':'⏳ Esperando resp.',
+    'decide_esperar':     '🕐 Decide esperar',
+    'vendio_con_otro':    '🔄 Vendió con otro',
+    '':                   '—',
+  };
+
   container.innerHTML = `
     <table class="table">
       <thead><tr>
         <th>Dirección</th>
         <th>Estadio</th>
-        <th>Próximo contacto</th>
-        <th>Último contacto</th>
         <th>Propietario</th>
+        <th>Respuesta propietario</th>
         <th>Observaciones</th>
         <th style="text-align:right">Acciones</th>
       </tr></thead>
@@ -94,43 +102,110 @@ function renderEstadoProp() {
         ${lista.map(p => {
           const pEst = (p.estado_tasacion || p.estadio || '').toLowerCase();
           const estInfo = ESTADIO_MAP_P[pEst] || { label: p.estado_tasacion || '—', color:'#888', bg:'#f3f4f6' };
-          const proximo = p.proximo_contacto || '';
-          const vencido = proximo && proximo < hoy;
-          const esHoy   = proximo === hoy;
+          const resp = p.respuesta_listing || '';
+          const RESP_COLORS = {
+            'aceptado':           {color:'#059669',bg:'#ECFDF5'},
+            'rechazado':          {color:'#DC2626',bg:'#FEF2F2'},
+            'esperando_respuesta':{color:'#D97706',bg:'#FFFBEB'},
+            'decide_esperar':     {color:'#7C3AED',bg:'#F5F3FF'},
+            'vendio_con_otro':    {color:'#6B7280',bg:'#F3F4F6'},
+            '':                   {color:'#9CA3AF',bg:'#F9FAFB'},
+          };
+          const rc = RESP_COLORS[resp] || RESP_COLORS[''];
           return `<tr>
             <td>
-              <div style="font-weight:600;">${escHtml(p.direccion||'—')}</div>
+              <div style="font-weight:600;cursor:pointer;color:var(--rx-blue);"
+                data-pid="${p.id}" onclick="abrirEditarPropModal(this.dataset.pid)">${escHtml(p.direccion||'—')}</div>
               ${p.localidad ? `<div style="font-size:0.74rem;color:#888;">${escHtml(p.localidad)}</div>` : ''}
+              ${p.url ? `<a href="${escHtml(p.url)}" target="_blank" style="font-size:0.72rem;color:var(--rx-blue);">🔗 Ver ficha</a>` : ''}
             </td>
             <td>
-              <span style="padding:2px 10px;border-radius:12px;font-size:0.72rem;font-weight:700;background:${estInfo.bg};color:${estInfo.color};">${estInfo.label}</span>
+              <select class="estadio-inline-select" data-pid="${p.id}"
+                onchange="cambiarEstadioProp(this.dataset.pid, this.value)"
+                style="font-size:0.75rem;padding:3px 8px;border-radius:12px;border:1px solid ${estInfo.color}44;background:${estInfo.bg};color:${estInfo.color};font-weight:700;cursor:pointer;outline:none;">
+                <option value="publicado" ${'publicado'===pEst?'selected':''}>🟢 Publicado</option>
+                <option value="reservado" ${'reservado'===pEst?'selected':''}>🔴 Reservado</option>
+                <option value="cerrado"   ${'cerrado'===pEst?'selected':''}>⬛ Cerrado</option>
+              </select>
             </td>
-            <td>
-              ${proximo
-                ? `<span style="font-size:0.82rem;font-weight:${vencido||esHoy?'700':'400'};color:${vencido?'var(--danger)':esHoy?'var(--rx-blue)':'inherit'};">
-                    ${vencido?'⚠️ ':esHoy?'📌 ':''}${formatFecha(proximo)}
-                  </span>`
-                : '<span style="color:#ccc;">—</span>'}
-            </td>
-            <td style="font-size:0.82rem;color:#666;">${formatFecha(p.ultimo_contacto)}</td>
             <td>
               <div style="font-size:0.84rem;">${escHtml(p.nombre_propietario||'—')}</div>
               ${p.telefono ? `<div style="font-size:0.74rem;color:#888;">📞 ${escHtml(p.telefono)}</div>` : ''}
             </td>
-            <td style="max-width:200px;">
+            <td>
+              <span style="font-size:0.75rem;padding:2px 9px;border-radius:10px;font-weight:600;background:${rc.bg};color:${rc.color};">
+                ${RESP_LABELS[resp]||'—'}
+              </span>
+            </td>
+            <td style="max-width:180px;">
               ${p.observaciones
-                ? `<div style="font-size:0.77rem;color:#666;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:190px;" title="${escHtml(p.observaciones)}">${escHtml(p.observaciones)}</div>`
+                ? `<div style="font-size:0.77rem;color:#666;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:170px;" title="${escHtml(p.observaciones)}">${escHtml(p.observaciones)}</div>`
                 : '<span style="color:#ccc;">—</span>'}
             </td>
             <td style="text-align:right;white-space:nowrap;">
-              ${p.url ? `<a class="btn-icon-sm" href="${escHtml(p.url)}" target="_blank">🔗</a>` : ''}
               ${p.telefono ? `<button class="btn-icon-sm" data-tel="${escHtml(p.telefono)}" data-nom="${escHtml(p.nombre_propietario||'')}" onclick="window.open(buildWhatsAppUrl(this.dataset.tel,'Hola '+this.dataset.nom),'_blank')">💬</button>` : ''}
-              <button class="btn-icon-sm" onclick="window.location.href='/negocio'">✏️</button>
+              <button class="btn-icon-sm" data-pid="${p.id}" onclick="abrirEditarPropModal(this.dataset.pid)" title="Editar">✏️</button>
             </td>
           </tr>`;
         }).join('')}
       </tbody>
     </table>`;
+}
+
+
+async function cambiarEstadioProp(pid, nuevoEstadio) {
+  const p = PROPS.propiedades.find(x => x.id === pid);
+  if (!p) return;
+  try {
+    await apiPut(`/api/propiedades/${pid}`, { ...p, estado_tasacion: nuevoEstadio, estadio: nuevoEstadio });
+    p.estado_tasacion = nuevoEstadio;
+    p.estadio = nuevoEstadio;
+    renderEstadoProp();
+    showToast('Estado actualizado ✓');
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+function abrirEditarPropModal(pid) {
+  // Store pid and open a simple edit modal
+  PROPS.editandoId = pid;
+  const p = PROPS.propiedades.find(x => x.id === pid);
+  if (!p) return;
+  document.getElementById('editPropId').value = pid;
+  document.getElementById('editPropDireccion').value = p.direccion || '';
+  document.getElementById('editPropLocalidad').value = p.localidad || '';
+  document.getElementById('editPropTipologia').value = p.tipologia || '';
+  document.getElementById('editPropNombre').value = p.nombre_propietario || '';
+  document.getElementById('editPropTelefono').value = p.telefono || '';
+  document.getElementById('editPropUrl').value = p.url || '';
+  document.getElementById('editPropObs').value = p.observaciones || '';
+  const est = (p.estado_tasacion||'').toLowerCase();
+  document.getElementById('editPropEstadio').value = ['publicado','reservado','cerrado'].includes(est) ? est : 'publicado';
+  abrirModal('modalEditarProp');
+}
+
+async function guardarEditarProp() {
+  const pid = document.getElementById('editPropId').value;
+  const p   = PROPS.propiedades.find(x => x.id === pid);
+  if (!p) return;
+  const nuevoEstadio = document.getElementById('editPropEstadio').value;
+  const body = { ...p,
+    direccion:          document.getElementById('editPropDireccion').value,
+    localidad:          document.getElementById('editPropLocalidad').value,
+    tipologia:          document.getElementById('editPropTipologia').value,
+    nombre_propietario: document.getElementById('editPropNombre').value,
+    telefono:           document.getElementById('editPropTelefono').value,
+    url:                document.getElementById('editPropUrl').value,
+    observaciones:      document.getElementById('editPropObs').value,
+    estado_tasacion:    nuevoEstadio,
+    estadio:            nuevoEstadio,
+  };
+  try {
+    await apiPut(`/api/propiedades/${pid}`, body);
+    Object.assign(p, body);
+    cerrarModal('modalEditarProp');
+    showToast('Propiedad actualizada ✓');
+    renderEstadoProp();
+  } catch(e) { showToast(e.message, 'error'); }
 }
 
 // ══ ACTIVIDAD CON ÍNDICE POR PROPIEDAD ══
@@ -184,6 +259,37 @@ function renderActividadProp() {
     }).join('');
   }
 
+  // ── ÍNDICE POR RESPUESTA PROPIETARIO ──
+  const respIndexEl = document.getElementById('propRespIndex');
+  if (respIndexEl) {
+    const RESP_OPTS = [
+      { k:'',                    label:'Todas',             color:'#6B7280', bg:'#F3F4F6' },
+      { k:'aceptado',            label:'✅ Aceptado',        color:'#059669', bg:'#ECFDF5' },
+      { k:'rechazado',           label:'❌ Rechazado',       color:'#DC2626', bg:'#FEF2F2' },
+      { k:'esperando_respuesta', label:'⏳ Esperando resp.', color:'#D97706', bg:'#FFFBEB' },
+      { k:'decide_esperar',      label:'🕐 Decide esperar',  color:'#7C3AED', bg:'#F5F3FF' },
+      { k:'vendio_con_otro',     label:'🔄 Vendió c/otro',   color:'#6B7280', bg:'#F3F4F6' },
+    ];
+    respIndexEl.innerHTML = RESP_OPTS.map(opt => {
+      const count = opt.k === ''
+        ? propsConConteo.length
+        : propsConConteo.filter(p => (p.respuesta_listing||'esperando_respuesta') === opt.k).length;
+      const active = PROPS.respFiltro === opt.k;
+      return `<button onclick="filtrarRespActividad('${opt.k}')"
+        style="padding:4px 12px;border-radius:20px;font-size:0.75rem;font-weight:600;cursor:pointer;
+        border:1.5px solid ${active ? opt.color : '#e0e0e0'};
+        background:${active ? opt.bg : 'white'};
+        color:${active ? opt.color : '#666'};">
+        ${opt.label} (${count})
+      </button>`;
+    }).join('');
+  }
+
+  // Apply respuesta filter
+  let propsParaMostrar = PROPS.respFiltro
+    ? propsConConteo.filter(p => (p.respuesta_listing||'esperando_respuesta') === PROPS.respFiltro)
+    : propsConConteo;
+
   // ── ÍNDICE POR NOMBRE DE PROPIEDAD ──
   const indexEl = document.getElementById('propNombreIndex');
   if (indexEl && props.length > 0) {
@@ -213,8 +319,8 @@ function renderActividadProp() {
 
   // ── RENDER PANELES ──
   let propsMostrar = PROPS.propFiltroActividad
-    ? propsConConteo.filter(p => p.direccion === PROPS.propFiltroActividad)
-    : propsConConteo;
+    ? propsParaMostrar.filter(p => p.direccion === PROPS.propFiltroActividad)
+    : propsParaMostrar;
 
   const container = document.getElementById('actividadPropGrid');
   if (!container) return;
@@ -320,6 +426,12 @@ function renderActividadProp() {
 
 function filtrarPropActividad(nombre) {
   PROPS.propFiltroActividad = nombre;
+  renderActividadProp();
+}
+
+function filtrarRespActividad(resp) {
+  PROPS.respFiltro = resp;
+  PROPS.propFiltroActividad = ''; // reset prop filter
   renderActividadProp();
 }
 
