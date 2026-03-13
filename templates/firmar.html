@@ -80,17 +80,25 @@
     </div>
   </div>
 
-  <!-- Vista previa del PDF -->
+  <!-- Vista previa del PDF con selector de zona -->
   {% if doc.pdf_base64 %}
   <div class="card">
-    <div class="card-title">👁 Vista previa del documento</div>
-    <div class="pdf-wrap">
-      <canvas id="pdfCanvas"></canvas>
+    <div class="card-title">👁 Seleccioná dónde firmar en el documento</div>
+    <p style="font-size:0.85rem;color:#666;margin:0 0 14px;">Hacé click y arrastrá para crear un rectángulo donde deseas poner tu firma</p>
+    <div class="pdf-wrap" id="pdfWrapContainer">
+      <div style="position:relative;display:inline-block;margin-bottom:12px;" id="pdfPageContainer">
+        <canvas id="pdfCanvas" style="display:block;max-width:100%;box-shadow:0 2px 12px rgba(0,0,0,0.15);border-radius:4px;"></canvas>
+        <!-- Zona de firma seleccionada -->
+        <div id="signZoneOverlay" style="position:absolute;border:3px dashed #c9a84c;background:rgba(201,168,76,0.1);display:none;cursor:move;"></div>
+      </div>
     </div>
     <div class="pdf-nav" id="pdfNav" style="display:none;">
       <button onclick="changePage(-1)">← Anterior</button>
       <span id="pageInfo">Pág 1 / 1</span>
       <button onclick="changePage(1)">Siguiente →</button>
+    </div>
+    <div style="margin-top:14px;padding:12px;background:#fff8e1;border-radius:8px;border-left:4px solid #c9a84c;">
+      <p id="zoneInfo" style="font-size:0.82rem;color:#666;margin:0;">Zona de firma no seleccionada</p>
     </div>
   </div>
   {% endif %}
@@ -132,13 +140,16 @@ const TOKEN = "{{ token }}";
 
 // ── PDF Viewer ──
 {% if doc.pdf_base64 %}
+let pdfDoc = null;
+let currentPage = 1;
+let signZone = null; // Zona de firma seleccionada: {page, x, y, w, h, canvasW, canvasH}
+
 (async () => {
   const b64 = "{{ doc.pdf_base64 }}";
   const binary = atob(b64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  const pdfDoc = await pdfjsLib.getDocument({ data: bytes }).promise;
-  let currentPage = 1;
+  pdfDoc = await pdfjsLib.getDocument({ data: bytes }).promise;
 
   async function renderPage(num) {
     const page = await pdfDoc.getPage(num);
@@ -147,7 +158,23 @@ const TOKEN = "{{ token }}";
     const ctx = canvas.getContext('2d');
     canvas.height = viewport.height;
     canvas.width = viewport.width;
+    canvas.dataset.pageNum = num;
     await page.render({ canvasContext: ctx, viewport }).promise;
+    
+    // Redraw selection if on same page
+    if (signZone && signZone.page === num) {
+      const scaleX = canvas.width / signZone.canvasW;
+      const scaleY = canvas.height / signZone.canvasH;
+      const overlay = document.getElementById('signZoneOverlay');
+      overlay.style.display = 'block';
+      overlay.style.left = (signZone.x * scaleX) + 'px';
+      overlay.style.top = (signZone.y * scaleY) + 'px';
+      overlay.style.width = (signZone.w * scaleX) + 'px';
+      overlay.style.height = (signZone.h * scaleY) + 'px';
+    } else {
+      document.getElementById('signZoneOverlay').style.display = 'none';
+    }
+    
     if (pdfDoc.numPages > 1) {
       document.getElementById('pdfNav').style.display = 'flex';
       document.getElementById('pageInfo').textContent = `Pág ${num} / ${pdfDoc.numPages}`;
@@ -160,7 +187,71 @@ const TOKEN = "{{ token }}";
     currentPage = np;
     renderPage(np);
   };
+  
   renderPage(1);
+  
+  // ── Zone selection on PDF ──
+  const canvas = document.getElementById('pdfCanvas');
+  let isDrawing = false, startX = 0, startY = 0;
+  
+  canvas.addEventListener('mousedown', e => {
+    const rect = canvas.getBoundingClientRect();
+    startX = e.clientX - rect.left;
+    startY = e.clientY - rect.top;
+    isDrawing = true;
+  });
+  
+  canvas.addEventListener('mousemove', e => {
+    if (!isDrawing) return;
+    const rect = canvas.getBoundingClientRect();
+    const currX = e.clientX - rect.left;
+    const currY = e.clientY - rect.top;
+    
+    // Visual feedback for dragging
+    const overlay = document.getElementById('signZoneOverlay');
+    overlay.style.display = 'block';
+    overlay.style.left = Math.min(startX, currX) + 'px';
+    overlay.style.top = Math.min(startY, currY) + 'px';
+    overlay.style.width = Math.abs(currX - startX) + 'px';
+    overlay.style.height = Math.abs(currY - startY) + 'px';
+  });
+  
+  canvas.addEventListener('mouseup', e => {
+    if (!isDrawing) return;
+    isDrawing = false;
+    
+    const rect = canvas.getBoundingClientRect();
+    const endX = e.clientX - rect.left;
+    const endY = e.clientY - rect.top;
+    
+    const x = Math.min(startX, endX);
+    const y = Math.min(startY, endY);
+    const w = Math.abs(endX - startX);
+    const h = Math.abs(endY - startY);
+    
+    // Min size
+    if (w < 40 || h < 20) {
+      document.getElementById('signZoneOverlay').style.display = 'none';
+      signZone = null;
+      document.getElementById('zoneInfo').textContent = 'Zona de firma no seleccionada';
+      return;
+    }
+    
+    // Convert to canvas coordinates
+    const scale = canvas.width / rect.width;
+    signZone = {
+      page: currentPage,
+      x: x * scale,
+      y: y * scale,
+      w: w * scale,
+      h: h * scale,
+      canvasW: canvas.width,
+      canvasH: canvas.height
+    };
+    
+    document.getElementById('zoneInfo').textContent = `✅ Zona seleccionada en página ${currentPage}`;
+  });
+  
 })();
 {% endif %}
 
@@ -234,6 +325,13 @@ function clearSig() {
 
 async function guardarFirma() {
   if (!hasContent) { toast('Dibujá tu firma primero'); return; }
+  
+  // Validar que haya zona seleccionada
+  if (!signZone) { 
+    toast('Seleccioná una zona en el documento primero'); 
+    return; 
+  }
+  
   const btn = document.getElementById('btnFirmar');
   btn.disabled = true;
   btn.textContent = '⏳ Guardando...';
@@ -244,7 +342,10 @@ async function guardarFirma() {
     const res = await fetch(`/api/firmar/${DOC_ID}/${TOKEN}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ signature_dataurl: signatureDataUrl }),
+      body: JSON.stringify({ 
+        signature_dataurl: signatureDataUrl,
+        sign_zone: signZone  // Enviar zona de firma
+      }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Error al guardar la firma');
