@@ -508,18 +508,18 @@ def forzar_migracion():
         return jsonify({'error': str(e), 'resultados': resultados}), 500
 
 
-@app.route('/api/init-db', methods=['POST'])
-@admin_required
-def forzar_init_db():
-    """Re-ejecuta init_db() manualmente. Útil cuando la DB no estaba disponible al arrancar."""
+@app.route('/run-init-db')
+def run_init_db():
+    key = request.args.get('key', '')
+    if key != os.environ.get('SETUP_KEY', 'realvix2024'):
+        return 'Clave incorrecta', 403
     try:
         init_db()
-        return jsonify({'ok': True, 'msg': 'Tablas creadas correctamente'})
+        return '<h2>OK: Todas las tablas creadas. Ya podes usar el CRM.</h2>', 200
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return f'<h2>Error: {e}</h2>', 500
 
 
-# ── Init con reintentos ──
 import threading, time
 
 def _init_with_retry(max_attempts=10, delay=3):
@@ -531,12 +531,11 @@ def _init_with_retry(max_attempts=10, delay=3):
                 init_db()
                 print(f"[DB] Init OK en intento {attempt}")
                 return
-            else:
-                print(f"[DB] Sin conexion, reintento {attempt}/{max_attempts}...")
+            print(f"[DB] Sin conexion, reintento {attempt}/{max_attempts}...")
         except Exception as e:
-            print(f"[DB] Error en intento {attempt}: {e}")
+            print(f"[DB] Error intento {attempt}: {e}")
         time.sleep(delay)
-    print("[DB] No se pudo inicializar la DB tras todos los intentos")
+    print("[DB] No se pudo inicializar la DB")
 
 threading.Thread(target=_init_with_retry, daemon=True).start()
 
