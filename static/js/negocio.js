@@ -210,19 +210,6 @@ async function cambiarEstadio(id, nuevoEstadio) {
     await apiPut(`/api/propiedades/${id}`, { ...p, estado_tasacion: nuevoEstadio });
     p.estado_tasacion = nuevoEstadio;
     actualizarStatsListing();
-
-    // 📅 Ofrecer agendar si es un estadio de acción
-    if (['en_tasacion','captado'].includes(nuevoEstadio)) {
-      const label = ESTADIO_MAP[nuevoEstadio]?.label || nuevoEstadio;
-      setTimeout(() => {
-        pedirAgendarEnCalendar({
-          titulo: `${label} — ${p.direccion || 'Propiedad'}`,
-          descripcion: `📋 ${label} · ${p.direccion || ''}${p.localidad ? ', ' + p.localidad : ''}${p.nombre_propietario ? ' · ' + p.nombre_propietario : ''}${p.telefono ? ' · ' + p.telefono : ''}`,
-          hora: '10:00',
-          tipo: 'visita'
-        });
-      }, 300);
-    }
   } catch (e) { showToast('Error al actualizar estadio', 'error'); }
 }
 
@@ -294,20 +281,18 @@ async function guardarPropiedad() {
     showToast(id ? 'Propiedad actualizada' : 'Propiedad creada');
     await cargarPropiedades();
 
-    // 📅 Si hay fecha de prelisting o próximo contacto, ofrecer agendar en Calendar
+    // 📅 Ofrecer agendar si hay fecha de prelisting o próximo contacto
     const fechaAgendar = body.fecha_prelisting || body.proximo_contacto;
     const estadio      = body.estadio || body.estado_tasacion || '';
-    const esListing    = ['en_tasacion','captado','publicado'].includes(estadio);
-
-    if (fechaAgendar || esListing) {
+    if (fechaAgendar || ['en_tasacion','captado'].includes(estadio)) {
+      const tipo = body.fecha_prelisting ? 'Prelisting' : ['en_tasacion','captado'].includes(estadio) ? (ESTADIO_MAP[estadio]?.label || estadio) : 'Seguimiento';
       setTimeout(() => {
-        const tipoEvento = body.fecha_prelisting ? 'Prelisting' : esListing ? 'Visita / Tasación' : 'Seguimiento';
         pedirAgendarEnCalendar({
-          titulo: `${tipoEvento} — ${dir}`,
-          descripcion: `📋 ${tipoEvento} · ${dir}${body.localidad ? ', ' + body.localidad : ''}${body.nombre_propietario ? ' · Propietario: ' + body.nombre_propietario : ''}${body.telefono ? ' · ' + body.telefono : ''}`,
-          fecha: fechaAgendar || '',
-          hora: '10:00',
-          tipo: 'visita'
+          titulo:      `${tipo} — ${dir}`,
+          descripcion: `📋 ${tipo} · ${dir}${body.localidad ? ', ' + body.localidad : ''}${body.nombre_propietario ? ' · ' + body.nombre_propietario : ''}${body.telefono ? ' · ' + body.telefono : ''}`,
+          fecha:       fechaAgendar || '',
+          hora:        '10:00',
+          notas:       body.observaciones || '',
         });
       }, 300);
     }
@@ -358,15 +343,27 @@ function renderContactos() {
     otro:        { bg:'#F3F4F6', color:'#6B7280' },
   };
   container.innerHTML = `
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;">
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;">
       ${lista.map(c => {
         const tc = TIPO_COLORS[c.tipo] || TIPO_COLORS.otro;
+        // Calcular días hasta cumpleaños
+        let cumpleBadge = '';
+        if (c.cumpleanos) {
+          const hoy = new Date(); const cum = new Date(c.cumpleanos);
+          const proxCum = new Date(hoy.getFullYear(), cum.getMonth(), cum.getDate());
+          if (proxCum < hoy) proxCum.setFullYear(hoy.getFullYear() + 1);
+          const dias = Math.ceil((proxCum - hoy) / 86400000);
+          if (dias <= 30) cumpleBadge = `<span style="font-size:0.7rem;background:#FFF7ED;color:#F97316;border-radius:10px;padding:2px 7px;font-weight:600;">🎂 ${dias === 0 ? '¡Hoy!' : dias + 'd'}</span>`;
+        }
         return `
           <div class="card" style="padding:14px;">
             <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px;">
               <div>
-                <div style="font-weight:600;font-size:0.9rem;">${escHtml(c.nombre)}</div>
-                <span style="font-size:0.7rem;padding:2px 8px;border-radius:10px;font-weight:600;background:${tc.bg};color:${tc.color};">${c.tipo||'otro'}</span>
+                <div style="font-weight:600;font-size:0.9rem;margin-bottom:3px;">${escHtml(c.nombre)}</div>
+                <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">
+                  <span style="font-size:0.7rem;padding:2px 8px;border-radius:10px;font-weight:600;background:${tc.bg};color:${tc.color};">${c.tipo||'otro'}</span>
+                  ${cumpleBadge}
+                </div>
               </div>
               <div style="display:flex;gap:4px;">
                 ${c.telefono ? `<button class="btn-icon-sm" onclick="window.open('${buildWhatsAppUrl(c.telefono,'')}','_blank')">💬</button>` : ''}
@@ -374,16 +371,22 @@ function renderContactos() {
                 <button class="btn-icon-sm danger" onclick="eliminarContacto('${c.id}')">🗑️</button>
               </div>
             </div>
-            ${c.telefono ? `<div style="font-size:0.81rem;color:#555;margin-top:6px;">📞 ${escHtml(c.telefono)}</div>` : ''}
-            ${c.email    ? `<div style="font-size:0.81rem;color:#555;">✉️ ${escHtml(c.email)}</div>` : ''}
-            ${c.notas    ? `<div style="font-size:0.76rem;color:#888;margin-top:6px;padding-top:6px;border-top:1px solid var(--border);">${escHtml(c.notas)}</div>` : ''}
+            ${c.profesion   ? `<div style="font-size:0.78rem;color:#555;margin-top:4px;">💼 ${escHtml(c.profesion)}</div>` : ''}
+            ${c.telefono    ? `<div style="font-size:0.79rem;color:#555;margin-top:3px;">📞 ${escHtml(c.telefono)}</div>` : ''}
+            ${c.email       ? `<div style="font-size:0.79rem;color:#555;">✉️ ${escHtml(c.email)}</div>` : ''}
+            ${c.cumpleanos  ? `<div style="font-size:0.77rem;color:#F97316;margin-top:3px;">🎂 ${formatFecha(c.cumpleanos)}</div>` : ''}
+            ${c.hijos       ? `<div style="font-size:0.77rem;color:#888;">👨‍👧‍👦 ${escHtml(c.hijos)}</div>` : ''}
+            ${c.hobbies     ? `<div style="font-size:0.77rem;color:#888;">🎯 ${escHtml(c.hobbies)}</div>` : ''}
+            ${c.gustos      ? `<div style="font-size:0.77rem;color:#888;">🏠 ${escHtml(c.gustos)}</div>` : ''}
+            ${c.notas       ? `<div style="font-size:0.75rem;color:#aaa;margin-top:7px;padding-top:7px;border-top:1px solid var(--border);">${escHtml(c.notas)}</div>` : ''}
           </div>`;
       }).join('')}
     </div>`;
 }
 
 function abrirNuevoContacto() {
-  ['ctcId','ctcNombre','ctcTelefono','ctcEmail','ctcLocalidad','ctcNotas'].forEach(id => {
+  ['ctcId','ctcNombre','ctcTelefono','ctcEmail','ctcLocalidad','ctcNotas',
+   'ctcCumple','ctcProfesion','ctcHijos','ctcHobbies','ctcGustos'].forEach(id => {
     const e = document.getElementById(id); if (e) e.value = '';
   });
   document.getElementById('ctcTipo').value = 'propietario';
@@ -394,13 +397,18 @@ function abrirNuevoContacto() {
 function editarContacto(id) {
   const c = NEG.contactos.find(x => x.id === id);
   if (!c) return;
-  document.getElementById('ctcId').value       = c.id;
-  document.getElementById('ctcNombre').value   = c.nombre || '';
-  document.getElementById('ctcTipo').value     = c.tipo || 'otro';
-  document.getElementById('ctcTelefono').value = c.telefono || '';
-  document.getElementById('ctcEmail').value    = c.email || '';
-  document.getElementById('ctcLocalidad').value= c.localidad || '';
-  document.getElementById('ctcNotas').value    = c.notas || '';
+  document.getElementById('ctcId').value        = c.id;
+  document.getElementById('ctcNombre').value    = c.nombre    || '';
+  document.getElementById('ctcTipo').value      = c.tipo      || 'otro';
+  document.getElementById('ctcTelefono').value  = c.telefono  || '';
+  document.getElementById('ctcEmail').value     = c.email     || '';
+  document.getElementById('ctcLocalidad').value = c.localidad || '';
+  document.getElementById('ctcNotas').value     = c.notas     || '';
+  document.getElementById('ctcCumple').value    = c.cumpleanos || '';
+  document.getElementById('ctcProfesion').value = c.profesion  || '';
+  document.getElementById('ctcHijos').value     = c.hijos      || '';
+  document.getElementById('ctcHobbies').value   = c.hobbies    || '';
+  document.getElementById('ctcGustos').value    = c.gustos     || '';
   document.getElementById('modalCtcTitulo').textContent = 'Editar contacto';
   abrirModal('modalContacto');
 }
@@ -409,13 +417,19 @@ async function guardarContacto() {
   const id     = document.getElementById('ctcId').value;
   const nombre = document.getElementById('ctcNombre').value.trim();
   if (!nombre) { showToast('El nombre es requerido', 'error'); return; }
+  const cumple = document.getElementById('ctcCumple').value;
   const body = {
     nombre,
-    tipo:      document.getElementById('ctcTipo').value,
-    telefono:  document.getElementById('ctcTelefono').value,
-    email:     document.getElementById('ctcEmail').value,
-    localidad: document.getElementById('ctcLocalidad').value,
-    notas:     document.getElementById('ctcNotas').value,
+    tipo:       document.getElementById('ctcTipo').value,
+    telefono:   document.getElementById('ctcTelefono').value,
+    email:      document.getElementById('ctcEmail').value,
+    localidad:  document.getElementById('ctcLocalidad').value,
+    notas:      document.getElementById('ctcNotas').value,
+    cumpleanos: cumple,
+    profesion:  document.getElementById('ctcProfesion').value,
+    hijos:      document.getElementById('ctcHijos').value,
+    hobbies:    document.getElementById('ctcHobbies').value,
+    gustos:     document.getElementById('ctcGustos').value,
   };
   try {
     if (id) await apiPut(`/api/contactos/${id}`, body);
@@ -423,6 +437,27 @@ async function guardarContacto() {
     cerrarModal('modalContacto');
     showToast('Contacto guardado');
     await cargarContactos();
+
+    // 📅 Si tiene cumpleaños, ofrecer agendar recordatorio anual
+    if (cumple) {
+      setTimeout(() => {
+        // Armar la próxima fecha de cumpleaños
+        const hoy = new Date();
+        const cum = new Date(cumple);
+        const proxAnio = hoy.getFullYear();
+        let proxCum = `${proxAnio}-${String(cum.getMonth()+1).padStart(2,'0')}-${String(cum.getDate()).padStart(2,'0')}`;
+        if (proxCum < hoy.toISOString().split('T')[0]) {
+          proxCum = `${proxAnio+1}-${String(cum.getMonth()+1).padStart(2,'0')}-${String(cum.getDate()).padStart(2,'0')}`;
+        }
+        pedirAgendarEnCalendar({
+          titulo:      `🎂 Cumpleaños — ${nombre}`,
+          descripcion: `🎂 Cumpleaños de ${nombre}${body.telefono ? ' · 📞 ' + body.telefono : ''}${body.profesion ? ' · ' + body.profesion : ''}`,
+          fecha:       proxCum,
+          hora:        '09:00',
+          notas:       `Recordatorio anual cumpleaños de ${nombre}`,
+        });
+      }, 300);
+    }
   } catch (e) { showToast(e.message, 'error'); }
 }
 
