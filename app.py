@@ -82,6 +82,22 @@ def init_db():
             created_at TIMESTAMP DEFAULT NOW(),
             updated_at TIMESTAMP DEFAULT NOW()
         )""")
+        # ── Migraciones de columnas faltantes (seguro correr siempre) ──
+        migraciones = [
+            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT 'legacy'",
+            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS email TEXT",
+            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS estadio TEXT",
+            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS referido TEXT",
+            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS url TEXT",
+            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS ultimo_contacto TEXT",
+            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS proximo_contacto TEXT",
+            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS fecha_prelisting TEXT",
+            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS permisos JSONB DEFAULT '{}'",
+        ]
+        for m in migraciones:
+            try: cur.execute(m)
+            except Exception as me: print(f"[MIGRATE] {me}")
         # Migrate legacy propiedades without user_id
         cur.execute("UPDATE propiedades SET user_id='legacy' WHERE user_id IS NULL OR user_id=''")
 
@@ -847,25 +863,21 @@ def actualizar_propiedad(pid):
     if not conn: return jsonify({'error': 'Sin DB'}), 500
     try:
         cur = conn.cursor()
-        cur.execute("""
-            UPDATE propiedades SET
-            direccion=%s, localidad=%s, zona=%s, tipologia=%s, nombre_propietario=%s,
-            telefono=%s, email=%s, estado_tasacion=%s, estadio=%s, observaciones=%s,
-            referido=%s, url=%s, ultimo_contacto=%s, proximo_contacto=%s,
-            fecha_prelisting=%s, updated_at=NOW()
-            WHERE id=%s AND user_id=%s
-        """, (data.get('direccion',''), data.get('localidad',''), data.get('zona',''),
-              data.get('tipologia',''), data.get('nombre_propietario',''),
-              data.get('telefono',''), data.get('email',''),
-              data.get('estado_tasacion',''), data.get('estadio',''),
-              data.get('observaciones',''), data.get('referido',''), data.get('url',''),
-              data.get('ultimo_contacto') or None,
-              data.get('proximo_contacto') or None,
-              data.get('fecha_prelisting') or None,
-              pid, user['id']))
+        # Campos permitidos para actualizar
+        CAMPOS = ['direccion','localidad','zona','tipologia','nombre_propietario',
+                  'telefono','email','estado_tasacion','estadio','observaciones',
+                  'referido','url','ultimo_contacto','proximo_contacto','fecha_prelisting']
+        # Solo actualizar los campos que vienen en el body (actualización parcial)
+        campos_presentes = {k: data[k] for k in CAMPOS if k in data}
+        if not campos_presentes:
+            return jsonify({'ok': True})  # nada que actualizar
+        sets = ', '.join(f"{k}=%s" for k in campos_presentes) + ', updated_at=NOW()'
+        valores = list(campos_presentes.values()) + [pid, user['id']]
+        cur.execute(f"UPDATE propiedades SET {sets} WHERE id=%s AND user_id=%s", valores)
         conn.commit(); cur.close(); conn.close()
         return jsonify({'ok': True})
     except Exception as e:
+        print(f"[DB ERROR] actualizar_propiedad: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/propiedades/<pid>', methods=['DELETE'])
