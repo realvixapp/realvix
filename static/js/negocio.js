@@ -210,6 +210,19 @@ async function cambiarEstadio(id, nuevoEstadio) {
     await apiPut(`/api/propiedades/${id}`, { ...p, estado_tasacion: nuevoEstadio });
     p.estado_tasacion = nuevoEstadio;
     actualizarStatsListing();
+
+    // 📅 Ofrecer agendar si es un estadio de acción
+    if (['en_tasacion','captado'].includes(nuevoEstadio)) {
+      const label = ESTADIO_MAP[nuevoEstadio]?.label || nuevoEstadio;
+      setTimeout(() => {
+        pedirAgendarEnCalendar({
+          titulo: `${label} — ${p.direccion || 'Propiedad'}`,
+          descripcion: `📋 ${label} · ${p.direccion || ''}${p.localidad ? ', ' + p.localidad : ''}${p.nombre_propietario ? ' · ' + p.nombre_propietario : ''}${p.telefono ? ' · ' + p.telefono : ''}`,
+          hora: '10:00',
+          tipo: 'visita'
+        });
+      }, 300);
+    }
   } catch (e) { showToast('Error al actualizar estadio', 'error'); }
 }
 
@@ -280,6 +293,24 @@ async function guardarPropiedad() {
     cerrarModal('modalPropiedad');
     showToast(id ? 'Propiedad actualizada' : 'Propiedad creada');
     await cargarPropiedades();
+
+    // 📅 Si hay fecha de prelisting o próximo contacto, ofrecer agendar en Calendar
+    const fechaAgendar = body.fecha_prelisting || body.proximo_contacto;
+    const estadio      = body.estadio || body.estado_tasacion || '';
+    const esListing    = ['en_tasacion','captado','publicado'].includes(estadio);
+
+    if (fechaAgendar || esListing) {
+      setTimeout(() => {
+        const tipoEvento = body.fecha_prelisting ? 'Prelisting' : esListing ? 'Visita / Tasación' : 'Seguimiento';
+        pedirAgendarEnCalendar({
+          titulo: `${tipoEvento} — ${dir}`,
+          descripcion: `📋 ${tipoEvento} · ${dir}${body.localidad ? ', ' + body.localidad : ''}${body.nombre_propietario ? ' · Propietario: ' + body.nombre_propietario : ''}${body.telefono ? ' · ' + body.telefono : ''}`,
+          fecha: fechaAgendar || '',
+          hora: '10:00',
+          tipo: 'visita'
+        });
+      }, 300);
+    }
   } catch (e) { showToast(e.message, 'error'); }
 }
 
