@@ -808,48 +808,26 @@ def pagina_listing():
 
 
 # ══════════════════════════════════════════
-#  PROPIEDADES (per-user)
+#  PROPIEDADES (per-user) - misma estructura que contactos
 # ══════════════════════════════════════════
 
 @app.route('/api/propiedades', methods=['GET'])
 @login_required
 def listar_propiedades():
     user = get_current_user()
-    uid = user['id']
-    vista = request.args.get('vista', 'listing')
     conn = get_connection()
     if not conn: return jsonify({'propiedades': [], 'estados': []})
     try:
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        # Estados - igual que contactos
-        cur.execute("SELECT * FROM estado_opciones WHERE user_id=%s OR user_id='global' ORDER BY orden", (uid,))
-        todos_estados = [dict(r) for r in cur.fetchall()]
-        seen = {}
-        for e in todos_estados:
-            n = e['nombre']
-            if n not in seen or e['user_id'] == uid:
-                seen[n] = e
-        estados = list(seen.values())
-        # Propiedades - igual que contactos, sin JOIN
-        cur.execute("SELECT * FROM propiedades WHERE user_id=%s ORDER BY created_at DESC", (uid,))
-        todas = [dict(r) for r in cur.fetchall()]
+        cur.execute("SELECT * FROM propiedades WHERE user_id=%s ORDER BY created_at DESC", (user['id'],))
+        props = [dict(r) for r in cur.fetchall()]
+        cur.execute("SELECT * FROM estado_opciones WHERE user_id=%s OR user_id='global' ORDER BY orden", (user['id'],))
+        estados = [dict(r) for r in cur.fetchall()]
         cur.close(); conn.close()
-        # Filtro de vista en Python
-        if vista in ('all', 'analisis'):
-            props = todas
-        elif vista == 'listing':
-            nombres_listing = {e['nombre'] for e in estados if e.get('vista') == 'listing'}
-            props = [p for p in todas if p.get('estado_tasacion') in nombres_listing] if nombres_listing else todas
-        elif vista.startswith('estado:'):
-            en = vista.replace('estado:', '')
-            props = [p for p in todas if p.get('estado_tasacion') == en]
-        else:
-            props = todas
         return jsonify({'propiedades': props, 'estados': estados})
     except Exception as e:
         print(f"[DB ERROR] listar_propiedades: {e}")
         return jsonify({'propiedades': [], 'estados': []})
-
 
 @app.route('/api/propiedades', methods=['POST'])
 @login_required
@@ -861,39 +839,16 @@ def crear_propiedad():
     try:
         pid = str(uuid.uuid4())
         cur = conn.cursor()
-        # Intentar agregar columnas faltantes antes del INSERT
-        cols_nuevas = [
-            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS user_id TEXT DEFAULT 'legacy'",
-            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS email TEXT",
-            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS estadio TEXT",
-            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS referido TEXT",
-            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS url TEXT",
-            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS ultimo_contacto TEXT",
-            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS proximo_contacto TEXT",
-            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS fecha_prelisting TEXT",
-            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()",
-        ]
-        for sql in cols_nuevas:
-            try: cur.execute(sql)
-            except: conn.rollback()
-        try: conn.commit()
-        except: pass
-
         cur.execute("""
             INSERT INTO propiedades
             (id, user_id, direccion, localidad, zona, tipologia, nombre_propietario,
-             telefono, email, estado_tasacion, estadio, observaciones, referido, url,
-             ultimo_contacto, proximo_contacto, fecha_prelisting)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+             telefono, estado_tasacion, observaciones, url)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         """, (pid, user['id'],
               data.get('direccion',''), data.get('localidad',''), data.get('zona',''),
               data.get('tipologia',''), data.get('nombre_propietario',''),
-              data.get('telefono',''), data.get('email',''),
-              data.get('estado_tasacion','Pendiente Visita'), data.get('estadio',''),
-              data.get('observaciones',''), data.get('referido',''), data.get('url',''),
-              data.get('ultimo_contacto') or None,
-              data.get('proximo_contacto') or None,
-              data.get('fecha_prelisting') or None))
+              data.get('telefono',''), data.get('estado_tasacion',''),
+              data.get('observaciones',''), data.get('url','')))
         conn.commit(); cur.close(); conn.close()
         return jsonify({'ok': True, 'id': pid})
     except Exception as e:
@@ -909,17 +864,17 @@ def actualizar_propiedad(pid):
     if not conn: return jsonify({'error': 'Sin DB'}), 500
     try:
         cur = conn.cursor()
-        # Campos permitidos para actualizar
-        CAMPOS = ['direccion','localidad','zona','tipologia','nombre_propietario',
-                  'telefono','email','estado_tasacion','estadio','observaciones',
-                  'referido','url','ultimo_contacto','proximo_contacto','fecha_prelisting']
-        # Solo actualizar los campos que vienen en el body (actualización parcial)
-        campos_presentes = {k: data[k] for k in CAMPOS if k in data}
-        if not campos_presentes:
-            return jsonify({'ok': True})  # nada que actualizar
-        sets = ', '.join(f"{k}=%s" for k in campos_presentes) + ', updated_at=NOW()'
-        valores = list(campos_presentes.values()) + [pid, user['id']]
-        cur.execute(f"UPDATE propiedades SET {sets} WHERE id=%s AND user_id=%s", valores)
+        cur.execute("""
+            UPDATE propiedades SET
+            direccion=%s, localidad=%s, zona=%s, tipologia=%s,
+            nombre_propietario=%s, telefono=%s, estado_tasacion=%s,
+            observaciones=%s, url=%s
+            WHERE id=%s AND user_id=%s
+        """, (data.get('direccion',''), data.get('localidad',''), data.get('zona',''),
+              data.get('tipologia',''), data.get('nombre_propietario',''),
+              data.get('telefono',''), data.get('estado_tasacion',''),
+              data.get('observaciones',''), data.get('url',''),
+              pid, user['id']))
         conn.commit(); cur.close(); conn.close()
         return jsonify({'ok': True})
     except Exception as e:
@@ -940,30 +895,19 @@ def eliminar_propiedad(pid):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# ── ESTADOS (per-user) ──
+# ── ESTADOS ──
 @app.route('/api/estados', methods=['GET'])
 @login_required
 def listar_estados_v2():
     user = get_current_user()
-    uid = user['id']
     conn = get_connection()
     if not conn: return jsonify({'estados': []})
     try:
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("""
-            SELECT * FROM estado_opciones
-            WHERE user_id=%s OR user_id='global'
-            ORDER BY orden
-        """, (uid,))
-        all_estados = [dict(r) for r in cur.fetchall()]
+        cur.execute("SELECT * FROM estado_opciones WHERE user_id=%s OR user_id='global' ORDER BY orden", (user['id'],))
+        rows = [dict(r) for r in cur.fetchall()]
         cur.close(); conn.close()
-        # User-specific overrides global
-        seen = {}
-        for e in all_estados:
-            n = e['nombre']
-            if n not in seen or e['user_id'] == uid:
-                seen[n] = e
-        return jsonify({'estados': list(seen.values())})
+        return jsonify({'estados': rows})
     except:
         return jsonify({'estados': []})
 
@@ -979,7 +923,7 @@ def crear_estado_v2():
     try:
         cur = conn.cursor()
         cur.execute(
-            "INSERT INTO estado_opciones (user_id, nombre, color, vista, orden) VALUES (%s,%s,%s,%s,99) ON CONFLICT DO NOTHING",
+            "INSERT INTO estado_opciones (user_id, nombre, color, vista, orden) VALUES (%s,%s,%s,%s,99)",
             (user['id'], nombre, data.get('color','gray'), data.get('vista','listing'))
         )
         conn.commit(); cur.close(); conn.close()
@@ -996,10 +940,8 @@ def actualizar_estado(estado_id):
     if not conn: return jsonify({'error': 'Sin DB'}), 500
     try:
         cur = conn.cursor()
-        cur.execute("""
-            UPDATE estado_opciones SET nombre=%s, color=%s
-            WHERE id=%s AND user_id=%s
-        """, (data.get('nombre'), data.get('color'), estado_id, user['id']))
+        cur.execute("UPDATE estado_opciones SET nombre=%s, color=%s WHERE id=%s AND user_id=%s",
+            (data.get('nombre'), data.get('color'), estado_id, user['id']))
         conn.commit(); cur.close(); conn.close()
         return jsonify({'ok': True})
     except Exception as e:
@@ -1018,6 +960,7 @@ def eliminar_estado(estado_id):
         return jsonify({'ok': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 
 # ══════════════════════════════════════════
