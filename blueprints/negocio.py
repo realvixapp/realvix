@@ -42,6 +42,8 @@ def crear_propiedad():
     if not conn: return jsonify({'error': 'Sin DB'}), 500
     try:
         pid = data.get('id') or str(uuid.uuid4())
+        # Fechas vacías deben ser NULL, no string vacío
+        def d(v): return v if v and str(v).strip() else None
         cur = conn.cursor()
         cur.execute("""
             INSERT INTO propiedades (id, user_id, direccion, localidad, zona, tipologia,
@@ -63,8 +65,8 @@ def crear_propiedad():
               data.get('email',''), data.get('estado_tasacion','Pendiente Visita'),
               data.get('estadio',''), data.get('observaciones',''),
               data.get('referido',''), data.get('url',''),
-              data.get('ultimo_contacto',''), data.get('proximo_contacto',''),
-              data.get('fecha_prelisting','')))
+              d(data.get('ultimo_contacto')), d(data.get('proximo_contacto')),
+              d(data.get('fecha_prelisting'))))
         conn.commit(); cur.close(); conn.close()
         return jsonify({'ok': True, 'id': pid})
     except Exception as e:
@@ -79,6 +81,7 @@ def actualizar_propiedad(pid):
     conn = get_connection()
     if not conn: return jsonify({'error': 'Sin DB'}), 500
     try:
+        def d(v): return v if v and str(v).strip() else None
         cur = conn.cursor()
         cur.execute("""
             UPDATE propiedades SET
@@ -93,8 +96,8 @@ def actualizar_propiedad(pid):
               data.get('telefono',''), data.get('email',''),
               data.get('estado_tasacion','Pendiente Visita'), data.get('estadio',''),
               data.get('observaciones',''), data.get('referido',''), data.get('url',''),
-              data.get('ultimo_contacto',''), data.get('proximo_contacto',''),
-              data.get('fecha_prelisting',''), pid, user['id']))
+              d(data.get('ultimo_contacto')), d(data.get('proximo_contacto')),
+              d(data.get('fecha_prelisting')), pid, user['id']))
         conn.commit(); cur.close(); conn.close()
         return jsonify({'ok': True})
     except Exception as e:
