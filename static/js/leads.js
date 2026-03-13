@@ -20,15 +20,26 @@ async function cargarPropiedadesLead() {
 function poblarSelectPropiedad() {
   const sel = document.getElementById('leadPropiedadSelect');
   if (!sel) return;
-  sel.innerHTML = '<option value="">— Seleccionar de la cartera —</option>'
-    + LEADS.propiedades.map(p =>
-        `<option value="${escHtml(p.direccion)}">${escHtml(p.direccion)}${p.tipologia ? ' · ' + p.tipologia : ''}${p.localidad ? ' · ' + p.localidad : ''}</option>`
-      ).join('');
+  // Solo propiedades publicadas o reservadas
+  const activas = LEADS.propiedades.filter(p => {
+    const est = (p.estado_tasacion || p.estadio || '').toLowerCase();
+    return est === 'publicado' || est === 'reservado';
+  });
+  sel.innerHTML = '<option value="">— Seleccionar propiedad publicada/reservada —</option>'
+    + activas.map(p => {
+        const est = (p.estado_tasacion || p.estadio || '');
+        const badge = est === 'publicado' ? '🟢 ' : '🔴 ';
+        const label = `${badge}${p.direccion}${p.tipologia ? ' · ' + p.tipologia : ''}${p.localidad ? ' · ' + p.localidad : ''}`;
+        return `<option value="${escHtml(p.direccion)}">${escHtml(label)}</option>`;
+      }).join('');
+  if (activas.length === 0) {
+    sel.innerHTML += '<option value="" disabled>Sin propiedades publicadas/reservadas</option>';
+  }
 }
 
 function onSelectPropiedad(sel) {
   const input = document.getElementById('leadPropiedad');
-  if (input && sel.value) input.value = sel.value;
+  if (input) input.value = sel.value || '';
 }
 
 // Mostrar/ocultar campo fecha visita según estadio
