@@ -270,3 +270,30 @@ async function eliminarTarea(id) {
     await cargarTareas();
   } catch (e) { showToast(e.message, 'error'); }
 }
+
+// ── LIMPIAR COMPLETADOS ──
+function confirmarLimpiarCompletados() {
+  const completadas = AGENDA.tareas.filter(t => t.estado === 'completado');
+  if (completadas.length === 0) {
+    showToast('No hay tareas completadas para eliminar', 'error');
+    return;
+  }
+  const el = document.getElementById('limpiarCompletadosCount');
+  if (el) el.innerHTML = `Vas a eliminar <strong>${completadas.length} tarea${completadas.length > 1 ? 's' : ''} completada${completadas.length > 1 ? 's' : ''}</strong>.`;
+  abrirModal('modalLimpiarCompletados');
+}
+
+async function ejecutarLimpiarCompletados() {
+  cerrarModal('modalLimpiarCompletados');
+  const completadas = AGENDA.tareas.filter(t => t.estado === 'completado');
+  let eliminadas = 0;
+  for (const t of completadas) {
+    try {
+      await apiDelete(`/api/tareas/${t.id}`);
+      eliminadas++;
+    } catch(e) { console.error(e); }
+  }
+  AGENDA.tareas = AGENDA.tareas.filter(t => t.estado !== 'completado');
+  renderKanban();
+  showToast(`${eliminadas} tarea${eliminadas > 1 ? 's' : ''} completada${eliminadas > 1 ? 's' : ''} eliminada${eliminadas > 1 ? 's' : ''} ✓`, 'success');
+}
