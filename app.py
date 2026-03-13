@@ -760,7 +760,7 @@ def crear_documento():
     firmantes = []
     for f in firmantes_data:
         token = secrets.token_urlsafe(20)
-        # Usar BASE_URL si está configurado, si no, generar desde el request actual
+        # Usar BASE_URL si existe, si no, auto-detectar desde request
         base_url = get_env('BASE_URL').rstrip('/') if get_env('BASE_URL') else request.host_url.rstrip('/')
         sign_url = f"{base_url}/firmar/{doc_id}/{token}"
         firmantes.append({
@@ -917,17 +917,11 @@ def guardar_firma(doc_id, token):
     signature_dataurl = data.get('signature_dataurl', '')
     if not signature_dataurl:
         return jsonify({'error': 'Firma vacía'}), 400
-    
-    # Guardar zona de firma si fue proporcionada
-    sign_zone = data.get('sign_zone', None)
-    
     ip = request.headers.get('X-Forwarded-For', request.remote_addr)
     firmante['signed'] = True
     firmante['signed_at'] = datetime.now().isoformat()
     firmante['ip'] = ip
     firmante['signature_dataurl'] = signature_dataurl
-    if sign_zone:
-        firmante['sign_zone'] = sign_zone  # Guardar zona de firma
     save_doc(doc_id, doc)
     all_signed = all(f['signed'] for f in doc['firmantes'])
     if all_signed and doc.get('organizer_email'):
