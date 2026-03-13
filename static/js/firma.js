@@ -1,26 +1,20 @@
 /**
  * firma.js — Firma Electrónica
- * Correcciones:
- *  - Email obligatorio + validación real antes de agregar firmante
- *  - Chip 📍 muestra página/zona ya asignada
- *  - Estado del documento como modal emergente
  */
 
 /* ══════════════════════════════════════════
    ESTADO GLOBAL
 ══════════════════════════════════════════ */
 const FIRMA = {
-  firmantes: [],
-  pdfFile:   null,
-  pdfBase64: null,
-  pdfDoc:    null,
-  // Modal zona
+  firmantes:       [],
+  pdfFile:         null,
+  pdfBase64:       null,
+  pdfDoc:          null,
   zonaFirmanteIdx: null,
   zonaPage:        1,
   zonaTotalPages:  1,
   zonaRect:        null,
-  // Auto-refresh estado
-  estadoTimer: null,
+  estadoTimer:     null,
 };
 
 /* ══════════════════════════════════════════
@@ -53,7 +47,7 @@ function switchFirmaTab(tab, btn) {
 }
 
 /* ══════════════════════════════════════════
-   PDF
+   PDF — CARGA
 ══════════════════════════════════════════ */
 function onPdfDrop(e) {
   e.preventDefault();
@@ -80,7 +74,7 @@ function setPdfFile(file) {
     const bytes = Uint8Array.from(atob(FIRMA.pdfBase64), c => c.charCodeAt(0));
     pdfjsLib.getDocument({ data: bytes }).promise.then(function(doc) {
       FIRMA.pdfDoc = doc;
-      renderFirmantes(); // re-renderizar para activar chips
+      renderFirmantes();
       showToast('PDF cargado — podés asignar zonas de firma ✓', 'success');
     }).catch(function(err) {
       console.error('[PDFJS]', err);
@@ -91,31 +85,39 @@ function setPdfFile(file) {
 }
 
 /* ══════════════════════════════════════════
-   FIRMANTES — validación email obligatorio
+   HELPERS
+══════════════════════════════════════════ */
+function esEmailValido(email) {
+  // Validación estricta: debe tener algo@algo.algo
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim());
+}
+
+/* ══════════════════════════════════════════
+   FIRMANTES
 ══════════════════════════════════════════ */
 function agregarFirmante() {
   const nombre = document.getElementById('nuevoNombre').value.trim();
   const email  = document.getElementById('nuevoEmail').value.trim();
   const errEl  = document.getElementById('emailFirmanteError');
 
-  // Validar email obligatorio y formato
+  // --- Validaciones ---
   if (!email) {
-    errEl.textContent = '⚠️ El email es obligatorio para poder enviar el link de firma.';
+    errEl.textContent   = '⚠️ El email es obligatorio para enviar el link de firma.';
     errEl.style.display = 'block';
     document.getElementById('nuevoEmail').focus();
     return;
   }
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  // Validación estricta: debe tener texto@texto.texto (mínimo 2 chars de dominio)
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
   if (!emailRegex.test(email)) {
-    errEl.textContent = '⚠️ Ingresá un email válido (ej: nombre@dominio.com).';
+    errEl.textContent   = '⚠️ Ingresá un email válido, por ej: nombre@gmail.com';
     errEl.style.display = 'block';
     document.getElementById('nuevoEmail').focus();
     return;
   }
-  // Verificar que no esté ya en la lista
   const yaExiste = FIRMA.firmantes.some(f => f.email.toLowerCase() === email.toLowerCase());
   if (yaExiste) {
-    errEl.textContent = '⚠️ Ese email ya fue agregado como firmante.';
+    errEl.textContent   = '⚠️ Ese email ya fue agregado como firmante.';
     errEl.style.display = 'block';
     document.getElementById('nuevoEmail').focus();
     return;
@@ -128,6 +130,16 @@ function agregarFirmante() {
   renderFirmantes();
   document.getElementById('nuevoNombre').focus();
 }
+
+// Limpiar error al escribir en el email
+document.addEventListener('DOMContentLoaded', function() {
+  const emailInput = document.getElementById('nuevoEmail');
+  if (emailInput) {
+    emailInput.addEventListener('input', function() {
+      document.getElementById('emailFirmanteError').style.display = 'none';
+    });
+  }
+});
 
 function quitarFirmante(idx) {
   FIRMA.firmantes.splice(idx, 1);
@@ -145,10 +157,10 @@ function renderFirmantes() {
 
     let chipHtml;
     if (!hasPdf) {
-      chipHtml = `<span class="zona-chip disabled-chip" title="Primero cargá un PDF para asignar zona">📍 Asignar zona</span>`;
+      chipHtml = `<span class="zona-chip disabled-chip" title="Primero cargá un PDF">📍 Asignar zona</span>`;
     } else if (tieneZona) {
-      const zInfo = 'Pág ' + f.sign_zone.page;
-      chipHtml = `<button class="zona-chip asignada" onclick="abrirZonaModal(${i})" title="Zona asignada en ${zInfo} — clic para editar">📍 ${zInfo} ✓</button>`;
+      const pag = 'Pág ' + f.sign_zone.page;
+      chipHtml  = `<button class="zona-chip asignada" onclick="abrirZonaModal(${i})" title="Zona en ${pag} — clic para editar">📍 ${pag} ✓</button>`;
     } else {
       chipHtml = `<button class="zona-chip" onclick="abrirZonaModal(${i})">📍 Asignar zona</button>`;
     }
@@ -161,7 +173,7 @@ function renderFirmantes() {
           <div style="font-size:.76rem;color:var(--text-secondary);">${escHtml(f.email)}</div>
         </div>
         ${chipHtml}
-        <button class="btn-icon-sm danger" onclick="quitarFirmante(${i})" title="Quitar firmante" style="flex-shrink:0;">✕</button>
+        <button class="btn-icon-sm danger" onclick="quitarFirmante(${i})" title="Quitar" style="flex-shrink:0;">✕</button>
       </div>`;
   }).join('');
 }
@@ -230,49 +242,95 @@ async function zonaRenderPage(num) {
 }
 
 function setupZonaOverlay(overlay) {
+  // Clonar para limpiar listeners previos
   const fresh = overlay.cloneNode(true);
   overlay.parentNode.replaceChild(fresh, overlay);
 
   let drawing = false, startX = 0, startY = 0;
 
-  function getXY(e) {
-    const r = fresh.getBoundingClientRect();
+  // ── FIX: usar offsetX/offsetY que son relativos al canvas, no al viewport ──
+  function getPosFromEvent(e) {
+    if (e.touches || e.changedTouches) {
+      const src  = e.touches ? e.touches[0] : e.changedTouches[0];
+      const rect = fresh.getBoundingClientRect();
+      // Escalar por si el canvas tiene pixel ratio distinto al CSS
+      const scaleX = fresh.width  / rect.width;
+      const scaleY = fresh.height / rect.height;
+      return [
+        (src.clientX - rect.left) * scaleX,
+        (src.clientY - rect.top)  * scaleY,
+      ];
+    }
+    // Mouse: también getBoundingClientRect para consistencia con el scroll del modal
+    const rect   = fresh.getBoundingClientRect();
+    const scaleX = fresh.width  / rect.width;
+    const scaleY = fresh.height / rect.height;
     return [
-      (e.touches ? e.touches[0].clientX : e.clientX) - r.left,
-      (e.touches ? e.touches[0].clientY : e.clientY) - r.top,
+      (e.clientX - rect.left) * scaleX,
+      (e.clientY - rect.top)  * scaleY,
     ];
   }
-  function onStart(e) { e.preventDefault(); drawing = true; [startX, startY] = getXY(e); }
-  function onMove(e) {
+
+  fresh.addEventListener('mousedown', function(e) {
     e.preventDefault();
+    drawing = true;
+    [startX, startY] = getPosFromEvent(e);
+  });
+
+  fresh.addEventListener('mousemove', function(e) {
     if (!drawing) return;
-    const [cx, cy] = getXY(e);
+    const [cx, cy] = getPosFromEvent(e);
     const ctx = fresh.getContext('2d');
     ctx.clearRect(0, 0, fresh.width, fresh.height);
     dibujarZonaRect(ctx, startX, startY, cx - startX, cy - startY);
-  }
-  function onEnd(e) {
+  });
+
+  fresh.addEventListener('mouseup', function(e) {
     if (!drawing) return;
     drawing = false;
-    const r  = fresh.getBoundingClientRect();
-    const ex = (e.changedTouches ? e.changedTouches[0].clientX : e.clientX) - r.left;
-    const ey = (e.changedTouches ? e.changedTouches[0].clientY : e.clientY) - r.top;
-    const w  = ex - startX, h = ey - startY;
+    const [ex, ey] = getPosFromEvent(e);
+    const w = ex - startX, h = ey - startY;
     if (Math.abs(w) < 10 || Math.abs(h) < 10) return;
     FIRMA.zonaRect = {
       x: Math.min(startX, ex), y: Math.min(startY, ey),
-      w: Math.abs(w), h: Math.abs(h),
-      page: FIRMA.zonaPage, canvasW: fresh.width, canvasH: fresh.height,
+      w: Math.abs(w),          h: Math.abs(h),
+      page:    FIRMA.zonaPage,
+      canvasW: fresh.width,
+      canvasH: fresh.height,
     };
-  }
+  });
 
-  fresh.addEventListener('mousedown',  onStart);
-  fresh.addEventListener('mousemove',  onMove);
-  fresh.addEventListener('mouseup',    onEnd);
-  fresh.addEventListener('mouseleave', onEnd);
-  fresh.addEventListener('touchstart', onStart, { passive: false });
-  fresh.addEventListener('touchmove',  onMove,  { passive: false });
-  fresh.addEventListener('touchend',   onEnd,   { passive: false });
+  fresh.addEventListener('mouseleave', function() { drawing = false; });
+
+  fresh.addEventListener('touchstart', function(e) {
+    e.preventDefault();
+    drawing = true;
+    [startX, startY] = getPosFromEvent(e);
+  }, { passive: false });
+
+  fresh.addEventListener('touchmove', function(e) {
+    e.preventDefault();
+    if (!drawing) return;
+    const [cx, cy] = getPosFromEvent(e);
+    const ctx = fresh.getContext('2d');
+    ctx.clearRect(0, 0, fresh.width, fresh.height);
+    dibujarZonaRect(ctx, startX, startY, cx - startX, cy - startY);
+  }, { passive: false });
+
+  fresh.addEventListener('touchend', function(e) {
+    if (!drawing) return;
+    drawing = false;
+    const [ex, ey] = getPosFromEvent(e);
+    const w = ex - startX, h = ey - startY;
+    if (Math.abs(w) < 10 || Math.abs(h) < 10) return;
+    FIRMA.zonaRect = {
+      x: Math.min(startX, ex), y: Math.min(startY, ey),
+      w: Math.abs(w),          h: Math.abs(h),
+      page:    FIRMA.zonaPage,
+      canvasW: fresh.width,
+      canvasH: fresh.height,
+    };
+  }, { passive: false });
 }
 
 function dibujarZonaRect(ctx, x, y, w, h) {
@@ -353,17 +411,23 @@ function mostrarResultadoEnvio(data) {
   const lc  = document.getElementById('linksContainer');
   box.style.display = 'block';
 
-  lc.innerHTML = (data.firmantes || []).map(function(f) {
+  // Guardar links en un objeto global indexado para copiar sin escaping
+  window._firmaLinks = {};
+  (data.firmantes || []).forEach(function(f, i) {
+    window._firmaLinks['link_' + i] = f.sign_url || '';
+  });
+
+  lc.innerHTML = (data.firmantes || []).map(function(f, i) {
     const url = f.sign_url || '';
     return `
       <div>
         <div style="font-weight:600;font-size:.85rem;color:#065F46;">${escHtml(f.name || f.email)}</div>
         <div style="font-size:.76rem;color:#047857;margin-bottom:6px;">${escHtml(f.email)}</div>
         <div style="display:flex;align-items:center;gap:8px;">
-          <input type="text" class="input-base" value="${escHtml(url)}" readonly
+          <input type="text" class="input-base" id="linkEnvio_${i}" value="${escHtml(url)}" readonly
                  style="font-size:.72rem;font-family:monospace;flex:1;height:32px;color:var(--text-secondary);">
           <button class="btn-xs" style="background:#065F46;color:#fff;border:none;flex-shrink:0;white-space:nowrap;"
-                  onclick="copiarLink('${escHtml(url)}',this)">Copiar</button>
+                  onclick="copiarLinkById('linkEnvio_${i}',this)">Copiar</button>
         </div>
       </div>`;
   }).join('');
@@ -371,8 +435,36 @@ function mostrarResultadoEnvio(data) {
   box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-function copiarLink(url, btn) {
+/* ══════════════════════════════════════════
+   COPY HELPERS — sin pasar URLs en onclick
+══════════════════════════════════════════ */
+function copiarLinkById(inputId, btn) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const url = input.value;
   navigator.clipboard.writeText(url).then(function() {
+    const orig = btn.textContent;
+    btn.textContent = '¡Copiado!';
+    setTimeout(function() { btn.textContent = orig; }, 2000);
+  }).catch(function() {
+    // Fallback para móviles
+    input.select();
+    document.execCommand('copy');
+    const orig = btn.textContent;
+    btn.textContent = '¡Copiado!';
+    setTimeout(function() { btn.textContent = orig; }, 2000);
+  });
+}
+
+function copiarLinkByIdx(idx, btn) {
+  const urls = window._estadoLinks || {};
+  const url  = urls['s_' + idx] || '';
+  if (!url) return;
+  navigator.clipboard.writeText(url).then(function() {
+    const orig = btn.textContent;
+    btn.textContent = '¡Copiado!';
+    setTimeout(function() { btn.textContent = orig; }, 2000);
+  }).catch(function() {
     const orig = btn.textContent;
     btn.textContent = '¡Copiado!';
     setTimeout(function() { btn.textContent = orig; }, 2000);
@@ -411,19 +503,22 @@ function renderLista(container, docs, tipo) {
     const total     = firmantes.length;
     const fecha     = formatFecha(doc.created_at);
     const firma_txt = firmados + '/' + total + ' firma' + (total !== 1 ? 's' : '');
+    const tituloSafe = escHtml(doc.title || 'Sin título');
 
     if (tipo === 'pendientes') {
       return `
         <div class="doc-row" id="docRow_${doc.id}">
           <div class="doc-icon-box">📄</div>
           <div style="flex:1;min-width:0;">
-            <div style="font-weight:600;font-size:.87rem;">${escHtml(doc.title || 'Sin título')}</div>
+            <div style="font-weight:600;font-size:.87rem;">${tituloSafe}</div>
             <div style="font-size:.74rem;color:var(--text-secondary);margin-top:1px;">${fecha} · ${firma_txt}</div>
           </div>
           <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
             <span class="badge-pending">Pendiente</span>
-            <button class="btn-xs" onclick="abrirEstadoModal('${doc.id}','${escHtml(doc.title||'')}')">Ver</button>
-            <button class="btn-icon-sm danger" onclick="eliminarDoc('${doc.id}','pendientes')" title="Eliminar">🗑</button>
+            <button class="btn-xs" data-docid="${doc.id}" data-titulo="${tituloSafe}"
+                    onclick="abrirEstadoModal(this.dataset.docid, this.dataset.titulo)">Ver</button>
+            <button class="btn-icon-sm danger"
+                    onclick="eliminarDoc('${doc.id}','pendientes')" title="Eliminar">🗑</button>
           </div>
         </div>`;
     } else {
@@ -431,13 +526,14 @@ function renderLista(container, docs, tipo) {
         <div class="doc-row" id="docRow_${doc.id}">
           <div class="doc-icon-box" style="background:var(--success-bg);color:#065F46;">✅</div>
           <div style="flex:1;min-width:0;">
-            <div style="font-weight:600;font-size:.87rem;">${escHtml(doc.title || 'Sin título')}</div>
+            <div style="font-weight:600;font-size:.87rem;">${tituloSafe}</div>
             <div style="font-size:.74rem;color:var(--text-secondary);margin-top:1px;">${fecha} · ${firma_txt}</div>
           </div>
           <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
             <span class="badge-done">Completado</span>
             <a href="/api/documento/${doc.id}/certificado" class="btn-xs" target="_blank">⬇️ PDF</a>
-            <button class="btn-icon-sm danger" onclick="eliminarDoc('${doc.id}','completados')" title="Eliminar">🗑</button>
+            <button class="btn-icon-sm danger"
+                    onclick="eliminarDoc('${doc.id}','completados')" title="Eliminar">🗑</button>
           </div>
         </div>`;
     }
@@ -455,17 +551,24 @@ async function eliminarDoc(id, tipo) {
 }
 
 /* ══════════════════════════════════════════
-   MODAL ESTADO DEL DOCUMENTO
+   MODAL ESTADO — como ventana emergente
 ══════════════════════════════════════════ */
 async function abrirEstadoModal(docId, titulo) {
   window._estadoDocId = docId;
+  window._estadoLinks = {};
+
   document.getElementById('estadoModalTitulo').textContent = titulo || '';
   document.getElementById('estadoModal').style.display = 'flex';
   document.body.style.overflow = 'hidden';
 
+  // Mostrar loading mientras carga
+  document.getElementById('estadoModalBadge').textContent = '...';
+  document.getElementById('estadoModalProgresoText').textContent = 'Cargando...';
+  document.getElementById('estadoModalFirmantesBox').innerHTML =
+    '<div class="loading-state" style="padding:16px 0;">Cargando firmantes...</div>';
+
   await actualizarEstado(docId);
 
-  // Auto-refresh cada 15 seg
   if (FIRMA.estadoTimer) clearInterval(FIRMA.estadoTimer);
   FIRMA.estadoTimer = setInterval(function() {
     if (window._estadoDocId) actualizarEstado(window._estadoDocId);
@@ -477,6 +580,7 @@ function cerrarEstadoModal() {
   document.body.style.overflow = '';
   if (FIRMA.estadoTimer) { clearInterval(FIRMA.estadoTimer); FIRMA.estadoTimer = null; }
   window._estadoDocId = null;
+  window._estadoLinks = {};
 }
 
 async function actualizarEstado(docId) {
@@ -494,6 +598,7 @@ function renderEstadoModal(data) {
   const total     = firmantes.length;
   const todos     = firmados === total;
 
+  // Badge progreso
   const badge = document.getElementById('estadoModalBadge');
   badge.textContent = firmados + '/' + total + ' firmados';
   badge.className   = todos ? 'badge-done' : 'badge-pending';
@@ -501,27 +606,28 @@ function renderEstadoModal(data) {
   document.getElementById('estadoModalProgresoText').textContent =
     firmados + ' de ' + total + ' firmante' + (total !== 1 ? 's' : '') + ' completaron la firma';
 
+  // Construir HTML sin ningún onclick inline — usamos data-idx para luego bindear
   const box = document.getElementById('estadoModalFirmantesBox');
-  box.innerHTML = firmantes.map(function(f) {
-    const pendiente = !f.signed;
-    const bg  = pendiente ? 'var(--cream)'  : 'var(--success-bg)';
-    const bdr = pendiente ? 'var(--border)' : '#A7F3D0';
+  box.innerHTML = firmantes.map(function(f, i) {
+    const pendiente   = !f.signed;
+    const bg          = pendiente ? 'var(--cream)'  : 'var(--success-bg)';
+    const bdr         = pendiente ? 'var(--border)' : '#A7F3D0';
+    const avatarStyle = f.signed  ? 'background:#065F46;' : '';
+    const inicial     = (f.name || f.email || '?')[0].toUpperCase();
     const est = pendiente
       ? '<span style="font-size:.73rem;color:var(--text-secondary);">⏳ Pendiente de firma</span>'
       : '<span style="font-size:.73rem;color:#065F46;">✅ Firmado</span>';
 
     const linkPart = (pendiente && f.sign_url)
       ? `<div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
-           <input type="text" class="input-base" value="${escHtml(f.sign_url)}" readonly
+           <input type="text" class="input-base" id="eLink${i}" value="${escHtml(f.sign_url)}" readonly
                   style="font-size:.71rem;font-family:monospace;flex:1;height:28px;color:var(--text-secondary);">
-           <button class="btn-xs" style="flex-shrink:0;" onclick="copiarLink('${escHtml(f.sign_url)}',this)">Copiar</button>
-         </div>` : '';
-
-    const inicial      = (f.name || f.email || '?')[0].toUpperCase();
-    const avatarStyle  = f.signed ? 'background:#065F46;' : '';
+           <button class="btn-xs" data-linkidx="${i}" style="flex-shrink:0;">Copiar</button>
+         </div>`
+      : '';
 
     return `
-      <div style="background:${bg};border:1px solid ${bdr};border-radius:var(--radius-md);padding:12px 14px;">
+      <div style="background:${bg};border:1px solid ${bdr};border-radius:var(--radius-md);padding:12px 14px;margin-bottom:6px;">
         <div style="display:flex;align-items:center;gap:10px;">
           <div class="f-avatar" style="${avatarStyle}">${escHtml(inicial)}</div>
           <div style="flex:1;min-width:0;">
@@ -533,6 +639,27 @@ function renderEstadoModal(data) {
         ${linkPart}
       </div>`;
   }).join('');
+
+  // Bindear botones Copiar con addEventListener (seguro, sin problemas de escaping)
+  box.querySelectorAll('[data-linkidx]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      const idx   = btn.getAttribute('data-linkidx');
+      const input = document.getElementById('eLink' + idx);
+      if (!input) return;
+      navigator.clipboard.writeText(input.value).then(function() {
+        const orig = btn.textContent;
+        btn.textContent = '¡Copiado!';
+        setTimeout(function() { btn.textContent = orig; }, 2000);
+      }).catch(function() {
+        // Fallback para navegadores sin clipboard API
+        input.select(); input.setSelectionRange(0, 9999);
+        try { document.execCommand('copy'); } catch(e) {}
+        const orig = btn.textContent;
+        btn.textContent = '¡Copiado!';
+        setTimeout(function() { btn.textContent = orig; }, 2000);
+      });
+    });
+  });
 }
 
 function descargarPDF(docId) {
@@ -540,10 +667,10 @@ function descargarPDF(docId) {
   window.open('/api/documento/' + docId + '/certificado', '_blank');
 }
 
-// Cerrar modales al hacer clic en el backdrop
+/* ══════════════════════════════════════════
+   CERRAR MODALES AL HACER CLICK EN BACKDROP
+══════════════════════════════════════════ */
 document.addEventListener('click', function(e) {
-  const zonaModal   = document.getElementById('zonaModal');
-  const estadoModal = document.getElementById('estadoModal');
-  if (e.target === zonaModal)   cerrarZonaModal();
-  if (e.target === estadoModal) cerrarEstadoModal();
+  if (e.target === document.getElementById('zonaModal'))   cerrarZonaModal();
+  if (e.target === document.getElementById('estadoModal')) cerrarEstadoModal();
 });
