@@ -82,306 +82,84 @@ def get_doc(doc_id):
         return _documents.get(doc_id)
 
 
-def _draw_realvix_logo(c, x, y, scale=1.0):
-    """Dibuja el ícono geométrico azul de Realvix + texto 'Realvix CRM'"""
-    # ── Ícono: rombo/chevron con 3 piezas en distintos azules ──
-    # Pieza superior (azul claro)
-    p = c.beginPath()
-    s = scale
-    p.moveTo(x + 0*s,  y + 8*s)
-    p.lineTo(x + 5*s,  y + 14*s)
-    p.lineTo(x + 10*s, y + 8*s)
-    p.lineTo(x + 5*s,  y + 2*s)
-    p.close()
-    c.setFillColor(colors.HexColor('#5BB4E8'))
-    c.drawPath(p, fill=1, stroke=0)
-
-    # Pieza izquierda (azul medio)
-    p2 = c.beginPath()
-    p2.moveTo(x + 0*s,  y + 8*s)
-    p2.lineTo(x + 5*s,  y + 2*s)
-    p2.lineTo(x + 5*s,  y + 8*s)
-    p2.close()
-    c.setFillColor(colors.HexColor('#1B7BC4'))
-    c.drawPath(p2, fill=1, stroke=0)
-
-    # Pieza derecha (azul oscuro)
-    p3 = c.beginPath()
-    p3.moveTo(x + 10*s, y + 8*s)
-    p3.lineTo(x + 5*s,  y + 8*s)
-    p3.lineTo(x + 5*s,  y + 14*s)
-    p3.close()
-    c.setFillColor(colors.HexColor('#0E4D8A'))
-    c.drawPath(p3, fill=1, stroke=0)
-
-    # Texto "Realvix"
-    c.setFont('Helvetica-Bold', 18)
-    c.setFillColor(colors.HexColor('#1a2340'))
-    c.drawString(x + 13*s, y + 4*s, 'Realvix')
-    # Texto "CRM" en azul más pequeño
-    c.setFont('Helvetica', 11)
-    c.setFillColor(colors.HexColor('#4488cc'))
-    c.drawString(x + 58*s, y + 4*s, 'CRM')
-
-
 def generate_certificate_pdf(doc_data):
-    from reportlab.lib.utils import simpleSplit
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
     W, H = A4
-    margin = 18*mm
-    table_w = W - 2 * margin
+    c.setFillColor(colors.HexColor('#0f0f0f'))
+    c.rect(0, H-55*mm, W, 55*mm, fill=1, stroke=0)
+    c.setFillColor(colors.HexColor('#1B3FE4'))
+    c.rect(0, H-57*mm, W, 2*mm, fill=1, stroke=0)
+    c.setFillColor(colors.HexColor('#faf8f4'))
+    c.setFont('Helvetica-Bold', 20)
+    c.drawString(18*mm, H-22*mm, 'Certificado de Firma Electrónica')
+    c.setFont('Helvetica', 8); c.setFillColor(colors.HexColor('#888888'))
+    c.drawString(18*mm, H-31*mm, f"Ref: {doc_data['id'].upper()}")
+    c.drawString(18*mm, H-37*mm, f"Emitido: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
+    y = H-68*mm
 
-    def new_page():
-        """Configura una página nueva con fondo blanco"""
-        c.setFillColor(colors.HexColor('#ffffff'))
-        c.rect(0, 0, W, H, fill=1, stroke=0)
+    def draw_row(label, value):
+        nonlocal y
+        c.setFont('Helvetica-Bold', 7); c.setFillColor(colors.HexColor('#888888'))
+        c.drawString(18*mm, y, label.upper())
+        c.setFont('Helvetica', 10); c.setFillColor(colors.HexColor('#0f0f0f'))
+        c.drawString(58*mm, y, str(value))
+        y -= 5*mm; c.setStrokeColor(colors.HexColor('#e8e4dc'))
+        c.line(18*mm, y, W-18*mm, y); y -= 4*mm
 
-    def draw_header(page_y):
-        """Dibuja el header con logo e título. Retorna la Y después del header."""
-        # Fondo blanco de página
-        new_page()
-
-        # ── Logo arriba a la izquierda ──
-        _draw_realvix_logo(c, margin, page_y - 14*mm, scale=1.0)
-
-        # ── Título centrado ──
-        c.setFont('Helvetica-Bold', 20)
-        c.setFillColor(colors.HexColor('#1a2340'))
-        c.drawCentredString(W / 2, page_y - 32*mm, 'Certificado de Auditoría')
-        c.drawCentredString(W / 2, page_y - 40*mm, 'de Firma Electrónica')
-
-        # Línea decorativa azul bajo el título
-        c.setStrokeColor(colors.HexColor('#2255bb'))
-        c.setLineWidth(1.2)
-        c.line(margin + 20*mm, page_y - 43*mm, W - margin - 20*mm, page_y - 43*mm)
-
-        return page_y - 50*mm
-
-    # ── PRIMERA PÁGINA ──
-    y = draw_header(H)
-
-    # ── Ref + Emitido ──
-    y -= 6*mm
-    ref = doc_data['id'].upper()
-    emitido = datetime.now().strftime('%d/%m/%Y a las %H:%M:%S')
-    c.setFont('Helvetica-Bold', 9)
-    c.setFillColor(colors.HexColor('#1a2340'))
-    c.drawString(margin, y, f'Ref:  {ref}')
-    y -= 6*mm
-    c.setFont('Helvetica', 9)
-    c.setFillColor(colors.HexColor('#444444'))
-    c.drawString(margin, y, f'Emitido el: {emitido}')
-    y -= 7*mm
-
-    # ── Tabla info: DOCUMENTO / ESTADO / FIRMANTES ──
-    sc  = sum(1 for f in doc_data['firmantes'] if f['signed'])
+    draw_row('Documento', doc_data.get('title', 'Sin nombre'))
+    sc = sum(1 for f in doc_data['firmantes'] if f['signed'])
     tot = len(doc_data['firmantes'])
-    estado = 'Completado' if sc == tot else f'{sc} de {tot} firmantes'
-    rows_info = [
-        ('DOCUMENTO',  doc_data.get('title', 'Sin nombre')),
-        ('ESTADO',     estado),
-        ('FIRMANTES',  str(tot)),
-    ]
-    row_h   = 9*mm
-    col_sep = 48*mm   # ancho columna label
+    draw_row('Estado', 'Completado' if sc == tot else f'{sc} de {tot}')
+    draw_row('Firmantes', str(tot))
+    y -= 4*mm
+    c.setFont('Helvetica-Bold', 7); c.setFillColor(colors.HexColor('#888888'))
+    c.drawString(18*mm, y, 'REGISTRO DE FIRMAS'); y -= 8*mm
 
-    for i, (label, value) in enumerate(rows_info):
-        # Fondo alternado suave
-        bg = colors.HexColor('#f0f4f9') if i % 2 == 0 else colors.HexColor('#ffffff')
-        c.setFillColor(bg)
-        c.rect(margin, y - row_h, table_w, row_h, fill=1, stroke=0)
-        # Borde
-        c.setStrokeColor(colors.HexColor('#c8d4e8'))
-        c.setLineWidth(0.5)
-        c.rect(margin, y - row_h, table_w, row_h, fill=0, stroke=1)
-        # Separador vertical
-        c.setStrokeColor(colors.HexColor('#c8d4e8'))
-        c.line(margin + col_sep, y - row_h, margin + col_sep, y)
-        # Label
-        c.setFont('Helvetica-Bold', 7.5)
-        c.setFillColor(colors.HexColor('#4466aa'))
-        c.drawString(margin + 3*mm, y - 5.8*mm, label)
-        # Valor
-        c.setFont('Helvetica', 9)
-        c.setFillColor(colors.HexColor('#1a2340'))
-        c.drawString(margin + col_sep + 3*mm, y - 5.8*mm, value)
-        y -= row_h
-
-    y -= 6*mm
-
-    # ── REGISTRO DE FIRMAS (header de sección) ──
-    def draw_firmas_header(yy):
-        c.setFillColor(colors.HexColor('#e8edf5'))
-        c.rect(margin, yy - 8*mm, table_w, 8*mm, fill=1, stroke=0)
-        c.setStrokeColor(colors.HexColor('#c8d4e8'))
-        c.setLineWidth(0.5)
-        c.rect(margin, yy - 8*mm, table_w, 8*mm, fill=0, stroke=1)
-        c.setFont('Helvetica-Bold', 8)
-        c.setFillColor(colors.HexColor('#334466'))
-        c.drawString(margin + 3*mm, yy - 5.5*mm, 'REGISTRO DE FIRMAS')
-        return yy - 8*mm
-
-    y = draw_firmas_header(y)
-    y -= 3*mm
-
-    # ── Bloque por firmante ──
     for f in doc_data['firmantes']:
-        signed   = f.get('signed', False)
-        has_sig  = signed and bool(f.get('signature_dataurl'))
-        card_h   = 36*mm if signed else 22*mm
-
-        # Salto de página si no cabe
-        if y - card_h < 30*mm:
-            _draw_cert_footer(c, W, margin, doc_data['id'].upper())
-            c.showPage()
-            y = draw_header(H)
-            y -= 5*mm
-            y = draw_firmas_header(y)
-            y -= 3*mm
-
-        # ── Tarjeta del firmante ──
-        # Fondo blanco con borde gris
-        c.setFillColor(colors.HexColor('#ffffff'))
-        c.rect(margin, y - card_h, table_w, card_h, fill=1, stroke=0)
-        c.setStrokeColor(colors.HexColor('#c8d4e8'))
-        c.setLineWidth(0.6)
-        c.rect(margin, y - card_h, table_w, card_h, fill=0, stroke=1)
-
-        # ── Badge FIRMADO / PENDIENTE (arriba a la derecha) ──
-        badge_w = 24*mm
-        badge_h = 7.5*mm
-        bx = W - margin - badge_w - 2*mm
-        by = y - 2*mm - badge_h
-        if signed:
-            c.setFillColor(colors.HexColor('#1B3FE4'))
-            c.roundRect(bx, by, badge_w, badge_h, 2*mm, fill=1, stroke=0)
-            c.setFont('Helvetica-Bold', 7.5)
-            c.setFillColor(colors.white)
-            c.drawCentredString(bx + badge_w / 2, by + 2.5*mm, 'FIRMADO')
-        else:
-            c.setFillColor(colors.HexColor('#dddddd'))
-            c.roundRect(bx, by, badge_w, badge_h, 2*mm, fill=1, stroke=0)
-            c.setFont('Helvetica-Bold', 7.5)
-            c.setFillColor(colors.HexColor('#888888'))
-            c.drawCentredString(bx + badge_w / 2, by + 2.5*mm, 'PENDIENTE')
-
-        # ── Nombre en negrita grande ──
-        c.setFont('Helvetica-Bold', 12)
-        c.setFillColor(colors.HexColor('#1a2340'))
-        c.drawString(margin + 3*mm, y - 8*mm, f['name'])
-
-        # ── Email ──
-        c.setFont('Helvetica', 8.5)
-        c.setFillColor(colors.HexColor('#555577'))
-        c.drawString(margin + 3*mm, y - 14*mm, f.get('email', ''))
-
-        if signed:
-            # ── Fecha de firma ──
-            dt_str = ''
-            if f.get('signed_at'):
-                try:
-                    dt_obj = datetime.fromisoformat(f['signed_at'])
-                    meses  = ['enero','febrero','marzo','abril','mayo','junio',
-                              'julio','agosto','septiembre','octubre','noviembre','diciembre']
-                    dt_str = (f"Firmado el {dt_obj.day} de {meses[dt_obj.month-1]} "
-                              f"de {dt_obj.year} a las {dt_obj.strftime('%H:%M:%S')}")
-                except:
-                    dt_str = f"Firmado el {f['signed_at']}"
-            c.setFont('Helvetica', 8)
-            c.setFillColor(colors.HexColor('#333344'))
-            lines_dt = simpleSplit(dt_str, 'Helvetica', 8, table_w - badge_w - 10*mm)
-            ty = y - 20*mm
-            for line in lines_dt:
-                c.drawString(margin + 3*mm, ty, line)
-                ty -= 4.5*mm
-
-            # ── IP ──
-            ip_val = f.get('ip', 'N/D')
-            c.setFont('Helvetica', 7.5)
-            c.setFillColor(colors.HexColor('#666688'))
-            c.drawString(margin + 3*mm, ty, f'IP: {ip_val}')
-
-            # ── Imagen de firma manuscrita (derecha) ──
-            if has_sig:
+        ch = 28*mm if f['signed'] else 18*mm
+        if y - ch < 20*mm:
+            c.showPage(); y = H-20*mm
+        c.setFillColor(colors.HexColor('#f0faf4') if f['signed'] else colors.HexColor('#fff8e1'))
+        c.roundRect(18*mm, y-ch, W-36*mm, ch, 3*mm, fill=1, stroke=0)
+        c.setStrokeColor(colors.HexColor('#52b788') if f['signed'] else colors.HexColor('#1B3FE4'))
+        c.setLineWidth(0.5)
+        c.roundRect(18*mm, y-ch, W-36*mm, ch, 3*mm, fill=0, stroke=1)
+        c.setFont('Helvetica-Bold', 11); c.setFillColor(colors.HexColor('#0f0f0f'))
+        c.drawString(22*mm, y-8*mm, f['name'])
+        c.setFont('Helvetica', 8); c.setFillColor(colors.HexColor('#666666'))
+        c.drawString(22*mm, y-13*mm, f['email'])
+        if f['signed']:
+            dt = datetime.fromisoformat(f['signed_at']).strftime('%d/%m/%Y %H:%M:%S')
+            c.setFont('Helvetica', 7); c.setFillColor(colors.HexColor('#2d6a4f'))
+            c.drawString(22*mm, y-19*mm, f"Firmado el {dt}")
+            c.drawString(22*mm, y-24*mm, f"IP: {f.get('ip','N/D')}")
+            if f.get('signature_dataurl'):
                 try:
                     tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.png')
-                    tmp.write(base64.b64decode(f['signature_dataurl'].split(',')[1]))
-                    tmp.close()
-                    sig_w = 42*mm
-                    sig_h = 20*mm
-                    sig_x = W - margin - sig_w - 3*mm
-                    sig_y = y - card_h + 4*mm
-                    c.drawImage(tmp.name, sig_x, sig_y,
-                                width=sig_w, height=sig_h,
+                    tmp.write(base64.b64decode(f['signature_dataurl'].split(',')[1])); tmp.close()
+                    c.drawImage(tmp.name, W-65*mm, y-ch+2*mm, width=42*mm, height=22*mm,
                                 preserveAspectRatio=True, mask='auto')
                     os.unlink(tmp.name)
-                except:
-                    pass
+                except: pass
+            c.setFillColor(colors.HexColor('#2d6a4f'))
+            c.roundRect(W-50*mm, y-13*mm, 18*mm, 6*mm, 1.5*mm, fill=1, stroke=0)
+            c.setFont('Helvetica-Bold', 6); c.setFillColor(colors.white)
+            c.drawCentredString(W-41*mm, y-10*mm, 'FIRMADO')
+        else:
+            c.setFillColor(colors.HexColor('#1B3FE4'))
+            c.roundRect(W-50*mm, y-13*mm, 24*mm, 6*mm, 1.5*mm, fill=1, stroke=0)
+            c.setFont('Helvetica-Bold', 6); c.setFillColor(colors.white)
+            c.drawCentredString(W-38*mm, y-10*mm, 'PENDIENTE')
+        y -= ch + 4*mm
 
-        y -= card_h + 2*mm
-
-    # ── Texto legal ──
-    y -= 6*mm
-    legal = ("Por medio del presente instrumento digital, los firmantes declaran "
-             "bajo juramento ser autores del documento suscripto, reconociendo "
-             "la plena validez jurídica de la firma electrónica incorporada. Este "
-             "certificado valida la firma del documento especificado mediante los "
-             "mecanismos de autenticación y cifrado utilizados conforme a la Ley "
-             "N\u00b0 25.506 y sus Decretos Reglamentarios de la Rep\u00fablica Argentina.")
-    legal_lines = simpleSplit(legal, 'Helvetica', 8, table_w - 10*mm)
-    c.setFont('Helvetica', 8)
-    c.setFillColor(colors.HexColor('#444455'))
-    for line in legal_lines:
-        if y < 38*mm:
-            _draw_cert_footer(c, W, margin, doc_data['id'].upper())
-            c.showPage()
-            y = draw_header(H)
-            y -= 5*mm
-        c.drawString(margin, y, line)
-        y -= 4.8*mm
-
-    # ── Ref Id abajo a la derecha (como en la imagen) ──
-    y -= 4*mm
-    ref_box_w = 52*mm
-    ref_box_h = 14*mm
-    ref_x = W - margin - ref_box_w
-    if y - ref_box_h < 30*mm:
-        _draw_cert_footer(c, W, margin, doc_data['id'].upper())
-        c.showPage()
-        y = draw_header(H)
-        y -= 10*mm
-
-    c.setFillColor(colors.HexColor('#eef2f8'))
-    c.roundRect(ref_x, y - ref_box_h, ref_box_w, ref_box_h, 2*mm, fill=1, stroke=0)
-    c.setStrokeColor(colors.HexColor('#c8d4e8'))
-    c.setLineWidth(0.4)
-    c.roundRect(ref_x, y - ref_box_h, ref_box_w, ref_box_h, 2*mm, fill=0, stroke=1)
-    c.setFont('Helvetica-Bold', 6.5)
-    c.setFillColor(colors.HexColor('#4466aa'))
-    c.drawString(ref_x + 2.5*mm, y - 4.5*mm, 'Repor rf Id:')
-    ref_id = f'#:{doc_data["id"].upper()}'
-    ref_lines = simpleSplit(ref_id, 'Helvetica', 6.5, ref_box_w - 5*mm)
-    c.setFont('Helvetica', 6.5)
-    c.setFillColor(colors.HexColor('#333355'))
-    ry = y - 9*mm
-    for rl in ref_lines:
-        c.drawString(ref_x + 2.5*mm, ry, rl)
-        ry -= 4*mm
-
-    # ── Footer final ──
-    _draw_cert_footer(c, W, margin, doc_data['id'].upper())
+    c.setFillColor(colors.HexColor('#f8f8f8')); c.rect(0, 0, W, 14*mm, fill=1, stroke=0)
+    c.setStrokeColor(colors.HexColor('#d4c9b8')); c.line(0, 14*mm, W, 14*mm)
+    c.setFont('Helvetica', 7); c.setFillColor(colors.HexColor('#999999'))
+    c.drawString(18*mm, 6*mm, 'Realvix CRM — Sistema de Firma Electrónica')
+    c.drawRightString(W-18*mm, 6*mm, f"Ref: {doc_data['id'].upper()}")
     c.save()
     return buffer.getvalue()
-
-
-def _draw_cert_footer(c, W, margin, ref=''):
-    """Footer: barra azul oscura con www.realvix.com.ar centrado"""
-    c.setFillColor(colors.HexColor('#1a2e5a'))
-    c.rect(0, 0, W, 16*mm, fill=1, stroke=0)
-    c.setFont('Helvetica', 8)
-    c.setFillColor(colors.HexColor('#ffffff'))
-    c.drawCentredString(W / 2, 6*mm, 'www.realvix.com.ar')
 
 
 def generate_full_pdf(doc_data):
@@ -456,6 +234,7 @@ def crear_documento():
         })
     doc = {
         'id': doc_id,
+        'user_id': user['id'],
         'title': title,
         'organizer_name': organizer_name,
         'organizer_email': organizer_email,
@@ -466,52 +245,36 @@ def crear_documento():
     }
     save_doc(doc_id, doc)
 
-    EMAIL_HEADER = """<!DOCTYPE html><html><head><meta charset="UTF-8">
-<style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');</style>
-</head>
-<body style="margin:0;padding:0;background:#eef0f7;font-family:'Inter','Helvetica Neue',Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#eef0f7;padding:40px 0;">
+    EMAIL_HEADER = """<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f4f1eb;font-family:'Helvetica Neue',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f1eb;padding:32px 0;">
   <tr><td align="center">
-    <table width="540" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(27,63,228,0.10);">
-      <tr><td style="background:#0a0f2e;padding:28px 36px 0 36px;">
-        <table width="100%" cellpadding="0" cellspacing="0"><tr>
-          <td><span style="font-size:1.4rem;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">Realvix</span><span style="font-size:1.4rem;color:#1B3FE4;font-weight:800;">.</span><span style="display:block;font-size:0.6rem;color:#5566aa;letter-spacing:3px;text-transform:uppercase;margin-top:2px;">CRM — Firma Electrónica</span></td>
-          <td align="right"><span style="background:#1B3FE4;color:#fff;font-size:0.65rem;font-weight:700;letter-spacing:1.5px;padding:5px 10px;border-radius:6px;text-transform:uppercase;">✍️ Firma Requerida</span></td>
-        </tr></table>
-        <div style="height:3px;background:linear-gradient(90deg,#1B3FE4,#4466ff);margin-top:20px;"></div>
+    <table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+      <tr><td style="background:#0f0f0f;padding:24px 32px;border-bottom:3px solid #1B3FE4;">
+        <div style="font-family:'Inter',Arial,sans-serif;font-size:1.3rem;font-weight:700;color:#ffffff;">Realvix<span style="color:#1B3FE4;">.</span></div>
+        <div style="font-size:0.65rem;color:#888;letter-spacing:2px;text-transform:uppercase;margin-top:3px;">Sistema de Firma Electrónica</div>
       </td></tr>"""
 
     for f in firmantes:
         if f['email']:
             html = EMAIL_HEADER + f"""
-      <tr><td style="padding:36px 36px 28px;">
-        <p style="margin:0 0 6px;font-size:0.82rem;color:#7788aa;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Hola,</p>
-        <h2 style="margin:0 0 4px;font-size:1.5rem;font-weight:800;color:#0a0f2e;letter-spacing:-0.5px;">{f['name']}</h2>
-        <p style="margin:0 0 24px;font-size:0.92rem;color:#556688;">Te solicitamos que firmes el siguiente documento:</p>
-        
-        <div style="background:#f0f4ff;border:1.5px solid #c4d0ff;border-radius:10px;padding:16px 20px;margin-bottom:28px;">
-          <div style="font-size:0.7rem;color:#7788aa;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:5px;">DOCUMENTO</div>
-          <div style="font-weight:700;font-size:1.05rem;color:#0a0f2e;">{title}</div>
-          <div style="font-size:0.78rem;color:#7788aa;margin-top:4px;">Solicitado por <strong style="color:#0a0f2e;">{organizer_name or 'el organizador'}</strong></div>
+      <tr><td style="padding:32px;">
+        <h2 style="margin:0 0 8px;font-family:Georgia,serif;font-size:1.4rem;color:#0f0f0f;">Tenés un documento para firmar</h2>
+        <p style="color:#666;font-size:0.9rem;margin:0 0 24px;">Hola <strong style="color:#0f0f0f;">{f['name']}</strong>,</p>
+        <p style="color:#555;font-size:0.9rem;margin:0 0 16px;"><strong style="color:#0f0f0f;">{organizer_name or 'El organizador'}</strong> te solicita que firmes el siguiente documento:</p>
+        <div style="background:#EEF2FF;border-left:4px solid #1B3FE4;border-radius:6px;padding:14px 18px;margin:0 0 24px;">
+          <div style="font-weight:700;font-size:1rem;color:#0f0f0f;">{title}</div>
         </div>
-
-        <table cellpadding="0" cellspacing="0" style="margin:0 auto 24px;">
-          <tr><td style="background:#1B3FE4;border-radius:10px;padding:0;">
-            <a href="{f['sign_url']}" style="display:block;padding:15px 40px;color:#ffffff;font-weight:700;font-size:1rem;text-decoration:none;letter-spacing:0.3px;">✍️ &nbsp;Firmar documento ahora</a>
+        <table cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+          <tr><td style="background:#1B3FE4;border-radius:8px;padding:14px 32px;">
+            <a href="{f['sign_url']}" style="color:#ffffff;font-weight:700;font-size:0.95rem;text-decoration:none;display:block;">✍️ Firmar ahora</a>
           </td></tr>
         </table>
-
-        <div style="background:#f8f9fb;border-radius:8px;padding:12px 16px;margin-bottom:20px;">
-          <div style="font-size:0.7rem;color:#aabbcc;margin-bottom:4px;">Si el botón no funciona, copiá este link:</div>
-          <div style="font-size:0.72rem;font-family:monospace;color:#7788aa;word-break:break-all;">{f['sign_url']}</div>
-        </div>
-
-        <div style="border-top:1px solid #eef0f7;padding-top:16px;">
-          <p style="font-size:0.75rem;color:#aabbcc;margin:0;">Este mensaje fue enviado automáticamente por Realvix CRM. Si no esperabas este documento, podés ignorar este correo.</p>
-        </div>
+        <p style="font-size:0.78rem;color:#aaa;margin:0 0 8px;">Si el botón no funciona, copiá y pegá este link en tu navegador:</p>
+        <p style="font-size:0.75rem;font-family:monospace;color:#888;background:#f8f8f8;padding:10px 12px;border-radius:6px;word-break:break-all;margin:0;">{f['sign_url']}</p>
       </td></tr>
-      <tr><td style="background:#0a0f2e;padding:16px 36px;text-align:center;">
-        <p style="font-size:0.7rem;color:#4455aa;margin:0;letter-spacing:0.5px;">Realvix CRM — Sistema de Firma Electrónica</p>
+      <tr><td style="background:#f8f7f4;border-top:1px solid #e8e4dc;padding:16px 32px;text-align:center;">
+        <p style="font-size:0.72rem;color:#bbb;margin:0;">Realvix CRM — Sistema de Firma Electrónica</p>
       </td></tr>
     </table>
   </td></tr>
@@ -540,7 +303,11 @@ def listar_documentos():
         return jsonify({'documentos': docs})
     try:
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("SELECT id, data FROM documents ORDER BY created_at DESC")
+        # Filtrar por user_id dentro del JSONB. Los docs sin user_id (legacy) solo los ve el admin.
+        if user.get('role') == 'admin':
+            cur.execute("SELECT id, data FROM documents WHERE data->>'user_id' = %s OR data->>'user_id' IS NULL ORDER BY created_at DESC", (user['id'],))
+        else:
+            cur.execute("SELECT id, data FROM documents WHERE data->>'user_id' = %s ORDER BY created_at DESC", (user['id'],))
         rows = cur.fetchall(); cur.close(); conn.close()
         docs = []
         for row in rows:
@@ -556,6 +323,10 @@ def listar_documentos():
 def eliminar_documento(doc_id):
     user = _get_current_user()
     if not user: return jsonify({'error': 'No autenticado'}), 401
+    # Verificar que el documento le pertenece (o es admin)
+    doc = get_doc(doc_id)
+    if doc and user.get('role') != 'admin' and doc.get('user_id') and doc['user_id'] != user['id']:
+        return jsonify({'error': 'Sin permiso'}), 403
     conn = _get_connection()
     if conn:
         try:
@@ -615,121 +386,34 @@ def guardar_firma(doc_id, token):
     firmante['signature_dataurl'] = signature_dataurl
     save_doc(doc_id, doc)
     all_signed = all(f['signed'] for f in doc['firmantes'])
-    
-    # Email de confirmación al firmante que acaba de firmar
-    if firmante.get('email'):
-        html_firmante = f"""<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
-<body style="margin:0;padding:0;background:#eef0f7;font-family:'Helvetica Neue',Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#eef0f7;padding:40px 0;">
-  <tr><td align="center">
-    <table width="540" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(27,63,228,0.10);">
-      <tr><td style="background:#0a0f2e;padding:28px 36px 0 36px;">
-        <table width="100%" cellpadding="0" cellspacing="0"><tr>
-          <td><span style="font-size:1.4rem;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">Realvix</span><span style="font-size:1.4rem;color:#1B3FE4;font-weight:800;">.</span><span style="display:block;font-size:0.6rem;color:#5566aa;letter-spacing:3px;text-transform:uppercase;margin-top:2px;">CRM — Firma Electrónica</span></td>
-          <td align="right"><span style="background:#1B3FE4;color:#fff;font-size:0.65rem;font-weight:700;letter-spacing:1.5px;padding:5px 10px;border-radius:6px;text-transform:uppercase;">✅ Firmado</span></td>
-        </tr></table>
-        <div style="height:3px;background:linear-gradient(90deg,#1B3FE4,#4466ff);margin-top:20px;"></div>
-      </td></tr>
-      <tr><td style="padding:36px 36px 28px;">
-        <p style="margin:0 0 6px;font-size:0.82rem;color:#7788aa;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Tu firma fue registrada</p>
-        <h2 style="margin:0 0 4px;font-size:1.5rem;font-weight:800;color:#0a0f2e;letter-spacing:-0.5px;">Hola {firmante['name']},</h2>
-        <p style="margin:0 0 24px;font-size:0.92rem;color:#556688;">Tu firma electrónica fue registrada exitosamente en el siguiente documento:</p>
-        <div style="background:#f0f4ff;border:1.5px solid #c4d0ff;border-radius:10px;padding:16px 20px;margin-bottom:28px;">
-          <div style="font-size:0.7rem;color:#7788aa;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:5px;">DOCUMENTO</div>
-          <div style="font-weight:700;font-size:1.05rem;color:#0a0f2e;">{doc.get('title')}</div>
-          <div style="font-size:0.78rem;color:#7788aa;margin-top:8px;">Firmado el {datetime.now().strftime('%d/%m/%Y a las %H:%M:%S')}</div>
-        </div>
-        <div style="border-top:1px solid #eef0f7;padding-top:16px;">
-          <p style="font-size:0.75rem;color:#aabbcc;margin:0;">Recibirás una copia del documento completo una vez que todos los firmantes hayan completado el proceso.</p>
-        </div>
-      </td></tr>
-      <tr><td style="background:#0a0f2e;padding:16px 36px;text-align:center;">
-        <p style="font-size:0.7rem;color:#4455aa;margin:0;letter-spacing:0.5px;">Realvix CRM — Sistema de Firma Electrónica</p>
-      </td></tr>
-    </table>
-  </td></tr>
-</table></body></html>"""
-        import threading
-        threading.Thread(target=_send_email, args=(
-            firmante['email'], firmante['name'],
-            f"✅ Firmaste: {doc.get('title')}", html_firmante)).start()
-
     if all_signed and doc.get('organizer_email'):
         pdf_bytes = generate_full_pdf(doc)
         html = f"""<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
-<body style="margin:0;padding:0;background:#eef0f7;font-family:'Helvetica Neue',Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#eef0f7;padding:40px 0;">
-  <tr><td align="center">
-    <table width="540" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(27,63,228,0.10);">
-      <tr><td style="background:#0a0f2e;padding:28px 36px 0 36px;">
-        <table width="100%" cellpadding="0" cellspacing="0"><tr>
-          <td><span style="font-size:1.4rem;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">Realvix</span><span style="font-size:1.4rem;color:#1B3FE4;font-weight:800;">.</span><span style="display:block;font-size:0.6rem;color:#5566aa;letter-spacing:3px;text-transform:uppercase;margin-top:2px;">CRM — Firma Electrónica</span></td>
-          <td align="right"><span style="background:#1a9e5c;color:#fff;font-size:0.65rem;font-weight:700;letter-spacing:1.5px;padding:5px 10px;border-radius:6px;text-transform:uppercase;">✅ Completado</span></td>
-        </tr></table>
-        <div style="height:3px;background:linear-gradient(90deg,#1a9e5c,#2dce8a);margin-top:20px;"></div>
-      </td></tr>
-      <tr><td style="padding:36px 36px 28px;">
-        <p style="margin:0 0 6px;font-size:0.82rem;color:#7788aa;text-transform:uppercase;letter-spacing:1px;font-weight:600;">¡Buenas noticias!</p>
-        <h2 style="margin:0 0 4px;font-size:1.5rem;font-weight:800;color:#0a0f2e;letter-spacing:-0.5px;">Documento completado</h2>
-        <p style="margin:0 0 24px;font-size:0.92rem;color:#556688;">Todos los firmantes completaron el documento. Te adjuntamos el PDF firmado con el certificado de auditoría.</p>
-        <div style="background:#f0f4ff;border:1.5px solid #c4d0ff;border-radius:10px;padding:16px 20px;margin-bottom:28px;">
-          <div style="font-size:0.7rem;color:#7788aa;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:5px;">DOCUMENTO</div>
-          <div style="font-weight:700;font-size:1.05rem;color:#0a0f2e;">{doc.get('title')}</div>
-        </div>
-        <div style="border-top:1px solid #eef0f7;padding-top:16px;">
-          <p style="font-size:0.75rem;color:#aabbcc;margin:0;">Adjunto encontrarás el documento firmado con el certificado de auditoría de firmas.</p>
-        </div>
-      </td></tr>
-      <tr><td style="background:#0a0f2e;padding:16px 36px;text-align:center;">
-        <p style="font-size:0.7rem;color:#4455aa;margin:0;letter-spacing:0.5px;">Realvix CRM — Sistema de Firma Electrónica</p>
-      </td></tr>
-    </table>
-  </td></tr>
-</table></body></html>"""
+<body style="margin:0;padding:0;background:#f4f1eb;font-family:'Helvetica Neue',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 0;">
+  <table width="520" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;">
+    <tr><td style="background:#0f0f0f;padding:24px 32px;border-bottom:3px solid #1B3FE4;">
+      <div style="font-weight:700;font-size:1.3rem;color:#fff;">Realvix<span style="color:#1B3FE4;">.</span></div>
+    </td></tr>
+    <tr><td style="padding:32px;text-align:center;">
+      <div style="font-size:2rem;margin-bottom:12px;">✅</div>
+      <h2 style="margin:0 0 8px;font-size:1.4rem;color:#0f0f0f;">Documento completado</h2>
+      <p style="color:#666;font-size:0.9rem;margin:0 0 24px;">Todos los firmantes completaron el documento</p>
+      <div style="background:#EEF2FF;border-left:4px solid #1B3FE4;border-radius:6px;padding:14px 18px;text-align:left;">
+        <div style="font-weight:700;font-size:1rem;color:#0f0f0f;">{doc.get('title')}</div>
+      </div>
+    </td></tr>
+    <tr><td style="background:#f8f7f4;border-top:1px solid #e8e4dc;padding:16px 32px;text-align:center;">
+      <p style="font-size:0.72rem;color:#bbb;margin:0;">Realvix CRM — Sistema de Firma Electrónica</p>
+    </td></tr>
+  </table>
+</td></tr></table></body></html>"""
         import threading
         threading.Thread(target=_send_email, args=(
             doc['organizer_email'], doc.get('organizer_name', ''),
             f"✅ Firmado: {doc.get('title')}", html,
             pdf_bytes, f"documento-firmado-{doc_id[:8]}.pdf"
         )).start()
-        # Copia a cada firmante
-        for cada_f in doc['firmantes']:
-            if cada_f.get('email'):
-                html_copia = f"""<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
-<body style="margin:0;padding:0;background:#eef0f7;font-family:'Helvetica Neue',Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#eef0f7;padding:40px 0;">
-  <tr><td align="center">
-    <table width="540" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(27,63,228,0.10);">
-      <tr><td style="background:#0a0f2e;padding:28px 36px 0 36px;">
-        <table width="100%" cellpadding="0" cellspacing="0"><tr>
-          <td><span style="font-size:1.4rem;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">Realvix</span><span style="font-size:1.4rem;color:#1B3FE4;font-weight:800;">.</span><span style="display:block;font-size:0.6rem;color:#5566aa;letter-spacing:3px;text-transform:uppercase;margin-top:2px;">CRM — Firma Electrónica</span></td>
-          <td align="right"><span style="background:#1a9e5c;color:#fff;font-size:0.65rem;font-weight:700;letter-spacing:1.5px;padding:5px 10px;border-radius:6px;text-transform:uppercase;">📄 Copia firmada</span></td>
-        </tr></table>
-        <div style="height:3px;background:linear-gradient(90deg,#1a9e5c,#2dce8a);margin-top:20px;"></div>
-      </td></tr>
-      <tr><td style="padding:36px 36px 28px;">
-        <p style="margin:0 0 6px;font-size:0.82rem;color:#7788aa;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Copia para tus registros</p>
-        <h2 style="margin:0 0 4px;font-size:1.5rem;font-weight:800;color:#0a0f2e;letter-spacing:-0.5px;">Hola {cada_f['name']},</h2>
-        <p style="margin:0 0 24px;font-size:0.92rem;color:#556688;">Todos los firmantes completaron el documento. Te adjuntamos una copia firmada para tus registros.</p>
-        <div style="background:#f0f4ff;border:1.5px solid #c4d0ff;border-radius:10px;padding:16px 20px;margin-bottom:28px;">
-          <div style="font-size:0.7rem;color:#7788aa;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:5px;">DOCUMENTO</div>
-          <div style="font-weight:700;font-size:1.05rem;color:#0a0f2e;">{doc.get('title')}</div>
-        </div>
-        <div style="border-top:1px solid #eef0f7;padding-top:16px;">
-          <p style="font-size:0.75rem;color:#aabbcc;margin:0;">Este documento tiene validez legal conforme a la Ley N° 25.506 de Firma Digital de la República Argentina.</p>
-        </div>
-      </td></tr>
-      <tr><td style="background:#0a0f2e;padding:16px 36px;text-align:center;">
-        <p style="font-size:0.7rem;color:#4455aa;margin:0;letter-spacing:0.5px;">Realvix CRM — Sistema de Firma Electrónica</p>
-      </td></tr>
-    </table>
-  </td></tr>
-</table></body></html>"""
-                threading.Thread(target=_send_email, args=(
-                    cada_f['email'], cada_f['name'],
-                    f"✅ Copia firmada: {doc.get('title')}", html_copia,
-                    pdf_bytes, f"documento-firmado-{doc_id[:8]}.pdf"
-                )).start()
     signed_count = sum(1 for f in doc['firmantes'] if f['signed'])
     total = len(doc['firmantes'])
     return jsonify({'ok': True, 'all_signed': all_signed, 'signed_count': signed_count, 'total': total})
