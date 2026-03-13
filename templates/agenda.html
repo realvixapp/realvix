@@ -49,9 +49,33 @@
 
 <!-- ── TAREAS KANBAN drag & drop ── -->
 <div id="tabTareas" style="display:none">
-  <div style="display:flex;gap:10px;margin-bottom:14px;align-items:center;">
+  <div style="display:flex;gap:10px;margin-bottom:14px;align-items:center;flex-wrap:wrap;">
     <button class="btn-primary" onclick="abrirNuevaTarea()">+ Nueva tarea</button>
     <span style="font-size:0.78rem;color:#aaa;">Arrastrá las tarjetas para moverlas entre columnas</span>
+    <button onclick="confirmarLimpiarCompletados()"
+      style="margin-left:auto;padding:6px 14px;border-radius:8px;border:1.5px solid var(--success);background:var(--success-bg);color:var(--success);font-size:0.78rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
+      🗑️ Limpiar completados
+    </button>
+  </div>
+
+  <!-- Modal confirmación limpiar completados -->
+  <div class="modal-bg" id="modalLimpiarCompletados">
+    <div class="modal" style="max-width:380px;">
+      <div class="modal-header" style="background:var(--success-bg);border-radius:10px 10px 0 0;">
+        <h3 style="color:var(--success);display:flex;align-items:center;gap:8px;">🗑️ Limpiar completados</h3>
+        <button class="modal-close" onclick="cerrarModal('modalLimpiarCompletados')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="limpiarCompletadosCount" style="font-size:0.92rem;color:#444;margin-bottom:8px;"></div>
+        <div style="font-size:0.82rem;color:#888;">Esta acción eliminará permanentemente todas las tareas completadas. No se puede deshacer.</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="cerrarModal('modalLimpiarCompletados')">Cancelar</button>
+        <button style="padding:8px 20px;border-radius:8px;border:none;background:var(--success);color:white;font-weight:600;cursor:pointer;" onclick="ejecutarLimpiarCompletados()">
+          ✓ Sí, eliminar completados
+        </button>
+      </div>
+    </div>
   </div>
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
     <div class="kanban-col">
