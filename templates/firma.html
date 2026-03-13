@@ -1,102 +1,103 @@
 {% extends "base.html" %}
 {% block title %}Firma Electrónica — Realvix CRM{% endblock %}
 
+{% block extra_head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+{% endblock %}
+
 {% block content %}
 <div class="page-title">✍️ Firma Electrónica</div>
 <div class="page-sub">Enviá documentos para firmar digitalmente</div>
 
 <!-- Tabs -->
 <div style="display:flex;gap:4px;margin-bottom:24px;border-bottom:1px solid var(--border);">
-  <button class="tab-btn active" onclick="switchFirmaTab('nueva',this)">🚀 Nueva firma</button>
-  <button class="tab-btn" onclick="switchFirmaTab('pendientes',this)">⏳ Pendientes</button>
-  <button class="tab-btn" onclick="switchFirmaTab('completados',this)">✅ Completados</button>
+  <button class="tab-btn active" onclick="switchFirmaTab('nueva',this)" id="tabBtnNueva">🚀 Nueva firma</button>
+  <button class="tab-btn" onclick="switchFirmaTab('pendientes',this)" id="tabBtnPendientes">⏳ Pendientes</button>
+  <button class="tab-btn" onclick="switchFirmaTab('completados',this)" id="tabBtnCompletados">✅ Completados</button>
 </div>
 
-<!-- ══════════════════════════════════════
-     TAB: NUEVA FIRMA
-══════════════════════════════════════ -->
+<!-- ══════════════════════════════
+     TAB NUEVA FIRMA
+══════════════════════════════ -->
 <div id="tabNueva">
 
-  <!-- SECCIÓN: Datos del documento -->
-  <div class="firma-card" style="margin-bottom:16px;">
-    <div class="firma-card-title">📋 Datos del documento</div>
+  <!-- Card 1: Datos -->
+  <div class="f-card">
+    <div class="f-card-title">📋 Datos del documento</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
       <div>
         <label class="field-label">TÍTULO DEL DOCUMENTO</label>
-        <input type="text" id="docTitulo" class="input-base" placeholder="Ej: Reserva Alcaraz Marzo">
+        <input id="docTitulo" type="text" class="input-base" placeholder="Ej: Reserva Alcaraz Marzo">
       </div>
       <div>
         <label class="field-label">TU NOMBRE (ORGANIZADOR)</label>
-        <input type="text" id="docOrgNombre" class="input-base" placeholder="Tu nombre o el de la agencia">
+        <input id="docOrgNombre" type="text" class="input-base" placeholder="Tu nombre o el de la agencia">
       </div>
     </div>
     <div>
       <label class="field-label">TU EMAIL</label>
-      <input type="email" id="docOrgEmail" class="input-base" placeholder="email@ejemplo.com">
+      <input id="docOrgEmail" type="email" class="input-base" placeholder="email@ejemplo.com">
     </div>
   </div>
 
-  <!-- SECCIÓN: Archivo PDF -->
-  <div class="firma-card" style="margin-bottom:16px;">
-    <div class="firma-card-title">📎 Archivo PDF</div>
-
-    <div id="pdfDropZone" class="pdf-drop-zone" onclick="document.getElementById('docPdf').click()"
+  <!-- Card 2: PDF -->
+  <div class="f-card">
+    <div class="f-card-title">📎 Archivo PDF</div>
+    <div id="pdfDropZone" class="f-dropzone"
+         onclick="document.getElementById('docPdf').click()"
          ondragover="event.preventDefault();this.classList.add('drag-over')"
          ondragleave="this.classList.remove('drag-over')"
-         ondrop="handlePdfDrop(event)">
-      <div style="font-size:1.6rem;margin-bottom:6px;opacity:.4;">📎</div>
+         ondrop="onPdfDrop(event)">
+      <div style="font-size:1.8rem;opacity:.3;margin-bottom:6px;">📎</div>
       <div style="font-size:0.88rem;color:var(--text-secondary);">Hacé clic o arrastrá el PDF aquí</div>
       <div style="font-size:0.76rem;color:var(--text-tertiary);margin-top:3px;">El documento que todos van a firmar</div>
     </div>
-
-    <div style="margin-top:10px;display:flex;align-items:center;gap:10px;">
-      <label class="btn-xs" style="cursor:pointer;margin:0;">
+    <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <label class="btn-xs" style="cursor:pointer;text-transform:uppercase;letter-spacing:.4px;">
         Seleccionar archivo
-        <input type="file" id="docPdf" accept="application/pdf" style="display:none;" onchange="onPdfSelected(this)">
+        <input type="file" id="docPdf" accept="application/pdf" style="display:none" onchange="onPdfSelected(this)">
       </label>
-      <span id="pdfFileName" style="font-size:0.8rem;color:var(--text-secondary);"></span>
+      <span id="pdfFileLabel" style="font-size:0.8rem;color:var(--text-secondary);"></span>
     </div>
-
-    <div id="pdfSelectedBadge" style="display:none;margin-top:10px;background:var(--success-bg);border:1px solid #A7F3D0;border-radius:var(--radius-md);padding:10px 14px;display:none;align-items:center;gap:8px;font-size:0.84rem;font-weight:500;color:#065F46;">
-      <span>✅</span>
-      <span id="pdfSelectedName"></span>
+    <div id="pdfBadge" style="display:none;margin-top:10px;background:var(--success-bg);border:1px solid #A7F3D0;border-radius:var(--radius-md);padding:10px 14px;flex-direction:row;align-items:center;gap:8px;font-size:0.84rem;font-weight:500;color:#065F46;">
+      <span>✅</span><span id="pdfBadgeName"></span>
     </div>
   </div>
 
-  <!-- SECCIÓN: Firmantes y zonas de firma -->
-  <div class="firma-card" style="margin-bottom:16px;">
-    <div class="firma-card-title">✍️ Firmantes y zonas de firma</div>
+  <!-- Card 3: Firmantes -->
+  <div class="f-card">
+    <div class="f-card-title">✍️ Firmantes y zonas de firma</div>
     <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:14px;">Agregá cada firmante y luego asignale su zona en el PDF.</div>
-
     <div id="firmantesContainer" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;"></div>
-
-    <!-- Agregar nuevo firmante -->
     <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;">
       <div>
         <label class="field-label">NOMBRE</label>
-        <input type="text" id="nuevoNombre" class="input-base" placeholder="Nombre completo">
+        <input id="nuevoNombre" type="text" class="input-base" placeholder="Nombre completo"
+               onkeydown="if(event.key==='Enter')agregarFirmante()">
       </div>
       <div>
         <label class="field-label">EMAIL</label>
-        <input type="email" id="nuevoEmail" class="input-base" placeholder="email@ejemplo.com">
+        <input id="nuevoEmail" type="email" class="input-base" placeholder="email@ejemplo.com"
+               onkeydown="if(event.key==='Enter')agregarFirmante()">
       </div>
-      <button class="btn-primary" style="height:36px;padding:0 16px;font-size:0.82rem;" onclick="agregarFirmante()">+ Agregar</button>
+      <button class="btn-primary" style="height:36px;padding:0 18px;font-size:0.82rem;white-space:nowrap;"
+              onclick="agregarFirmante()">+ Agregar</button>
     </div>
   </div>
 
-  <!-- Botón enviar -->
-  <button id="btnEnviar" class="btn-primary" style="font-size:0.9rem;padding:12px 28px;" onclick="enviarDocumento()">
+  <button id="btnEnviar" class="btn-primary" style="padding:12px 28px;font-size:0.9rem;" onclick="enviarDocumento()">
     🚀 Enviar para firma
   </button>
 
-  <!-- Resultado después de enviar -->
-  <div id="resultadoEnvio" style="display:none;margin-top:20px;">
+  <!-- Resultado post-envío -->
+  <div id="resultEnvio" style="display:none;margin-top:20px;max-width:700px;">
     <div style="background:var(--success-bg);border:1px solid #A7F3D0;border-radius:var(--radius-lg);padding:20px 22px;">
-      <div style="font-weight:700;font-size:0.95rem;color:#065F46;margin-bottom:4px;">✅ ¡Documento enviado!</div>
+      <div style="font-weight:700;font-size:0.95rem;color:#065F46;margin-bottom:3px;">✅ ¡Documento enviado!</div>
       <div style="font-size:0.82rem;color:#047857;margin-bottom:16px;">Copiá el link de cada firmante y compartilo por WhatsApp.</div>
-      <div id="linksContainer" style="display:flex;flex-direction:column;gap:12px;"></div>
+      <div id="linksContainer" style="display:flex;flex-direction:column;gap:14px;"></div>
       <div style="margin-top:16px;">
-        <button class="btn-xs" onclick="verEstadoDoc()" style="background:#065F46;color:#fff;border:none;">
+        <button class="btn-xs" style="background:#065F46;color:#fff;border:none;"
+                onclick="switchFirmaTab('pendientes', document.getElementById('tabBtnPendientes'))">
           📊 Ver estado del documento →
         </button>
       </div>
@@ -106,115 +107,118 @@
 </div><!-- /tabNueva -->
 
 
-<!-- ══════════════════════════════════════
-     TAB: PENDIENTES
-══════════════════════════════════════ -->
+<!-- ══════════════════════════════
+     TAB PENDIENTES
+══════════════════════════════ -->
 <div id="tabPendientes" style="display:none;">
   <div style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:16px;">Documentos esperando firmas</div>
   <div id="listaPendientes"><div class="loading-state">Cargando...</div></div>
+
+  <!-- Panel estado inline -->
+  <div id="panelEstado" style="display:none;margin-top:24px;max-width:700px;">
+    <div class="f-card" style="margin-bottom:0;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <div>
+          <div style="font-weight:700;font-size:1rem;">Estado del documento</div>
+          <div id="estadoTitulo" style="font-size:0.82rem;color:var(--text-secondary);margin-top:2px;"></div>
+        </div>
+        <button class="btn-xs" onclick="cerrarPanelEstado()">✕ Cerrar</button>
+      </div>
+
+      <!-- Progreso -->
+      <div style="background:var(--cream);border:1px solid var(--border);border-radius:var(--radius-md);padding:16px;margin-bottom:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <span style="font-weight:600;font-size:0.88rem;">Progreso de firmas</span>
+          <span id="estadoBadge" class="badge-pending">0/0 firmados</span>
+        </div>
+        <div id="estadoProgresoText" style="font-size:0.82rem;color:var(--text-secondary);"></div>
+        <div style="font-size:0.73rem;color:var(--text-tertiary);margin-top:5px;">● Esta página se actualiza automáticamente cada 15 segundos.</div>
+      </div>
+
+      <!-- Firmantes del doc -->
+      <div style="font-weight:600;font-size:0.85rem;margin-bottom:10px;">✍️ Firmantes</div>
+      <div id="estadoFirmantesBox" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;"></div>
+
+      <!-- Acciones -->
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn-primary" style="font-size:0.82rem;padding:9px 18px;"
+                onclick="descargarPDF(window._estadoDocId)">⬇️ Descargar PDF firmado</button>
+        <button class="btn-xs" onclick="actualizarEstado(window._estadoDocId)">🔄 Actualizar ahora</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 
-<!-- ══════════════════════════════════════
-     TAB: COMPLETADOS
-══════════════════════════════════════ -->
+<!-- ══════════════════════════════
+     TAB COMPLETADOS
+══════════════════════════════ -->
 <div id="tabCompletados" style="display:none;">
   <div style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:16px;">Documentos firmados por todos</div>
   <div id="listaCompletados"><div class="loading-state">Cargando...</div></div>
 </div>
 
 
+<!-- ══════════════════════════════
+     MODAL ZONA DE FIRMA
+══════════════════════════════ -->
+<div id="zonaModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2000;align-items:center;justify-content:center;">
+  <div style="background:var(--paper);border-radius:var(--radius-xl);width:min(780px,96vw);max-height:94vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--shadow-xl);">
+
+    <!-- Header -->
+    <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+      <div>
+        <div style="font-weight:700;font-size:0.95rem;">📍 Asignar zona de firma</div>
+        <div id="zonaModalFirmante" style="font-size:0.78rem;color:var(--text-secondary);margin-top:2px;"></div>
+      </div>
+      <button class="btn-icon-sm" onclick="cerrarZonaModal()">✕</button>
+    </div>
+
+    <!-- Hint -->
+    <div style="padding:9px 20px;font-size:0.78rem;color:#92400E;background:#FFFBEB;border-bottom:1px solid #FDE68A;flex-shrink:0;">
+      💡 Hacé clic y arrastrá en el PDF para dibujar el recuadro donde irá la firma.
+    </div>
+
+    <!-- Nav páginas -->
+    <div id="zonaNavBar" style="display:none;padding:8px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0;">
+      <button class="btn-xs" onclick="zonaChangePage(-1)">← Anterior</button>
+      <span id="zonaPageInfo" style="font-size:0.8rem;color:var(--text-secondary);">Pág 1 / 1</span>
+      <button class="btn-xs" onclick="zonaChangePage(1)">Siguiente →</button>
+    </div>
+
+    <!-- PDF + overlay -->
+    <div style="flex:1;overflow:auto;background:#d0d0d0;padding:16px;display:flex;justify-content:center;align-items:flex-start;">
+      <div style="position:relative;display:inline-block;line-height:0;">
+        <canvas id="zonaPdfCanvas" style="display:block;box-shadow:0 2px 16px rgba(0,0,0,.25);"></canvas>
+        <canvas id="zonaOverlay" style="position:absolute;top:0;left:0;cursor:crosshair;"></canvas>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;flex-shrink:0;">
+      <button class="btn-xs" onclick="limpiarZonaOverlay()">🗑 Borrar zona</button>
+      <button class="btn-xs" onclick="cerrarZonaModal()">Cancelar</button>
+      <button class="btn-primary" style="font-size:0.82rem;padding:9px 22px;" onclick="confirmarZona()">✅ Confirmar zona</button>
+    </div>
+  </div>
+</div>
+
+
 <style>
-/* ── Firma cards ── */
-.firma-card {
-  background: var(--paper);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 20px 22px;
-  box-shadow: var(--shadow-xs);
-  max-width: 700px;
-}
-.firma-card-title {
-  font-weight: 700;
-  font-size: 0.9rem;
-  color: var(--text-primary);
-  margin-bottom: 16px;
-}
-
-/* ── PDF Drop Zone ── */
-.pdf-drop-zone {
-  border: 2px dashed var(--border-hover);
-  border-radius: var(--radius-md);
-  padding: 28px 20px;
-  text-align: center;
-  cursor: pointer;
-  background: var(--cream);
-  transition: border-color .2s, background .2s;
-}
-.pdf-drop-zone:hover, .pdf-drop-zone.drag-over {
-  border-color: var(--rx-blue);
-  background: var(--rx-blue-light);
-}
-
-/* ── Firmante row ── */
-.firmante-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 10px 14px;
-  background: var(--cream);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-}
-.firmante-avatar {
-  width: 32px; height: 32px;
-  border-radius: 50%;
-  background: var(--rx-blue);
-  color: white;
-  font-weight: 700;
-  font-size: 0.78rem;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-.firmante-info { flex: 1; min-width: 0; }
-.firmante-info .fn { font-weight: 600; font-size: 0.85rem; }
-.firmante-info .fe { font-size: 0.76rem; color: var(--text-secondary); }
-
-/* ── Doc list items ── */
-.doc-list-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--paper);
-  margin-bottom: 6px;
-  max-width: 700px;
-  transition: background .15s;
-}
-.doc-list-item:hover { background: var(--cream); }
-.doc-icon {
-  width: 36px; height: 36px; border-radius: var(--radius-sm);
-  background: var(--rx-blue-light); color: var(--rx-blue);
-  display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink:0;
-}
-.doc-list-item .doc-title { font-weight: 600; font-size: 0.87rem; }
-.doc-list-item .doc-meta { font-size: 0.74rem; color: var(--text-secondary); margin-top:1px; }
-.doc-list-item .doc-actions { display:flex; align-items:center; gap:6px; margin-left:auto; flex-shrink:0; }
-
-.badge-pending { background:#FFFBEB; color:#92400E; border:1px solid #FDE68A; border-radius:20px; font-size:0.74rem; font-weight:600; padding:3px 10px; }
-.badge-done    { background:var(--success-bg); color:#065F46; border:1px solid #A7F3D0; border-radius:20px; font-size:0.74rem; font-weight:600; padding:3px 10px; }
-
-/* ── Zona asignada indicator ── */
-.zona-btn {
-  display: flex; align-items: center; gap: 5px;
-  background: var(--paper); border: 1px solid var(--border);
-  border-radius: 20px; padding: 4px 12px;
-  font-size: 0.76rem; color: var(--text-secondary);
-  cursor: default;
-}
+.f-card{background:var(--paper);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px 22px;margin-bottom:16px;box-shadow:var(--shadow-xs);max-width:700px;}
+.f-card-title{font-weight:700;font-size:.9rem;margin-bottom:16px;}
+.f-dropzone{border:2px dashed var(--border-hover);border-radius:var(--radius-md);padding:28px 20px;text-align:center;cursor:pointer;background:var(--cream);transition:border-color .2s,background .2s;user-select:none;}
+.f-dropzone:hover,.f-dropzone.drag-over{border-color:var(--rx-blue);background:var(--rx-blue-light);}
+.firmante-row{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--cream);border:1px solid var(--border);border-radius:var(--radius-md);}
+.f-avatar{width:32px;height:32px;border-radius:50%;background:var(--rx-blue);color:#fff;font-weight:700;font-size:.78rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.zona-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:.75rem;font-weight:500;border:1px solid var(--border);background:var(--paper);color:var(--text-secondary);cursor:pointer;transition:border-color .15s,color .15s;white-space:nowrap;}
+.zona-chip:hover{border-color:var(--rx-blue);color:var(--rx-blue);}
+.zona-chip.asignada{background:var(--rx-blue-light);border-color:var(--rx-blue);color:var(--rx-blue);}
+.doc-row{display:flex;align-items:center;gap:12px;padding:11px 14px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--paper);margin-bottom:6px;max-width:700px;transition:background .12s;}
+.doc-row:hover{background:var(--cream);}
+.doc-icon-box{width:36px;height:36px;border-radius:var(--radius-sm);background:var(--rx-blue-light);color:var(--rx-blue);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;}
+.badge-pending{background:#FFFBEB;color:#92400E;border:1px solid #FDE68A;border-radius:20px;font-size:.73rem;font-weight:600;padding:3px 10px;white-space:nowrap;}
+.badge-done{background:var(--success-bg);color:#065F46;border:1px solid #A7F3D0;border-radius:20px;font-size:.73rem;font-weight:600;padding:3px 10px;white-space:nowrap;}
 </style>
 {% endblock %}
 
