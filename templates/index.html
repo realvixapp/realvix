@@ -3,184 +3,153 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Realvix CRM</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<title>Realvix — CRM Inmobiliario</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/style.css">
 <style>
-/* ── PAGE-SPECIFIC ── */
-.header-search {
-  flex: 1;
-  max-width: 300px;
-  position: relative;
-}
-.header-search input {
-  width: 100%;
-  padding: 6px 12px 6px 32px;
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  font-size: 0.83rem;
-  outline: none;
-  background: var(--cream) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='%23aaa' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 11px center;
-}
-.header-search input:focus {
-  border-color: var(--rx-blue);
-  background-color: white;
-  box-shadow: 0 0 0 3px var(--rx-blue-glow);
-}
-
-/* Dashboard cards */
-.dash-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
-.dash-col { display: flex; flex-direction: column; gap: 14px; }
-@media (max-width: 900px) { .dash-grid { grid-template-columns: 1fr; } }
-
-/* Nota Notion-style dentro de vista */
-.block-editable {
-  min-height: 120px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  padding: 10px 12px;
-  font-size: 0.88rem;
-  color: var(--text-primary);
-  line-height: 1.7;
-  outline: none;
-  transition: all 0.15s;
-  font-family: var(--font-sans);
-}
-.block-editable:hover { border-color: var(--border); background: var(--cream); }
-.block-editable:focus { border-color: var(--rx-blue); background: white; box-shadow: 0 0 0 3px var(--rx-blue-glow); }
-.block-editable:empty::before { content: attr(data-placeholder); color: var(--text-tertiary); }
-
-/* Embudo */
-.embudo-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 10px; margin-bottom: 24px; }
-.embudo-step {
-  background: white;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 16px 12px;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.15s;
-  position: relative;
-}
-.embudo-step:hover { border-color: var(--rx-blue); box-shadow: var(--shadow-sm); }
-.embudo-step.active { border-color: var(--rx-blue); background: var(--rx-blue-light); }
-.embudo-step::after {
-  content: '›';
-  position: absolute;
-  right: -16px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-tertiary);
-  font-size: 1.2rem;
-  pointer-events: none;
-}
-.embudo-step:last-child::after { display: none; }
-.embudo-num { font-size: 1.6rem; font-weight: 700; color: var(--rx-blue); line-height: 1; }
-.embudo-label { font-size: 0.7rem; color: var(--text-secondary); margin-top: 4px; font-weight: 500; }
-.embudo-pct { font-size: 0.68rem; color: var(--text-tertiary); margin-top: 2px; }
-@media (max-width: 768px) { .embudo-grid { grid-template-columns: repeat(2,1fr); } }
-
-/* Cierres */
-.cierres-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 20px; }
-
-/* Guiones Instagram */
-.ig-header { background: linear-gradient(135deg, #405DE6 0%, #C13584 50%, #FD1D1D 100%); border-radius: var(--radius-lg); padding: 16px 20px; color: white; margin-bottom: 16px; }
-.ig-header h3 { font-size: 0.96rem; font-weight: 700; margin-bottom: 4px; }
-.ig-header p { font-size: 0.8rem; opacity: 0.85; }
-
-/* Objetivos */
-.obj-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.obj-period { display: flex; gap: 6px; }
-.obj-period button { padding: 4px 10px; border-radius: 20px; border: 1px solid var(--border); font-size: 0.75rem; cursor: pointer; background: white; font-family: var(--font-sans); transition: all 0.12s; }
-.obj-period button.active { background: var(--rx-blue); color: white; border-color: var(--rx-blue); }
-
-/* Consultas panel */
-.consultas-tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 0; }
-.ctab { padding: 7px 14px; font-size: 0.82rem; font-weight: 500; cursor: pointer; border-bottom: 2px solid transparent; color: var(--text-secondary); transition: all 0.15s; }
-.ctab:hover { color: var(--rx-blue); }
-.ctab.active { border-bottom-color: var(--rx-blue); color: var(--rx-blue); }
-
-/* Agenda tags */
-.tag-pendiente { background: var(--warning-bg); color: #92400E; }
-.tag-proceso   { background: var(--rx-blue-light); color: var(--rx-blue); }
-.tag-done      { background: var(--success-bg); color: #065F46; }
-
-/* Mini calendar strip */
-.cal-strip { display: flex; gap: 6px; overflow-x: auto; padding: 4px 0 10px; }
-.cal-day {
-  flex-shrink: 0;
-  width: 44px;
-  height: 58px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.12s;
-  background: white;
-}
-.cal-day:hover { border-color: var(--rx-blue); background: var(--rx-blue-bg); }
-.cal-day.active { background: var(--rx-blue); border-color: var(--rx-blue); color: white; }
-.cal-day.has-event { position: relative; }
-.cal-day.has-event::after { content:''; position: absolute; bottom: 6px; width: 5px; height: 5px; border-radius: 50%; background: var(--rx-blue); }
-.cal-day.active::after { background: white; }
-.cal-dow { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-tertiary); }
-.cal-day.active .cal-dow { color: rgba(255,255,255,0.7); }
-.cal-num { font-size: 0.9rem; font-weight: 600; margin-top: 2px; }
-
-/* Planilla objetivos */
-.planilla-cell {
-  padding: 6px 10px;
-  border: 1px solid var(--border);
-  font-size: 0.83rem;
-  background: white;
-  color: var(--text-primary);
-  width: 100%;
-  font-family: var(--font-sans);
-  outline: none;
-  transition: border-color 0.12s;
-}
-.planilla-cell:focus { border-color: var(--rx-blue); box-shadow: 0 0 0 2px var(--rx-blue-glow); }
-table.planilla { border-collapse: collapse; width: 100%; }
-table.planilla th { padding: 8px 10px; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-tertiary); background: var(--cream); border: 1px solid var(--border); }
-table.planilla td { border: 1px solid var(--border); padding: 0; }
-
-/* ── Zone Picker ── */
-.zone-hint{background:#fff8e6;border:1px solid #f0d080;border-radius:8px;padding:10px 14px;font-size:0.8rem;color:#856404;margin-bottom:14px;}
+/* ── PDF / FIRMA ── */
+.zone-hint{background:#fff8e6;border:1px solid var(--gold-light);border-radius:8px;padding:10px 14px;font-size:0.8rem;color:#856404;margin-bottom:14px;}
 .pdf-scroll-container{background:#e8e4dc;border-radius:8px;padding:14px;overflow-y:auto;max-height:55vh;text-align:center;}
-.pdf-page-wrap{position:relative;display:inline-block;margin-bottom:12px;cursor:crosshair;}
-.zone-overlay{position:absolute;border:2px solid #c9a84c;background:rgba(201,168,76,0.15);pointer-events:none;border-radius:2px;}
+.pdf-page-wrap{position:relative;display:inline-block;margin-bottom:12px;cursor:crosshair;user-select:none;}
+.pdf-page-wrap canvas{display:block;max-width:100%;box-shadow:0 2px 8px rgba(0,0,0,0.15);border-radius:2px;}
+.zone-overlay{position:absolute;border:2px solid var(--gold);background:rgba(201,168,76,0.15);pointer-events:none;}
 .zone-overlay.other{border-color:#888;background:rgba(100,100,100,0.1);}
-.zone-label{position:absolute;top:-20px;left:0;font-size:0.65rem;font-weight:700;background:#c9a84c;color:white;padding:1px 6px;border-radius:4px;white-space:nowrap;}
+.zone-label{position:absolute;top:-20px;left:0;font-size:0.65rem;font-weight:700;background:var(--gold);color:white;padding:1px 6px;border-radius:4px;white-space:nowrap;}
 .zone-label.other{background:#888;}
-.btn-assign{background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:0.72rem;cursor:pointer;color:var(--text-primary);font-family:inherit;transition:all 0.15s;}
-.btn-assign:hover{border-color:#c9a84c;background:var(--cream);}
-.btn-assign.active{background:#c9a84c;color:white;border-color:#c9a84c;}
-.btn-outline-sm{background:none;border:1px solid var(--border);border-radius:6px;padding:6px 12px;font-size:0.8rem;cursor:pointer;font-family:inherit;}
+.btn-outline-sm{background:white;border:1.5px solid var(--border);color:#888;border-radius:6px;padding:7px 14px;font-size:0.78rem;cursor:pointer;font-family:inherit;}
+.btn-outline-sm:hover{border-color:var(--rust);color:var(--rust);}
+.firmante-list{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
+.firmante-row{display:flex;align-items:center;gap:10px;padding:11px 14px;background:#fafafa;border:1px solid var(--border);border-radius:8px;}
+.finfo{flex:1;}.finfo strong{font-size:0.88rem;}.finfo small{display:block;color:#999;font-size:0.76rem;}
+.add-row{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;}
+.result-box{display:none;background:#f0faf4;border:1px solid var(--sage-light);border-radius:10px;padding:22px;margin-top:20px;}
+.result-box h3{font-family:var(--font-serif);font-size:1.1rem;color:var(--sage);margin-bottom:14px;}
+.link-row{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid #ddeedd;}
+.link-row:last-child{border-bottom:none;margin-bottom:0;}
+.link-row strong{display:block;font-size:0.85rem;margin-bottom:2px;}
+.link-row small{display:block;font-size:0.72rem;color:#999;margin-bottom:6px;}
+.link-copy{display:flex;gap:8px;align-items:center;}
+.link-copy input{flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:0.75rem;background:white;color:#555;font-family:monospace;}
+.btn-copy{padding:8px 14px;background:var(--ink);color:white;border:none;border-radius:6px;font-size:0.76rem;font-weight:600;cursor:pointer;white-space:nowrap;}
+.btn-copy.copied{background:var(--sage);}
+.view-estado{display:inline-flex;align-items:center;gap:6px;margin-top:14px;padding:9px 18px;background:white;border:1.5px solid var(--border);border-radius:8px;font-size:0.82rem;font-weight:600;color:var(--ink);text-decoration:none;transition:all 0.15s;}
+.view-estado:hover{border-color:var(--gold);background:var(--cream);}
+.file-ok{display:none;align-items:center;gap:10px;padding:11px 14px;background:#f0faf4;border:1px solid var(--sage-light);border-radius:8px;margin-top:10px;font-size:0.84rem;color:var(--sage);font-weight:600;}
+.btn-assign{background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:0.72rem;cursor:pointer;color:var(--ink);font-family:inherit;transition:all 0.15s;}
+.btn-assign:hover{border-color:var(--gold);background:var(--cream);}
+.btn-assign.active{background:var(--gold);color:white;border-color:var(--gold);}
+
+/* ── HEADER ── */
+.header-search{flex:1;max-width:280px;position:relative;}
+.header-search input{width:100%;padding:6px 12px 6px 30px;border:1px solid var(--border);border-radius:20px;font-size:0.83rem;outline:none;background:var(--cream) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='%23aaa' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 10px center;}
+.header-search input:focus{border-color:var(--gold);background-color:white;}
+.header-user{display:flex;align-items:center;gap:12px;}
+.user-chip{font-size:0.8rem;color:#888;display:flex;align-items:center;gap:6px;}
+.btn-logout{padding:6px 14px;background:transparent;border:1px solid #333;color:#888;border-radius:6px;font-size:0.75rem;cursor:pointer;transition:all 0.15s;font-family:inherit;}
+.btn-logout:hover{border-color:var(--rust);color:var(--rust);}
+
+/* ── DASHBOARD GRID ── */
+.dash-grid{display:grid;grid-template-columns:2fr 1fr;gap:20px;}
+.dash-col{display:flex;flex-direction:column;gap:14px;}
+@media(max-width:900px){.dash-grid{grid-template-columns:1fr;}}
+
+/* ── EMBUDO ── */
+.embudo-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:24px;}
+.embudo-step{background:white;border:1px solid var(--border);border-radius:10px;padding:16px 12px;text-align:center;cursor:pointer;transition:all 0.15s;position:relative;}
+.embudo-step:hover{border-color:var(--gold);box-shadow:0 2px 8px rgba(0,0,0,0.08);}
+.embudo-step.active{border-color:var(--gold);background:var(--cream);}
+.embudo-step::after{content:'›';position:absolute;right:-16px;top:50%;transform:translateY(-50%);color:#ccc;font-size:1.2rem;pointer-events:none;}
+.embudo-step:last-child::after{display:none;}
+.embudo-num{font-size:1.6rem;font-weight:700;color:var(--gold);line-height:1;}
+.embudo-label{font-size:0.7rem;color:#888;margin-top:4px;font-weight:500;}
+.embudo-pct{font-size:0.68rem;color:#bbb;margin-top:2px;}
+@media(max-width:768px){.embudo-grid{grid-template-columns:repeat(2,1fr);}}
+
+/* ── CIERRES ── */
+.cierres-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;}
+
+/* ── OBJETIVOS ── */
+.obj-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+.obj-period{display:flex;gap:6px;}
+.obj-period button{padding:4px 10px;border-radius:20px;border:1px solid var(--border);font-size:0.75rem;cursor:pointer;background:white;font-family:inherit;transition:all 0.12s;}
+.obj-period button.active{background:var(--gold);color:white;border-color:var(--gold);}
+
+/* ── CONSULTAS ── */
+.consultas-tabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:0;}
+.ctab{padding:7px 14px;font-size:0.82rem;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;color:#888;transition:all 0.15s;}
+.ctab:hover{color:var(--gold);}
+.ctab.active{border-bottom-color:var(--gold);color:var(--ink);}
+
+/* ── AGENDA ── */
+.cal-strip{display:flex;gap:6px;overflow-x:auto;padding:4px 0 10px;}
+.cal-day{flex-shrink:0;width:44px;height:58px;border:1px solid var(--border);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all 0.12s;background:white;}
+.cal-day:hover{border-color:var(--gold);background:var(--cream);}
+.cal-day.active{background:var(--gold);border-color:var(--gold);color:white;}
+.cal-day.has-event{position:relative;}
+.cal-day.has-event::after{content:'';position:absolute;bottom:6px;width:5px;height:5px;border-radius:50%;background:var(--gold);}
+.cal-day.active::after{background:white;}
+.cal-dow{font-size:0.6rem;text-transform:uppercase;letter-spacing:0.5px;color:#bbb;}
+.cal-day.active .cal-dow{color:rgba(255,255,255,0.7);}
+.cal-num{font-size:0.9rem;font-weight:600;margin-top:2px;}
+
+/* ── PLANILLA ── */
+.planilla-cell{padding:6px 10px;border:1px solid var(--border);font-size:0.83rem;background:white;color:var(--ink);width:100%;font-family:inherit;outline:none;transition:border-color 0.12s;}
+.planilla-cell:focus{border-color:var(--gold);}
+table.planilla{border-collapse:collapse;width:100%;}
+table.planilla th{padding:8px 10px;font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:#999;background:var(--cream);border:1px solid var(--border);}
+table.planilla td{border:1px solid var(--border);padding:0;}
+
+/* ── IG ── */
+.ig-header{background:linear-gradient(135deg,#405DE6 0%,#C13584 50%,#FD1D1D 100%);border-radius:10px;padding:16px 20px;color:white;margin-bottom:16px;}
+.ig-header h3{font-size:0.96rem;font-weight:700;margin-bottom:4px;}
+.ig-header p{font-size:0.8rem;opacity:0.85;}
+
+/* ── NAV SECTIONS ── */
+.nav-section{font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:#bbb;padding:4px 14px;margin-top:4px;}
+
+/* ── CHAT ── */
+.chat-wrap{display:flex;flex-direction:column;height:calc(100vh - 220px);min-height:400px;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:white;}
+.chat-messages{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:14px;}
+.chat-msg{display:flex;gap:10px;align-items:flex-start;}
+.chat-msg.user{flex-direction:row-reverse;}
+.chat-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;flex-shrink:0;background:var(--gold);color:white;}
+.chat-bubble{background:var(--cream);border-radius:12px;padding:10px 14px;font-size:0.86rem;line-height:1.6;max-width:78%;border:1px solid var(--border);}
+.chat-msg.user .chat-bubble{background:var(--ink);color:white;border-color:var(--ink);}
+.chat-input-wrap{display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--border);background:var(--cream);}
+.chat-input{flex:1;padding:9px 14px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.86rem;resize:none;outline:none;background:white;}
+.chat-input:focus{border-color:var(--gold);}
+.chat-send{padding:9px 18px;background:var(--gold);color:white;border:none;border-radius:8px;cursor:pointer;font-size:0.9rem;font-weight:700;transition:background 0.15s;}
+.chat-send:hover{background:var(--ink);}
+
+/* ── TAGS AGENDA ── */
+.tag-pendiente{background:#fff3cd;color:#92400e;}
+.tag-proceso{background:var(--cream);color:var(--gold);}
+.tag-done{background:#d1fae5;color:#065f46;}
+
+/* ── BLOCK EDITABLE ── */
+.block-editable{min-height:100px;border:1px solid transparent;border-radius:8px;padding:10px 12px;font-size:0.88rem;color:var(--ink);line-height:1.7;outline:none;transition:all 0.15s;font-family:inherit;}
+.block-editable:hover{border-color:var(--border);background:var(--cream);}
+.block-editable:focus{border-color:var(--gold);background:white;}
+.block-editable:empty::before{content:attr(data-placeholder);color:#ccc;}
 </style>
 </head>
 <body>
 
 <!-- ══ HEADER ══ -->
 <header>
-  <a class="logo-wrap" href="/" onclick="showPage('dashboard');return false;">
-    <div class="logo-icon">Rx</div>
-    <div class="logo-text">
-      <span class="logo-name">Realvix</span>
-      <span class="logo-sub">CRM Inmobiliario</span>
-    </div>
+  <a class="logo-wrap" href="/" onclick="showPage('dashboard');return false;" style="text-decoration:none;display:flex;align-items:center;gap:10px;">
+    <div class="logo" style="font-size:1.15rem;">Realvix<span>.</span></div>
+    <div class="sub" style="margin-top:0;padding-left:10px;border-left:1px solid var(--border);">CRM Inmobiliario</div>
   </a>
 
   <div class="header-search">
     <input type="text" placeholder="Buscar propiedades, contactos..." id="globalSearch">
   </div>
 
-  <div class="header-right">
-    <div class="user-chip">
-      <div id="userAvatar" class="avatar avatar-blue">—</div>
-      <span class="user-name" id="userName">...</span>
+  <div class="header-user">
+    <div id="userChip" style="display:flex;align-items:center;gap:8px;">
+      <div style="width:30px;height:30px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;color:white;" id="userAvatar">—</div>
+      <span style="font-size:0.8rem;color:#888;" id="userName">...</span>
     </div>
     <button class="btn-logout" onclick="doLogout()">Salir</button>
   </div>
@@ -198,7 +167,7 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
     <div class="nb-sep"></div>
     <div class="nav-section">Negocio</div>
 
-    <!-- CRM -->
+    <!-- Propiedades -->
     <div class="nb-group">
       <div class="nb-parent" onclick="toggleGroup('grpCRM')">
         <span class="nb-chevron" id="chv-grpCRM">▸</span>
@@ -231,7 +200,7 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
       </div>
     </div>
 
-    <!-- Embudo -->
+    <!-- Métricas -->
     <div class="nb-group">
       <div class="nb-parent" onclick="toggleGroup('grpNegocio')">
         <span class="nb-chevron" id="chv-grpNegocio">▸</span>
@@ -275,7 +244,7 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
       </div>
     </div>
 
-    <!-- Firma -->
+    <!-- Firma Electrónica -->
     <div class="nb-group">
       <div class="nb-parent" onclick="toggleGroup('grpFirma')">
         <span class="nb-chevron" id="chv-grpFirma">▸</span>
@@ -300,7 +269,7 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
     <div class="nb-sep"></div>
     <div class="nav-section">Contenido</div>
 
-    <!-- Textos & Mails -->
+    <!-- Contenido -->
     <div class="nb-group">
       <div class="nb-parent" onclick="toggleGroup('grpContenido')">
         <span class="nb-chevron" id="chv-grpContenido">▸</span>
@@ -325,13 +294,13 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
 
     <div class="nb-item" onclick="showPage('asistente')" id="nav-asistente">
       <span class="nb-icon">🤖</span><span class="nb-label">Asistente IA</span>
-      <span style="width:6px;height:6px;border-radius:50%;background:var(--success);margin-left:auto;flex-shrink:0;"></span>
+      <span style="width:6px;height:6px;border-radius:50%;background:var(--sage);margin-left:auto;flex-shrink:0;"></span>
     </div>
 
     <div class="nb-sep"></div>
     <div class="nav-section">Admin</div>
 
-    <div class="nb-group" id="grpSetup">
+    <div class="nb-group">
       <div class="nb-parent" onclick="toggleGroup('grpConfigura')">
         <span class="nb-chevron" id="chv-grpConfigura">▸</span>
         <span class="nb-icon">⚙️</span>
@@ -353,46 +322,44 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
 
     <!-- ════ DASHBOARD ════ -->
     <div class="page active" id="page-dashboard">
-      <div class="page-title">Buenos días 👋</div>
+      <div class="page-title" id="dashGreet">Buenos días 👋</div>
       <div class="page-sub" id="dashGreetSub">Cargando tu resumen del día...</div>
 
       <div class="stats" id="dashStats">
-        <div class="stat blue">
-          <div class="stat-label">Propiedades activas</div>
-          <div class="stat-num" id="ds-props">—</div>
+        <div class="stat">
+          <div class="stat-num" id="stat-total">—</div>
+          <div class="stat-label">Documentos totales</div>
         </div>
-        <div class="stat green">
-          <div class="stat-label">Cierres del mes</div>
-          <div class="stat-num" id="ds-cierres">—</div>
-        </div>
-        <div class="stat orange">
-          <div class="stat-label">Consultas pendientes</div>
-          <div class="stat-num" id="ds-consultas">—</div>
-        </div>
-        <div class="stat purple">
+        <div class="stat gold">
+          <div class="stat-num" id="stat-pendientes">—</div>
           <div class="stat-label">Pendientes de firma</div>
-          <div class="stat-num" id="ds-firmas">—</div>
+        </div>
+        <div class="stat sage">
+          <div class="stat-num" id="stat-completados">—</div>
+          <div class="stat-label">Firmas completadas</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num" id="ds-consultas">—</div>
+          <div class="stat-label">Consultas activas</div>
         </div>
       </div>
 
       <div class="dash-grid">
         <div class="dash-col">
-          <!-- Pendientes hoy -->
+          <!-- Actividad reciente -->
+          <div class="card">
+            <div class="card-title">📄 Actividad reciente</div>
+            <div class="doc-list" id="lista-recientes"></div>
+          </div>
+
+          <!-- Pendientes del día -->
           <div class="card">
             <div class="card-title">⏰ Pendientes del día</div>
             <div id="dashPendientes">
-              <div class="empty-state" style="padding:24px">
+              <div class="empty-state" style="padding:20px">
                 <div class="empty-icon">✅</div>
                 <p>No hay pendientes para hoy</p>
               </div>
-            </div>
-          </div>
-
-          <!-- Actividad reciente -->
-          <div class="card">
-            <div class="card-title">🕐 Actividad reciente</div>
-            <div id="dashActividad">
-              <div style="color:var(--text-tertiary);font-size:0.83rem;padding:8px 0;">Cargando...</div>
             </div>
           </div>
         </div>
@@ -401,17 +368,17 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
           <!-- Embudo rápido -->
           <div class="card">
             <div class="card-title">🎯 Embudo del mes</div>
-            <div class="funnel-wrap" id="dashEmbudo">
-              <div style="color:var(--text-tertiary);font-size:0.83rem;">Cargando...</div>
+            <div id="dashEmbudo">
+              <div style="color:#bbb;font-size:0.83rem;">Cargando...</div>
             </div>
-            <div style="margin-top:12px;"><a href="#" onclick="showPage('embudo');return false;" class="text-sm" style="color:var(--rx-blue);">Ver completo →</a></div>
+            <div style="margin-top:12px;"><a href="#" onclick="showPage('embudo');return false;" style="color:var(--gold);font-size:0.82rem;">Ver completo →</a></div>
           </div>
 
-          <!-- Próximas acciones -->
+          <!-- Próximos vencimientos -->
           <div class="card">
             <div class="card-title">📅 Próximos vencimientos</div>
             <div id="dashVencimientos">
-              <div style="color:var(--text-tertiary);font-size:0.83rem;">Sin vencimientos cercanos</div>
+              <div style="color:#bbb;font-size:0.83rem;">Sin vencimientos cercanos</div>
             </div>
           </div>
         </div>
@@ -425,41 +392,36 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
           <div class="page-title">Estado de Propiedades</div>
           <div class="page-sub">Gestión independiente de tu cartera activa</div>
         </div>
-        <button class="btn btn-primary" onclick="abrirModalPropiedad()">+ Nueva propiedad</button>
+        <a href="/listing" class="btn btn-gold">+ Nueva propiedad</a>
       </div>
       <div class="stats" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px;">
-        <div class="stat blue"><div class="stat-label">Total cartera</div><div class="stat-num" id="ep-total">—</div></div>
-        <div class="stat green"><div class="stat-label">Captadas</div><div class="stat-num" id="ep-captadas">—</div></div>
-        <div class="stat orange"><div class="stat-label">En seguimiento</div><div class="stat-num" id="ep-seguimiento">—</div></div>
+        <div class="stat"><div class="stat-label">Total cartera</div><div class="stat-num" id="ep-total">—</div></div>
+        <div class="stat sage"><div class="stat-label">Captadas</div><div class="stat-num" id="ep-captadas">—</div></div>
+        <div class="stat gold"><div class="stat-label">En seguimiento</div><div class="stat-num" id="ep-seguimiento">—</div></div>
       </div>
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>Dirección</th>
-              <th>Propietario</th>
-              <th>Tipo</th>
-              <th>Estado</th>
-              <th>Último contacto</th>
-              <th>Próximo contacto</th>
-              <th></th>
+              <th>Dirección</th><th>Propietario</th><th>Tipo</th><th>Estado</th>
+              <th>Último contacto</th><th>Próximo contacto</th><th></th>
             </tr>
           </thead>
           <tbody id="tablaEstadoProps">
-            <tr><td colspan="7" style="text-align:center;color:var(--text-tertiary);padding:32px;">Cargando propiedades...</td></tr>
+            <tr><td colspan="7" style="text-align:center;color:#bbb;padding:32px;">Cargando propiedades...</td></tr>
           </tbody>
         </table>
       </div>
     </div>
 
-    <!-- ════ CONTACTOS / BASE DE RELACIONES ════ -->
+    <!-- ════ CONTACTOS ════ -->
     <div class="page" id="page-contactos">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
         <div>
           <div class="page-title">Base de Relaciones</div>
           <div class="page-sub">Tu activo más valioso — cada persona cuenta</div>
         </div>
-        <button class="btn btn-primary" onclick="abrirModalContacto()">+ Nuevo contacto</button>
+        <button class="btn btn-gold" onclick="abrirModalContacto()">+ Nuevo contacto</button>
       </div>
       <div style="display:flex;gap:10px;margin-bottom:16px;">
         <input type="text" placeholder="🔍 Buscar contactos..." id="buscarContacto" oninput="filtrarContactos()" style="max-width:280px;">
@@ -473,7 +435,7 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
         </select>
       </div>
       <div id="listaContactos" style="display:flex;flex-direction:column;gap:8px;">
-        <div style="color:var(--text-tertiary);font-size:0.83rem;padding:24px 0;text-align:center;">Cargando contactos...</div>
+        <div style="color:#bbb;font-size:0.83rem;padding:24px 0;text-align:center;">Cargando contactos...</div>
       </div>
     </div>
 
@@ -484,7 +446,7 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
           <div class="page-title">Consultas & Muestras</div>
           <div class="page-sub">Seguimiento de leads, calificación y muestras</div>
         </div>
-        <button class="btn btn-primary" onclick="abrirModalConsulta()">+ Nueva consulta</button>
+        <button class="btn btn-gold" onclick="abrirModalConsulta()">+ Nueva consulta</button>
       </div>
       <div class="consultas-tabs">
         <div class="ctab active" onclick="filtrarConsultas('todos',this)">Todos</div>
@@ -498,12 +460,11 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
       </div>
     </div>
 
-    <!-- ════ EMBUDO DE CONVERSIÓN ════ -->
+    <!-- ════ EMBUDO ════ -->
     <div class="page" id="page-embudo">
       <div class="page-title">Embudo de Conversión</div>
-      <div class="page-sub">Medí tu negocio — lo que no se mide no se mejora (Pablo Viti)</div>
-
-      <div class="embudo-grid" id="embudoGrid">
+      <div class="page-sub">Medí tu negocio — lo que no se mide no se mejora</div>
+      <div class="embudo-grid">
         <div class="embudo-step" onclick="showEmbudoDetalle('contactos')">
           <div class="embudo-num" id="emb-contactos">0</div>
           <div class="embudo-label">Contactos</div>
@@ -530,17 +491,9 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
           <div class="embudo-pct" id="pct-ventas">—%</div>
         </div>
       </div>
-
       <div class="card">
         <div class="card-title">📊 Detalle por etapa</div>
-        <div class="funnel-wrap" id="embudoDetalle">
-          <div style="color:var(--text-tertiary);font-size:0.83rem;">Seleccioná una etapa del embudo</div>
-        </div>
-      </div>
-
-      <div class="card" style="margin-top:14px;">
-        <div class="card-title">📅 Evolución mensual</div>
-        <div id="embudoEvolucion" style="color:var(--text-tertiary);font-size:0.83rem;">Sin datos suficientes aún</div>
+        <div id="embudoDetalle"><div style="color:#bbb;font-size:0.83rem;">Seleccioná una etapa del embudo</div></div>
       </div>
     </div>
 
@@ -551,24 +504,13 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
           <div class="page-title">Cierres</div>
           <div class="page-sub">Comisiones, ventas y estadísticas de tu negocio</div>
         </div>
-        <button class="btn btn-primary" onclick="abrirModalCierre()">+ Nuevo cierre</button>
+        <button class="btn btn-gold" onclick="abrirModalCierre()">+ Nuevo cierre</button>
       </div>
-
       <div class="cierres-stats">
-        <div class="stat green">
-          <div class="stat-label">Comisión neta total</div>
-          <div class="stat-num" id="ci-neto" style="font-size:1.3rem;">$—</div>
-        </div>
-        <div class="stat blue">
-          <div class="stat-label">Ticket promedio</div>
-          <div class="stat-num" id="ci-ticket" style="font-size:1.3rem;">$—</div>
-        </div>
-        <div class="stat purple">
-          <div class="stat-label">Operaciones</div>
-          <div class="stat-num" id="ci-ops">—</div>
-        </div>
+        <div class="stat sage"><div class="stat-label">Comisión neta total</div><div class="stat-num" id="ci-neto" style="font-size:1.3rem;">$—</div></div>
+        <div class="stat gold"><div class="stat-label">Ticket promedio</div><div class="stat-num" id="ci-ticket" style="font-size:1.3rem;">$—</div></div>
+        <div class="stat"><div class="stat-label">Operaciones</div><div class="stat-num" id="ci-ops">—</div></div>
       </div>
-
       <div id="listaCierres">
         <div class="empty-state"><div class="empty-icon">💰</div><p>Sin cierres registrados aún</p></div>
       </div>
@@ -578,7 +520,6 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
     <div class="page" id="page-objetivos">
       <div class="page-title">Objetivos</div>
       <div class="page-sub">Cuánto querés ganar y dónde estás — seguí tu progreso</div>
-
       <div class="obj-header">
         <div style="font-size:0.88rem;font-weight:600;">Período</div>
         <div class="obj-period">
@@ -587,50 +528,23 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
           <button onclick="cambiarPeriodo('anual',this)">Anual</button>
         </div>
       </div>
-
       <div class="card">
         <div class="card-title">🎯 Mis objetivos actuales</div>
         <div id="objetivosLista">
-          <div class="objetivo-row">
-            <span class="objetivo-label">Captaciones</span>
-            <div class="objetivo-bar-wrap"><div class="objetivo-bar" id="bar-captaciones" style="width:0%"></div></div>
-            <span class="objetivo-actual" id="act-captaciones">0</span>
-            <span class="objetivo-meta" id="meta-captaciones">/ 10</span>
-          </div>
-          <div class="objetivo-row">
-            <span class="objetivo-label">Ventas</span>
-            <div class="objetivo-bar-wrap"><div class="objetivo-bar" id="bar-ventas" style="width:0%"></div></div>
-            <span class="objetivo-actual" id="act-ventas">0</span>
-            <span class="objetivo-meta" id="meta-ventas">/ 3</span>
-          </div>
-          <div class="objetivo-row">
-            <span class="objetivo-label">Cara a cara</span>
-            <div class="objetivo-bar-wrap"><div class="objetivo-bar" id="bar-caras" style="width:0%"></div></div>
-            <span class="objetivo-actual" id="act-caras">0</span>
-            <span class="objetivo-meta" id="meta-caras">/ 60</span>
-          </div>
-          <div class="objetivo-row">
-            <span class="objetivo-label">Nuevos contactos base</span>
-            <div class="objetivo-bar-wrap"><div class="objetivo-bar" id="bar-nuevos" style="width:0%"></div></div>
-            <span class="objetivo-actual" id="act-nuevos">0</span>
-            <span class="objetivo-meta" id="meta-nuevos">/ 8</span>
-          </div>
-          <div class="objetivo-row">
-            <span class="objetivo-label">Comisión (USD)</span>
-            <div class="objetivo-bar-wrap"><div class="objetivo-bar" id="bar-comision" style="width:0%"></div></div>
-            <span class="objetivo-actual" id="act-comision">0</span>
-            <span class="objetivo-meta" id="meta-comision">/ 5000</span>
-          </div>
+          <div class="objetivo-row"><span class="objetivo-label">Captaciones</span><div class="objetivo-bar-wrap"><div class="objetivo-bar" id="bar-captaciones" style="width:0%"></div></div><span class="objetivo-actual" id="act-captaciones">0</span><span class="objetivo-meta" id="meta-captaciones">/ 10</span></div>
+          <div class="objetivo-row"><span class="objetivo-label">Ventas</span><div class="objetivo-bar-wrap"><div class="objetivo-bar" id="bar-ventas" style="width:0%"></div></div><span class="objetivo-actual" id="act-ventas">0</span><span class="objetivo-meta" id="meta-ventas">/ 3</span></div>
+          <div class="objetivo-row"><span class="objetivo-label">Cara a cara</span><div class="objetivo-bar-wrap"><div class="objetivo-bar" id="bar-caras" style="width:0%"></div></div><span class="objetivo-actual" id="act-caras">0</span><span class="objetivo-meta" id="meta-caras">/ 60</span></div>
+          <div class="objetivo-row"><span class="objetivo-label">Nuevos contactos</span><div class="objetivo-bar-wrap"><div class="objetivo-bar" id="bar-nuevos" style="width:0%"></div></div><span class="objetivo-actual" id="act-nuevos">0</span><span class="objetivo-meta" id="meta-nuevos">/ 8</span></div>
+          <div class="objetivo-row"><span class="objetivo-label">Comisión (USD)</span><div class="objetivo-bar-wrap"><div class="objetivo-bar" id="bar-comision" style="width:0%"></div></div><span class="objetivo-actual" id="act-comision">0</span><span class="objetivo-meta" id="meta-comision">/ 5000</span></div>
         </div>
         <div style="margin-top:16px;"><button class="btn btn-outline btn-sm" onclick="editarObjetivos()">✏️ Editar metas</button></div>
       </div>
-
       <div class="card" style="margin-top:14px;">
         <div class="card-title">📖 Ritmo OSBA (Pablo Viti)</div>
-        <div style="font-size:0.83rem;color:var(--text-secondary);line-height:1.7;">
+        <div style="font-size:0.83rem;color:#888;line-height:1.7;">
           <p><strong>O</strong>rganización · <strong>S</strong>istematización · <strong>B</strong>ase de relaciones · <strong>A</strong>ctividad</p>
           <p style="margin-top:8px;">El negocio inmobiliario requiere medición constante. Lo que no se mide, no se mejora.</p>
-          <p style="margin-top:4px;">🎯 Sistema semanal: 15 cara-a-cara · 3 pre-listing · 2 nuevos contactos</p>
+          <p style="margin-top:4px;">🎯 Semanal: 15 cara-a-cara · 3 pre-listing · 2 nuevos contactos</p>
           <p style="margin-top:4px;">📊 Estacionalidad: Q1 17% · Q2 23% · Q3 25% · Q4 35%</p>
         </div>
       </div>
@@ -644,19 +558,11 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
         <table class="planilla" id="tablaPlanilla">
           <thead>
             <tr>
-              <th>Objetivo</th>
-              <th>Anual</th>
-              <th>Q1 (17%)</th>
-              <th>Q2 (23%)</th>
-              <th>Q3 (25%)</th>
-              <th>Q4 (35%)</th>
-              <th>S1</th>
-              <th>S2</th>
+              <th>Objetivo</th><th>Anual</th><th>Q1 (17%)</th><th>Q2 (23%)</th>
+              <th>Q3 (25%)</th><th>Q4 (35%)</th><th>S1</th><th>S2</th>
             </tr>
           </thead>
-          <tbody id="bodyPlanilla">
-            <!-- JS renders rows -->
-          </tbody>
+          <tbody id="bodyPlanilla"></tbody>
         </table>
         <div style="margin-top:12px;display:flex;gap:8px;">
           <button class="btn btn-outline btn-sm" onclick="guardarPlanilla()">💾 Guardar</button>
@@ -672,19 +578,16 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
           <div class="page-title">Agenda</div>
           <div class="page-sub">Calendario, recordatorios y seguimientos</div>
         </div>
-        <button class="btn btn-primary" onclick="abrirModalEvento()">+ Nuevo evento</button>
+        <button class="btn btn-gold" onclick="abrirModalEvento()">+ Nuevo evento</button>
       </div>
-
-      <!-- Mini calendario strip -->
       <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-          <button class="btn btn-ghost btn-sm" onclick="cambiarMes(-1)">‹</button>
+          <button class="btn btn-outline btn-sm" onclick="cambiarMes(-1)">‹</button>
           <span id="calMesLabel" style="font-weight:600;font-size:0.9rem;"></span>
-          <button class="btn btn-ghost btn-sm" onclick="cambiarMes(1)">›</button>
+          <button class="btn btn-outline btn-sm" onclick="cambiarMes(1)">›</button>
         </div>
         <div class="cal-strip" id="calStrip"></div>
       </div>
-
       <div class="card" style="margin-top:14px;">
         <div class="card-title" id="agendaDiaLabel">📅 Eventos de hoy</div>
         <div id="listaEventosDia">
@@ -700,20 +603,19 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
           <div class="page-title">Pendientes</div>
           <div class="page-sub">Tasks pendientes, en proceso y completadas</div>
         </div>
-        <button class="btn btn-primary" onclick="abrirModalTarea()">+ Nueva tarea</button>
+        <button class="btn btn-gold" onclick="abrirModalTarea()">+ Nueva tarea</button>
       </div>
-
       <div style="display:flex;gap:16px;align-items:flex-start;">
         <div style="flex:1;">
-          <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--warning);margin-bottom:8px;">⏳ Pendiente</div>
+          <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--rust);margin-bottom:8px;">⏳ Pendiente</div>
           <div id="col-pendiente"></div>
         </div>
         <div style="flex:1;">
-          <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--rx-blue);margin-bottom:8px;">🔄 En proceso</div>
+          <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--gold);margin-bottom:8px;">🔄 En proceso</div>
           <div id="col-proceso"></div>
         </div>
         <div style="flex:1;">
-          <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--success);margin-bottom:8px;">✅ Finalizado</div>
+          <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--sage);margin-bottom:8px;">✅ Finalizado</div>
           <div id="col-finalizado"></div>
         </div>
       </div>
@@ -723,25 +625,55 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
     <div class="page" id="page-pendientes">
       <div class="page-title">Pendientes de firma</div>
       <div class="page-sub">Documentos esperando firma de los firmantes</div>
-      <div id="listaPendientes">
-        <div class="spinner"><div class="spinner-ring"></div></div>
-      </div>
+      <div class="doc-list" id="lista-pendientes"></div>
     </div>
 
     <!-- ════ FIRMA — COMPLETADOS ════ -->
     <div class="page" id="page-completados">
       <div class="page-title">Firmados</div>
       <div class="page-sub">Documentos con todas las firmas completadas</div>
-      <div id="listaCompletados">
-        <div class="spinner"><div class="spinner-ring"></div></div>
-      </div>
+      <div class="doc-list" id="lista-completados"></div>
     </div>
 
     <!-- ════ NUEVA FIRMA ════ -->
     <div class="page" id="page-nuevo">
       <div class="page-title">Nueva firma electrónica</div>
-      <div class="page-sub">Cargá el documento, agregá firmantes y generá los links</div>
-      <div id="nuevoFirmaContainer"><!-- populated by script --></div>
+      <div class="page-sub">Subí el PDF, asigná zonas de firma y agregá firmantes</div>
+      <div class="card">
+        <div class="card-title">📋 Datos del documento</div>
+        <div class="form-row">
+          <div class="form-group" style="margin-bottom:0"><label>Título del documento</label><input type="text" id="titulo" placeholder="Ej: Reserva Alcaraz Marzo"></div>
+          <div class="form-group" style="margin-bottom:0"><label>Tu nombre (organizador)</label><input type="text" id="org-nombre" placeholder="Tu nombre completo"></div>
+        </div>
+        <div class="form-group" style="margin-top:16px;margin-bottom:0"><label>Tu email</label><input type="email" id="org-email" placeholder="tu@email.com"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">📎 Archivo PDF</div>
+        <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+          <div class="upload-icon">📎</div>
+          <p><strong>Hacé clic o arrastrá el PDF aquí</strong><br>El documento que todos van a firmar</p>
+        </div>
+        <input type="file" id="fileInput" accept=".pdf">
+        <div class="file-ok" id="fileOk">✅ <span id="fileName"></span></div>
+      </div>
+      <div class="card">
+        <div class="card-title">✍️ Firmantes y zonas de firma</div>
+        <p style="font-size:0.82rem;color:#888;margin-bottom:14px;">Agregá cada firmante y luego asignale su zona en el PDF.</p>
+        <div class="firmante-list" id="firmanteList"></div>
+        <div class="add-row">
+          <div><label>Nombre</label><input type="text" id="fNombre" placeholder="Nombre completo"></div>
+          <div><label>Email</label><input type="email" id="fEmail" placeholder="email@ejemplo.com"></div>
+          <button class="btn btn-gold" onclick="agregarFirmante()">+ Agregar</button>
+        </div>
+      </div>
+      <div class="spinner" id="spinner"><div class="spinner-ring"></div><p style="font-size:0.82rem;color:#999;">Procesando...</p></div>
+      <button class="btn btn-ink" onclick="enviarDocumento()">🚀 Enviar para firma</button>
+      <div class="result-box" id="resultBox">
+        <h3>✅ ¡Documento enviado!</h3>
+        <p style="font-size:0.82rem;color:#666;margin-bottom:16px;">Copiá el link de cada firmante y compartilo por WhatsApp.</p>
+        <div id="linksList"></div>
+        <a href="#" class="view-estado" id="btnEstado">📊 Ver estado del documento →</a>
+      </div>
     </div>
 
     <!-- ════ TEXTOS PRECARGADOS ════ -->
@@ -751,7 +683,7 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
           <div class="page-title">Textos Precargados</div>
           <div class="page-sub">Plantillas de WhatsApp, email y más — listas para usar</div>
         </div>
-        <button class="btn btn-primary" onclick="abrirModalTexto()">+ Nuevo texto</button>
+        <button class="btn btn-gold" onclick="abrirModalTexto()">+ Nuevo texto</button>
       </div>
       <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
         <button class="btn btn-sm active" onclick="filtrarTextos('todos',this)">Todos</button>
@@ -772,7 +704,7 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
         <p>Contenido inmobiliario diario — IA genera ideas adaptadas a tu negocio</p>
       </div>
       <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center;">
-        <button class="btn btn-primary" onclick="generarGuionIA()">✨ Generar guion con IA</button>
+        <button class="btn btn-gold" onclick="generarGuionIA()">✨ Generar guion con IA</button>
         <button class="btn btn-outline" onclick="abrirModalGuion()">+ Crear manual</button>
       </div>
       <div id="listaGuiones">
@@ -783,13 +715,11 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
     <!-- ════ IDEAS ════ -->
     <div class="page" id="page-ideas">
       <div class="page-title">Panel de Ideas 💡</div>
-      <div class="page-sub">Mandame una idea y la agendo acá — nada se pierde</div>
-
+      <div class="page-sub">Anotá cualquier idea — nada se pierde</div>
       <div style="display:flex;gap:10px;margin-bottom:20px;">
         <input type="text" id="inputIdea" placeholder="Tengo una idea..." style="flex:1;" onkeydown="if(event.key==='Enter')agregarIdea()">
-        <button class="btn btn-primary" onclick="agregarIdea()">💡 Agregar</button>
+        <button class="btn btn-gold" onclick="agregarIdea()">💡 Agregar</button>
       </div>
-
       <div id="listaIdeas">
         <div class="empty-state"><div class="empty-icon">💡</div><p>¡Tus ideas van a aparecer acá!</p></div>
       </div>
@@ -799,11 +729,10 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
     <div class="page" id="page-asistente">
       <div class="page-title">Asistente IA 🤖</div>
       <div class="page-sub">Preguntame sobre tus métricas, objetivos, estrategia y crecimiento</div>
-
       <div class="chat-wrap">
         <div class="chat-messages" id="chatMessages">
           <div class="chat-msg assistant">
-            <div class="chat-avatar" style="background:var(--rx-blue-light);color:var(--rx-blue);">Rx</div>
+            <div class="chat-avatar">Rx</div>
             <div class="chat-bubble">
               ¡Hola! Soy tu asistente Realvix. Puedo ayudarte a analizar tus métricas, revisar tu embudo de conversión, planear tu semana, generar guiones de Instagram y mucho más. ¿Por dónde empezamos?
             </div>
@@ -822,47 +751,32 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
     <div class="page" id="page-configuracion">
       <div class="page-title">Panel de Control ⚙️</div>
       <div class="page-sub">Configurá tu CRM — estadios, etiquetas, textos y más</div>
-
       <div class="card">
         <div class="card-title">🏷️ Estadios de Listing</div>
         <div id="configEstadios">Cargando...</div>
         <div style="margin-top:12px;display:flex;gap:8px;">
           <input type="text" id="nuevoEstadioNombre" placeholder="Nombre del estadio..." style="max-width:200px;">
           <select id="nuevoEstadioColor" style="width:auto;">
-            <option value="gray">Gris</option>
-            <option value="blue">Azul</option>
-            <option value="green">Verde</option>
-            <option value="yellow">Amarillo</option>
-            <option value="orange">Naranja</option>
-            <option value="red">Rojo</option>
-            <option value="purple">Violeta</option>
-            <option value="pink">Rosa</option>
+            <option value="gray">Gris</option><option value="blue">Azul</option>
+            <option value="green">Verde</option><option value="yellow">Amarillo</option>
+            <option value="orange">Naranja</option><option value="red">Rojo</option>
+            <option value="purple">Violeta</option><option value="pink">Rosa</option>
           </select>
-          <button class="btn btn-primary btn-sm" onclick="crearEstadio()">+ Agregar</button>
+          <button class="btn btn-gold btn-sm" onclick="crearEstadio()">+ Agregar</button>
         </div>
       </div>
-
       <div class="card" style="margin-top:14px;">
         <div class="card-title">🎨 Personalización</div>
         <div class="form-row">
-          <div class="form-group">
-            <label>Nombre del negocio</label>
-            <input type="text" id="configNombre" placeholder="Realvix CRM">
-          </div>
-          <div class="form-group">
-            <label>Tu nombre</label>
-            <input type="text" id="configAgente" placeholder="Nombre del agente">
-          </div>
+          <div class="form-group"><label>Nombre del negocio</label><input type="text" id="configNombre" placeholder="Realvix CRM"></div>
+          <div class="form-group"><label>Tu nombre</label><input type="text" id="configAgente" placeholder="Nombre del agente"></div>
         </div>
         <button class="btn btn-outline btn-sm" onclick="guardarConfiguracion()">💾 Guardar</button>
       </div>
-
-      <div class="card" style="margin-top:14px;" id="cardAdminUsers" style="display:none">
+      <div class="card" style="margin-top:14px;" id="cardAdminUsers">
         <div class="card-title">👥 Usuarios del sistema</div>
         <div id="configUsuarios">Cargando...</div>
-        <div style="margin-top:12px;">
-          <button class="btn btn-outline btn-sm" onclick="showPage('admin')">Gestionar usuarios →</button>
-        </div>
+        <div style="margin-top:12px;"><button class="btn btn-outline btn-sm" onclick="showPage('admin')">Gestionar usuarios →</button></div>
       </div>
     </div>
 
@@ -882,7 +796,7 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
             <select id="adminRol"><option value="member">Miembro</option><option value="admin">Admin</option></select>
           </div>
         </div>
-        <button class="btn btn-primary" onclick="crearUsuario()">Crear usuario</button>
+        <button class="btn btn-gold" onclick="crearUsuario()">Crear usuario</button>
       </div>
       <div class="card" style="margin-top:14px;">
         <div class="card-title">Usuarios activos</div>
@@ -893,7 +807,7 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
   </main>
 </div>
 
-<!-- ════ MODALES ════ -->
+<!-- ════ MODALES CRM ════ -->
 
 <!-- Modal Contacto -->
 <div class="modal-bg" id="modalContacto">
@@ -929,7 +843,7 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="cerrarModal('modalContacto')">Cancelar</button>
-      <button class="btn btn-primary" onclick="guardarContacto()">Guardar contacto</button>
+      <button class="btn btn-gold" onclick="guardarContacto()">Guardar contacto</button>
     </div>
   </div>
 </div>
@@ -963,7 +877,7 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="cerrarModal('modalConsulta')">Cancelar</button>
-      <button class="btn btn-primary" onclick="guardarConsulta()">Guardar</button>
+      <button class="btn btn-gold" onclick="guardarConsulta()">Guardar</button>
     </div>
   </div>
 </div>
@@ -991,11 +905,11 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
       </div>
       <div class="form-group"><label>Puntas (1 o 2)</label><select id="ciPuntas"><option value="2">2 puntas</option><option value="1">1 punta</option></select></div>
       <div class="form-group"><label>Notas</label><textarea id="ciNotas" rows="2"></textarea></div>
-      <div id="ciCalculo" style="background:var(--rx-blue-light);border-radius:var(--radius-md);padding:12px 14px;margin-top:8px;font-size:0.85rem;display:none;"></div>
+      <div id="ciCalculo" style="background:var(--cream);border-radius:8px;padding:12px 14px;margin-top:8px;font-size:0.85rem;display:none;"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="cerrarModal('modalCierre')">Cancelar</button>
-      <button class="btn btn-primary" onclick="guardarCierre()">Guardar cierre</button>
+      <button class="btn btn-gold" onclick="guardarCierre()">Guardar cierre</button>
     </div>
   </div>
 </div>
@@ -1015,12 +929,9 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
       </div>
       <div class="form-group"><label>Tipo</label>
         <select id="evTipo">
-          <option value="muestra">🏠 Muestra</option>
-          <option value="prelisting">📋 Pre-listing</option>
-          <option value="firma">✍️ Firma</option>
-          <option value="llamada">📞 Llamada</option>
-          <option value="reunion">🤝 Reunión</option>
-          <option value="otro">📌 Otro</option>
+          <option value="muestra">🏠 Muestra</option><option value="prelisting">📋 Pre-listing</option>
+          <option value="firma">✍️ Firma</option><option value="llamada">📞 Llamada</option>
+          <option value="reunion">🤝 Reunión</option><option value="otro">📌 Otro</option>
         </select>
       </div>
       <div class="form-group"><label>Contacto</label><input type="text" id="evContacto" placeholder="Nombre del cliente/propietario"></div>
@@ -1028,7 +939,7 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="cerrarModal('modalEvento')">Cancelar</button>
-      <button class="btn btn-primary" onclick="guardarEvento()">Guardar</button>
+      <button class="btn btn-gold" onclick="guardarEvento()">Guardar</button>
     </div>
   </div>
 </div>
@@ -1046,10 +957,8 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
         <div class="form-group"><label>Vencimiento</label><input type="date" id="taDate"></div>
         <div class="form-group"><label>Color</label>
           <select id="taColor">
-            <option value="blue">Azul</option>
-            <option value="green">Verde</option>
-            <option value="orange">Naranja</option>
-            <option value="red">Rojo</option>
+            <option value="blue">Azul</option><option value="green">Verde</option>
+            <option value="orange">Naranja</option><option value="red">Rojo</option>
           </select>
         </div>
       </div>
@@ -1057,7 +966,7 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="cerrarModal('modalTarea')">Cancelar</button>
-      <button class="btn btn-primary" onclick="guardarTarea()">Agregar</button>
+      <button class="btn btn-gold" onclick="guardarTarea()">Agregar</button>
     </div>
   </div>
 </div>
@@ -1074,22 +983,20 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
         <div class="form-group"><label>Título</label><input type="text" id="txTitulo" placeholder="Primer contacto WhatsApp..."></div>
         <div class="form-group"><label>Canal</label>
           <select id="txCanal">
-            <option value="whatsapp">WhatsApp</option>
-            <option value="email">Email</option>
-            <option value="visita">Visita</option>
-            <option value="captacion">Captación</option>
+            <option value="whatsapp">WhatsApp</option><option value="email">Email</option>
+            <option value="visita">Visita</option><option value="captacion">Captación</option>
           </select>
         </div>
       </div>
       <div class="form-group">
         <label>Contenido del mensaje</label>
         <textarea id="txContenido" rows="6" placeholder="Hola {nombre}, te contacto de Realvix..."></textarea>
-        <div style="font-size:0.72rem;color:var(--text-tertiary);margin-top:4px;">Usá {nombre}, {propiedad}, {fecha} como variables</div>
+        <div style="font-size:0.72rem;color:#bbb;margin-top:4px;">Usá {nombre}, {propiedad}, {fecha} como variables</div>
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="cerrarModal('modalTexto')">Cancelar</button>
-      <button class="btn btn-primary" onclick="guardarTexto()">Guardar</button>
+      <button class="btn btn-gold" onclick="guardarTexto()">Guardar</button>
     </div>
   </div>
 </div>
@@ -1106,10 +1013,8 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
         <div class="form-group"><label>Título del video</label><input type="text" id="guTitulo" placeholder="5 errores al comprar..."></div>
         <div class="form-group"><label>Tema</label>
           <select id="guTema">
-            <option value="tips">Tips inmobiliarios</option>
-            <option value="mercado">Mercado actual</option>
-            <option value="motivacion">Motivación</option>
-            <option value="proceso">Proceso de compra/venta</option>
+            <option value="tips">Tips inmobiliarios</option><option value="mercado">Mercado actual</option>
+            <option value="motivacion">Motivación</option><option value="proceso">Proceso de compra/venta</option>
             <option value="zona">Mi zona</option>
           </select>
         </div>
@@ -1120,46 +1025,50 @@ table.planilla td { border: 1px solid var(--border); padding: 0; }
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="cerrarModal('modalGuion')">Cancelar</button>
-      <button class="btn btn-primary" onclick="guardarGuion()">Guardar guion</button>
+      <button class="btn btn-gold" onclick="guardarGuion()">Guardar guion</button>
     </div>
   </div>
 </div>
 
-<!-- Zone Picker Modal -->
-<div class="modal-bg" id="zonePicker">
-  <div class="modal" style="max-width:640px;width:95vw;">
+<!-- ════ ZONE PICKER MODAL (Firma PDF) ════ -->
+<div class="modal-bg" id="zonePicker" style="z-index:1100;">
+  <div class="modal" style="max-width:640px;width:96%;">
     <div class="modal-header">
-      <h3 id="zoneModalTitle">Marcá la zona de firma</h3>
+      <h3 id="modalTitle" style="font-family:var(--font-serif);">Zona de firma</h3>
       <button class="modal-close" onclick="closeZonePicker()">✕</button>
     </div>
-    <div class="modal-body">
-      <div class="zone-hint">✏️ Arrastrá sobre el PDF para marcar el recuadro donde va la firma de este firmante. Podés hacer scroll para ver todo el documento.</div>
+    <div class="modal-body" style="padding:16px;">
+      <div class="zone-hint">✏️ Arrastrá sobre el PDF para marcar el recuadro donde va la firma. Podés hacer scroll para ver todo el documento.</div>
       <div class="pdf-scroll-container" id="pdfScrollContainer"></div>
     </div>
     <div class="modal-footer">
       <button class="btn-outline-sm" onclick="clearCurrentZone()">✕ Limpiar zona</button>
-      <button class="btn btn-primary" onclick="confirmZone()">✅ Confirmar zona</button>
+      <button class="btn btn-gold" onclick="confirmZone()">✅ Confirmar zona</button>
     </div>
   </div>
 </div>
 
-<!-- Confirm modal -->
+<!-- ════ CONFIRM DELETE ════ -->
 <div class="confirm-modal-bg" id="confirmModal">
   <div class="confirm-modal">
+    <div style="font-size:2.5rem;margin-bottom:12px;">🗑️</div>
     <h3 id="confirmTitle">¿Confirmás?</h3>
-    <p id="confirmText"></p>
+    <p id="confirmMsg">Esta acción no se puede deshacer.</p>
     <div class="confirm-btns">
-      <button class="btn-cancel" onclick="cerrarModal('confirmModal')">Cancelar</button>
-      <button class="btn-delete" id="confirmBtn">Eliminar</button>
+      <button class="btn-cancel" onclick="cerrarModal('confirmModal');deleteDocId=null;">Cancelar</button>
+      <button class="btn-delete" onclick="ejecutarEliminar()">Sí, eliminar</button>
     </div>
   </div>
 </div>
 
 <div id="toast"></div>
 
-<!-- ══ SCRIPT ══ -->
+<!-- ══ SCRIPTS ══ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
-// ── GLOBALS ──
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ── LOCAL STORAGE ──
 const LOCAL = {
   contactos: JSON.parse(localStorage.getItem('crm_contactos') || '[]'),
   consultas: JSON.parse(localStorage.getItem('crm_consultas') || '[]'),
@@ -1172,14 +1081,23 @@ const LOCAL = {
   planilla: JSON.parse(localStorage.getItem('crm_planilla') || 'null'),
   objetivos: JSON.parse(localStorage.getItem('crm_objetivos') || 'null'),
 };
+function saveLocal(key) { localStorage.setItem('crm_' + key, JSON.stringify(LOCAL[key])); }
 
-function saveLocal(key) {
-  localStorage.setItem('crm_' + key, JSON.stringify(LOCAL[key]));
-}
+// ── PDF / FIRMA VARS ──
+const firmantes = [];
+let pdfFile = null, pdfDoc = null;
+let signZones = {};
+let currentZoneIdx = null;
+let isDragging = false, dragStart = {x:0,y:0}, dragCanvas = null, dragPageIdx = null;
+let tempZone = null;
+const COLORS = ['#c9a84c','#2d6a4f','#c0392b','#2471a3','#8e44ad','#e67e22'];
 
+// ── GLOBALS ──
 let currentUser = null;
 let calFecha = new Date();
 let calDiaSeleccionado = new Date().toISOString().split('T')[0];
+let deleteDocId = null;
+let toastTimer;
 
 // ── AUTH ──
 async function cargarUsuario() {
@@ -1192,8 +1110,12 @@ async function cargarUsuario() {
     document.getElementById('userAvatar').textContent = ini;
     if (currentUser.role === 'admin') {
       document.getElementById('nav-admin').style.display = 'flex';
-      cargarUsuariosAdmin();
     }
+    // Autocompletar organizador en nueva firma
+    const orgN = document.getElementById('org-nombre');
+    const orgE = document.getElementById('org-email');
+    if (orgN && !orgN.value) orgN.value = currentUser.name;
+    if (orgE && !orgE.value) orgE.value = currentUser.email;
   } catch(e) { window.location.href = '/login'; }
 }
 
@@ -1210,13 +1132,10 @@ function showPage(id) {
   if (page) page.classList.add('active');
   const nav = document.getElementById('nav-' + id);
   if (nav) nav.classList.add('active');
-
-  // Lazy loads
   const loaders = {
     'dashboard': cargarDashboard,
-    'pendientes': () => cargarDocumentos(false),
-    'completados': () => cargarDocumentos(true),
-    'nuevo': renderNuevoFirma,
+    'pendientes': () => cargarDocumentos(),
+    'completados': () => cargarDocumentos(),
     'configuracion': cargarConfiguracion,
     'admin': cargarUsuariosAdmin,
     'contactos': renderContactos,
@@ -1240,9 +1159,7 @@ function toggleGroup(id) {
   const chv = document.getElementById('chv-' + id);
   if (!el) return;
   el.classList.toggle('collapsed');
-  if (chv) {
-    chv.textContent = el.classList.contains('collapsed') ? '▸' : '▾';
-  }
+  if (chv) chv.textContent = el.classList.contains('collapsed') ? '▸' : '▾';
 }
 
 // ── MODAL ──
@@ -1250,7 +1167,6 @@ function abrirModal(id) { document.getElementById(id).classList.add('open'); }
 function cerrarModal(id) { document.getElementById(id).classList.remove('open'); }
 
 // ── TOAST ──
-let toastTimer;
 function showToast(msg, type='') {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -1261,49 +1177,47 @@ function showToast(msg, type='') {
 
 // ── DASHBOARD ──
 async function cargarDashboard() {
-  // Update greeting
   const hora = new Date().getHours();
   const saludo = hora < 12 ? 'Buenos días' : hora < 19 ? 'Buenas tardes' : 'Buenas noches';
-  document.querySelector('#page-dashboard .page-title').textContent = saludo + ' ' + (currentUser?.name?.split(' ')[0] || '') + ' 👋';
+  document.getElementById('dashGreet').textContent = saludo + ' ' + (currentUser?.name?.split(' ')[0] || '') + ' 👋';
   document.getElementById('dashGreetSub').textContent = new Date().toLocaleDateString('es-AR', {weekday:'long',year:'numeric',month:'long',day:'numeric'});
 
-  // Stats
+  // Stats CRM locales
+  document.getElementById('ds-consultas').textContent = LOCAL.consultas.filter(c => c.etapa !== 'calificado').length;
+
+  // Docs desde API
   try {
-    const r = await fetch('/api/propiedades');
+    const r = await fetch('/api/documentos');
     const data = await r.json();
-    document.getElementById('ds-props').textContent = data.propiedades?.length || 0;
-  } catch(e) { document.getElementById('ds-props').textContent = '—'; }
-
-  document.getElementById('ds-consultas').textContent = LOCAL.consultas.filter(c=>c.etapa!=='calificado').length;
-  document.getElementById('ds-cierres').textContent = LOCAL.cierres.filter(c => {
-    const d = new Date(c.fecha);
-    const hoy = new Date();
-    return d.getMonth() === hoy.getMonth() && d.getFullYear() === hoy.getFullYear();
-  }).length;
-
-  // Firmas pendientes
-  try {
-    const r2 = await fetch('/api/documentos');
-    const d2 = await r2.json();
-    const pend = d2.documentos?.filter(d=>!d.completado).length || 0;
-    document.getElementById('ds-firmas').textContent = pend;
-    document.getElementById('badge-pendientes').textContent = pend;
-    document.getElementById('badge-pendientes').style.display = pend > 0 ? 'inline-block' : 'none';
-  } catch(e) {}
+    const docs = data.documentos || [];
+    const pend = docs.filter(d => !d.completado);
+    const comp = docs.filter(d => d.completado);
+    document.getElementById('stat-total').textContent = docs.length;
+    document.getElementById('stat-pendientes').textContent = pend.length;
+    document.getElementById('stat-completados').textContent = comp.length;
+    const badge = document.getElementById('badge-pendientes');
+    badge.style.display = pend.length > 0 ? 'inline' : 'none';
+    badge.textContent = pend.length;
+    renderList('lista-recientes', docs.slice(0, 5), '📄', 'No hay documentos aún');
+  } catch(e) {
+    document.getElementById('stat-total').textContent = '—';
+    document.getElementById('stat-pendientes').textContent = '—';
+    document.getElementById('stat-completados').textContent = '—';
+  }
 
   // Pendientes hoy
   const hoyStr = new Date().toISOString().split('T')[0];
   const pendientes = LOCAL.tareas.filter(t => t.estado !== 'finalizado' && t.fecha <= hoyStr);
   const divPend = document.getElementById('dashPendientes');
   if (pendientes.length === 0) {
-    divPend.innerHTML = '<div class="empty-state" style="padding:20px"><div class="empty-icon">✅</div><p>Todo al día — ¡excelente!</p></div>';
+    divPend.innerHTML = '<div class="empty-state" style="padding:16px"><div class="empty-icon">✅</div><p>Todo al día — ¡excelente!</p></div>';
   } else {
     divPend.innerHTML = pendientes.slice(0,5).map(t => `
       <div class="agenda-item">
-        <div class="agenda-dot" style="background:var(--${t.color==='red'?'danger':t.color==='green'?'success':t.color==='orange'?'warning':'rx-blue'})"></div>
+        <div class="agenda-dot" style="background:var(--${t.color==='red'?'rust':t.color==='green'?'sage':t.color==='orange'?'gold':'gold'})"></div>
         <div class="agenda-info">
           <div class="agenda-titulo">${t.titulo}</div>
-          <div class="agenda-meta">${t.fecha||'Sin fecha'}</div>
+          <div class="agenda-meta">${t.fecha || 'Sin fecha'}</div>
         </div>
       </div>`).join('');
   }
@@ -1325,354 +1239,270 @@ async function cargarDashboard() {
     </div>`).join('');
 }
 
-// ── DOCUMENTOS ──
-async function cargarDocumentos(completados) {
-  const cont = document.getElementById(completados ? 'listaCompletados' : 'listaPendientes');
-  cont.innerHTML = '<div class="spinner" style="display:block"><div class="spinner-ring"></div></div>';
+// ── DOCUMENTOS (Firma) ──
+async function cargarDocumentos() {
   try {
-    const r = await fetch('/api/documentos');
-    const data = await r.json();
-    const docs = data.documentos.filter(d => !!d.completado === completados);
-    if (docs.length === 0) {
-      cont.innerHTML = '<div class="empty-state"><div class="empty-icon">' + (completados?'✅':'📄') + '</div><p>' + (completados?'Aún no hay documentos completados':'Sin documentos pendientes') + '</p></div>';
-      return;
-    }
-    cont.innerHTML = '<div class="doc-list">' + docs.map(d => {
-      const sc = d.firmantes.filter(f=>f.signed).length;
-      const tot = d.firmantes.length;
-      const pct = Math.round(sc/tot*100);
-      return `<div class="doc-card">
-        <div class="doc-icon">${d.completado ? '✅' : '⏳'}</div>
-        <div class="doc-info">
-          <div class="doc-title">${d.title}</div>
-          <div class="doc-meta">${sc}/${tot} firmantes · ${new Date(d.created_at).toLocaleDateString('es-AR')}</div>
-          <div class="progress-bar-wrap" style="margin-top:5px;"><div class="progress-bar" style="width:${pct}%"></div></div>
-        </div>
-        <div class="doc-actions">
-          ${d.completado ? `<a href="/api/documento/${d.id}/certificado" class="btn btn-sm">⬇ PDF</a>` : ''}
-          <a href="/estado/${d.id}" class="btn btn-sm">Ver →</a>
-          <button class="btn btn-sm" onclick="eliminarDoc('${d.id}');event.stopPropagation();" style="color:var(--danger);">✕</button>
-        </div>
-      </div>`;
-    }).join('') + '</div>';
-  } catch(e) {
-    cont.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><p>Error al cargar documentos</p></div>';
-  }
+    const res = await fetch('/api/documentos');
+    const data = await res.json();
+    const docs = data.documentos || [];
+    const pend = docs.filter(d => !d.completado);
+    const comp = docs.filter(d => d.completado);
+    document.getElementById('stat-total').textContent = docs.length;
+    document.getElementById('stat-pendientes').textContent = pend.length;
+    document.getElementById('stat-completados').textContent = comp.length;
+    const badge = document.getElementById('badge-pendientes');
+    badge.style.display = pend.length > 0 ? 'inline' : 'none';
+    badge.textContent = pend.length;
+    renderList('lista-recientes', docs.slice(0,5), '📄', 'No hay documentos aún');
+    renderList('lista-pendientes', pend, '⏳', 'No hay documentos pendientes');
+    renderList('lista-completados', comp, '✅', 'No hay documentos completados aún');
+  } catch(e) { console.error(e); }
 }
 
-async function eliminarDoc(id) {
-  if (!confirm('¿Eliminar este documento?')) return;
-  await fetch('/api/documento/' + id, { method:'DELETE' });
-  showToast('Documento eliminado');
-  cargarDocumentos(false);
-  cargarDocumentos(true);
-}
-
-// ── NUEVA FIRMA ──
-// Variables del zone picker (scope del módulo de firma)
-window.firmaSignZones = {};      // { firmanteIndex: {page,x,y,w,h,canvasW,canvasH} }
-window.firmaPdfDoc    = null;
-window.firmaCurrentZoneIdx = null;
-window.firmaTempZone  = null;
-window.firmaIsDragging = false;
-window.firmaDragStart  = {x:0, y:0};
-const FIRMA_COLORS = ['#c9a84c','#2d6a4f','#c0392b','#2471a3','#8e44ad','#e67e22'];
-
-function renderNuevoFirma() {
-  window.firmaSignZones = {};
-  window.firmaPdfDoc    = null;
-  window.firmantesTmp   = [];
-  document.getElementById('nuevoFirmaContainer').innerHTML = `
-    <div class="card">
-      <div class="card-title">📄 Documento</div>
-      <div class="form-row">
-        <div class="form-group"><label>Título del documento</label><input type="text" id="firmaTitle" placeholder="Compromiso de venta, Autorización..."></div>
-        <div class="form-row" style="margin-bottom:0;">
-          <div class="form-group"><label>Tu nombre</label><input type="text" id="firmaOrgName" value="${currentUser?.name||''}"></div>
-          <div class="form-group"><label>Tu email</label><input type="email" id="firmaOrgEmail" value="${currentUser?.email||''}"></div>
-        </div>
+function renderList(id, docs, icon, msg) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (!docs.length) { el.innerHTML = `<div class="empty-state"><div class="empty-icon">${icon}</div><p>${msg}</p></div>`; return; }
+  el.innerHTML = docs.map(doc => {
+    const firmados = doc.firmantes.filter(f=>f.signed).length;
+    const total = doc.firmantes.length;
+    const fecha = new Date(doc.created_at).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
+    return `<div class="doc-card">
+      <div class="doc-icon">${doc.completado?'✅':'📄'}</div>
+      <div class="doc-info"><div class="doc-title">${doc.title}</div><div class="doc-meta">${fecha} · ${firmados}/${total} firma${total!==1?'s':''}</div></div>
+      <span class="badge ${doc.completado?'done':'pending'}">${doc.completado?'Completado':'Pendiente'}</span>
+      <div class="doc-actions">
+        <a href="/estado/${doc.id}" class="btn-sm">Ver</a>
+        ${doc.completado?`<a href="/api/documento/${doc.id}/certificado" class="btn-sm primary">⬇ PDF</a>`:''}
+        <button onclick="confirmarEliminar('${doc.id}','${doc.title}')" class="btn-sm" style="color:var(--rust);border-color:#f5c6c6;" title="Eliminar">🗑</button>
       </div>
-      <div class="form-group">
-        <label>Archivo PDF</label>
-        <div class="upload-zone" onclick="document.getElementById('firmaPdf').click()" id="uploadZone">
-          <div class="upload-icon">📎</div>
-          <div style="font-size:0.84rem;">Hacé clic para subir un PDF</div>
-          <div id="pdfNombre" style="font-size:0.78rem;color:var(--rx-blue);margin-top:5px;"></div>
-        </div>
-        <input type="file" id="firmaPdf" accept=".pdf" style="display:none" onchange="mostrarNombrePdf(this)">
-      </div>
-    </div>
-    <div class="card" style="margin-top:14px;">
-      <div class="card-title">👥 Firmantes y zonas de firma</div>
-      <p style="font-size:0.82rem;color:var(--text-secondary);margin:0 0 12px;">Agregá cada firmante y luego asignale su zona en el PDF.</p>
-      <div id="firmantesList"></div>
-      <div class="add-row" style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;margin-top:10px;">
-        <div class="form-group" style="margin-bottom:0;"><label>Nombre</label><input type="text" id="newFirmanteNombre" placeholder="Juan García"></div>
-        <div class="form-group" style="margin-bottom:0;"><label>Email</label><input type="email" id="newFirmanteEmail" placeholder="juan@..."></div>
-        <button class="btn btn-outline" onclick="agregarFirmanteUI()">+ Agregar</button>
-      </div>
-    </div>
-    <div style="margin-top:16px;display:flex;gap:10px;">
-      <button class="btn btn-primary" onclick="crearFirma()">✉️ Crear y enviar links</button>
-    </div>
-    <div class="result-box" id="resultBox" style="display:none;">
-      <h3>✅ Links de firma generados</h3>
-      <div id="resultLinks"></div>
-    </div>`;
-  renderFirmantesUI();
-}
-
-function mostrarNombrePdf(input) {
-  if (!input.files[0]) return;
-  document.getElementById('pdfNombre').textContent = '📄 ' + input.files[0].name;
-  // Cargar pdfDoc para el zone picker
-  input.files[0].arrayBuffer().then(buf => {
-    pdfjsLib.getDocument({data: buf}).promise.then(pdf => {
-      window.firmaPdfDoc = pdf;
-      renderFirmantesUI(); // Actualizar botones ahora que hay PDF
-    });
-  });
-}
-
-function agregarFirmanteUI() {
-  const n = document.getElementById('newFirmanteNombre').value.trim();
-  const e = document.getElementById('newFirmanteEmail').value.trim();
-  if (!n || !e) { showToast('Completá nombre y email','error'); return; }
-  window.firmantesTmp.push({ name:n, email:e });
-  document.getElementById('newFirmanteNombre').value = '';
-  document.getElementById('newFirmanteEmail').value = '';
-  renderFirmantesUI();
-}
-
-function renderFirmantesUI() {
-  const list = document.getElementById('firmantesList');
-  if (!list) return;
-  if (!window.firmantesTmp || window.firmantesTmp.length === 0) {
-    list.innerHTML = '<div style="color:var(--text-tertiary);font-size:0.83rem;padding:8px 0;">Sin firmantes aún</div>';
-    return;
-  }
-  list.innerHTML = window.firmantesTmp.map((f,i) => {
-    const z     = window.firmaSignZones[i];
-    const color = FIRMA_COLORS[i % FIRMA_COLORS.length];
-    const zBtn  = z
-      ? `<button class="btn-assign active" style="background:${color};border-color:${color};color:white;" onclick="openZonePicker(${i})">✅ Zona asignada</button>`
-      : `<button class="btn-assign" onclick="openZonePicker(${i})">📍 Asignar zona</button>`;
-    return `
-    <div class="firmante-row" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--cream);border:1px solid var(--border);border-radius:var(--radius-md);margin-bottom:8px;">
-      <div class="avatar" style="background:${color};color:white;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">${f.name.charAt(0).toUpperCase()}</div>
-      <div style="flex:1;min-width:0;"><strong style="font-size:0.88rem;">${f.name}</strong><small style="display:block;color:var(--text-secondary);font-size:0.76rem;">${f.email}</small></div>
-      ${zBtn}
-      <button onclick="quitarFirmanteUI(${i})" style="background:none;border:none;cursor:pointer;color:#ccc;font-size:1.1rem;flex-shrink:0;">✕</button>
     </div>`;
   }).join('');
 }
 
-function quitarFirmanteUI(i) {
-  window.firmantesTmp.splice(i, 1);
-  // Remap zones
-  const newZ = {};
-  Object.keys(window.firmaSignZones).forEach(k => {
-    const ki = parseInt(k);
-    if (ki < i)      newZ[ki]   = window.firmaSignZones[ki];
-    else if (ki > i) newZ[ki-1] = window.firmaSignZones[ki];
-  });
-  window.firmaSignZones = newZ;
-  renderFirmantesUI();
+function confirmarEliminar(id, title) {
+  deleteDocId = id;
+  document.getElementById('confirmMsg').textContent = `"${title}" será eliminado permanentemente.`;
+  document.getElementById('confirmModal').classList.add('open');
 }
 
-// ── Zone Picker ──
+async function ejecutarEliminar() {
+  if (!deleteDocId) return;
+  try {
+    const res = await fetch('/api/documento/' + deleteDocId, {method:'DELETE'});
+    const data = await res.json();
+    if (data.ok) { cerrarModal('confirmModal'); deleteDocId = null; cargarDocumentos(); }
+    else { showToast('Error al eliminar', 'error'); }
+  } catch(e) { showToast('Error de conexión', 'error'); }
+}
+
+// ── PDF UPLOAD ──
+const uploadZone = document.getElementById('uploadZone');
+const fileInput = document.getElementById('fileInput');
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag'));
+uploadZone.addEventListener('drop', e => { e.preventDefault(); uploadZone.classList.remove('drag'); const f = e.dataTransfer.files[0]; if(f&&f.type==='application/pdf') setFile(f); });
+fileInput.addEventListener('change', () => { if(fileInput.files[0]) setFile(fileInput.files[0]); });
+
+async function setFile(f) {
+  pdfFile = f;
+  document.getElementById('fileName').textContent = f.name;
+  document.getElementById('fileOk').style.display = 'flex';
+  const buf = await f.arrayBuffer();
+  pdfDoc = await pdfjsLib.getDocument({data:buf}).promise;
+  renderFirmantes();
+}
+
+// ── ZONE PICKER ──
 async function openZonePicker(idx) {
-  if (!window.firmaPdfDoc) { showToast('Primero subí un PDF','error'); return; }
-  window.firmaCurrentZoneIdx = idx;
-  window.firmaTempZone = window.firmaSignZones[idx] ? {...window.firmaSignZones[idx]} : null;
-
-  const f     = window.firmantesTmp[idx];
-  const color = FIRMA_COLORS[idx % FIRMA_COLORS.length];
-  document.getElementById('zoneModalTitle').textContent = `Zona de firma para: ${f.name}`;
-  document.getElementById('zoneModalTitle').style.color = color;
-
+  if (!pdfDoc) { showToast('Primero subí un PDF', 'error'); return; }
+  currentZoneIdx = idx;
+  const f = firmantes[idx];
+  const color = COLORS[idx % COLORS.length];
+  document.getElementById('modalTitle').textContent = `Zona de firma para: ${f.name}`;
+  document.getElementById('modalTitle').style.color = color;
   const container = document.getElementById('pdfScrollContainer');
   container.innerHTML = '<div style="padding:20px;color:#999;font-size:0.85rem;">Cargando PDF...</div>';
   document.getElementById('zonePicker').classList.add('open');
-
   container.innerHTML = '';
-  const pdf = window.firmaPdfDoc;
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
-    const vp   = page.getViewport({scale:1});
+  for (let i = 1; i <= pdfDoc.numPages; i++) {
+    const page = await pdfDoc.getPage(i);
+    const vp = page.getViewport({scale:1});
     const maxW = 560;
-    const scale = Math.min(maxW / vp.width, 1.5);
-    const svp  = page.getViewport({scale});
+    const scale = Math.min(maxW/vp.width, 1.5);
+    const svp = page.getViewport({scale});
     const wrap = document.createElement('div');
-    wrap.className = 'pdf-page-wrap';
-    wrap.dataset.page = i;
-    const cv = document.createElement('canvas');
-    cv.width  = svp.width;
-    cv.height = svp.height;
-    cv.style.maxWidth = '100%';
-    cv.style.display  = 'block';
-    await page.render({canvasContext: cv.getContext('2d'), viewport: svp}).promise;
-    wrap.appendChild(cv);
-    zoneAddDragEvents(wrap, cv, i);
+    wrap.className = 'pdf-page-wrap'; wrap.dataset.page = i;
+    const canvas = document.createElement('canvas');
+    canvas.width = svp.width; canvas.height = svp.height; canvas.style.maxWidth = '100%';
+    await page.render({canvasContext:canvas.getContext('2d'),viewport:svp}).promise;
+    wrap.appendChild(canvas);
+    drawAllZonesOnWrap(wrap, canvas, i);
+    addDragEvents(wrap, canvas, i);
     container.appendChild(wrap);
   }
-  setTimeout(() => { zoneRefreshOthers(); zoneRefreshOverlay(); }, 80);
+  tempZone = signZones[idx] ? {...signZones[idx]} : null;
+  setTimeout(() => { refreshAllOtherZones(); refreshZoneOverlays(); }, 100);
 }
 
-function zoneAddDragEvents(wrap, cv, pageNum) {
-  const getPos = e => {
-    const r = cv.getBoundingClientRect();
-    const sx = cv.width  / r.width;
-    const sy = cv.height / r.height;
-    const cl = e.touches ? e.touches[0] : e;
-    return { x:(cl.clientX-r.left)*sx, y:(cl.clientY-r.top)*sy, cw:cv.width, ch:cv.height };
-  };
-  const onStart = e => {
-    const p = getPos(e);
-    window.firmaDragStart  = p;
-    window.firmaIsDragging = true;
-    window.firmaDragPage   = pageNum;
-    window.firmaDragCv     = cv;
-    e.preventDefault();
-  };
-  const onMove = e => {
-    if (!window.firmaIsDragging || window.firmaDragPage !== pageNum) return;
-    const p = getPos(e);
-    const x = Math.min(window.firmaDragStart.x, p.x);
-    const y = Math.min(window.firmaDragStart.y, p.y);
-    const w = Math.abs(p.x - window.firmaDragStart.x);
-    const h = Math.abs(p.y - window.firmaDragStart.y);
-    window.firmaTempZone = {page:pageNum, x, y, w, h, canvasW:cv.width, canvasH:cv.height};
-    zoneRefreshOverlay();
-    e.preventDefault();
-  };
-  const onEnd = e => {
-    if (!window.firmaIsDragging) return;
-    window.firmaIsDragging = false;
-    if (window.firmaTempZone && window.firmaTempZone.w > 15 && window.firmaTempZone.h > 8) {
-      window.firmaSignZones[window.firmaCurrentZoneIdx] = window.firmaTempZone;
-    }
-    zoneRefreshOverlay();
-  };
-  wrap.addEventListener('mousedown',  onStart);
-  wrap.addEventListener('mousemove',  onMove);
-  wrap.addEventListener('mouseup',    onEnd);
-  wrap.addEventListener('touchstart', onStart, {passive:false});
-  wrap.addEventListener('touchmove',  onMove,  {passive:false});
-  wrap.addEventListener('touchend',   onEnd);
-}
-
-function zoneRefreshOthers() {
-  const container = document.getElementById('pdfScrollContainer');
-  container.querySelectorAll('.pdf-page-wrap').forEach(wrap => {
-    const pageNum = parseInt(wrap.dataset.page);
-    // Remove old other-zone overlays
-    wrap.querySelectorAll('.zone-overlay.other').forEach(el => el.remove());
-    window.firmantesTmp.forEach((f, i) => {
-      if (i === window.firmaCurrentZoneIdx) return;
-      const z = window.firmaSignZones[i];
-      if (!z || z.page !== pageNum) return;
-      const cv = wrap.querySelector('canvas');
-      const sx = cv.offsetWidth  / z.canvasW;
-      const sy = cv.offsetHeight / z.canvasH;
-      const color = FIRMA_COLORS[i % FIRMA_COLORS.length];
-      const ov  = document.createElement('div');
-      ov.className = 'zone-overlay other';
-      ov.style.cssText = `left:${z.x*sx}px;top:${z.y*sy}px;width:${z.w*sx}px;height:${z.h*sy}px;border-color:${color};background:${color}22;`;
-      const lbl = document.createElement('div');
-      lbl.className = 'zone-label other';
-      lbl.style.background = color;
-      lbl.textContent = f.name;
-      ov.appendChild(lbl);
-      wrap.appendChild(ov);
-    });
+function drawAllZonesOnWrap(wrap, canvas, pageNum) {
+  wrap.querySelectorAll('.zone-overlay.other').forEach(el => el.remove());
+  firmantes.forEach((f, i) => {
+    if (i === currentZoneIdx) return;
+    const z = signZones[i];
+    if (!z || z.page !== pageNum) return;
+    const scaleX = canvas.width / z.canvasW;
+    const scaleY = canvas.height / z.canvasH;
+    const dispScaleX = canvas.offsetWidth / canvas.width;
+    const dispScaleY = canvas.offsetHeight / canvas.height;
+    const ov = document.createElement('div');
+    ov.className = 'zone-overlay other';
+    ov.style.cssText = `left:${z.x*scaleX*dispScaleX}px;top:${z.y*scaleY*dispScaleY}px;width:${z.w*scaleX*dispScaleX}px;height:${z.h*scaleY*dispScaleY}px;border-color:${COLORS[i%COLORS.length]};background:${COLORS[i%COLORS.length]}22;`;
+    const lbl = document.createElement('div');
+    lbl.className = 'zone-label other'; lbl.style.background = COLORS[i%COLORS.length]; lbl.textContent = f.name;
+    ov.appendChild(lbl); wrap.appendChild(ov);
   });
 }
 
-function zoneRefreshOverlay() {
+function refreshAllOtherZones() {
+  document.getElementById('pdfScrollContainer').querySelectorAll('.pdf-page-wrap').forEach(wrap => {
+    const canvas = wrap.querySelector('canvas');
+    if (canvas) drawAllZonesOnWrap(wrap, canvas, parseInt(wrap.dataset.page));
+  });
+}
+
+function addDragEvents(wrap, canvas, pageNum) {
+  const getPos = e => {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width/rect.width, scaleY = canvas.height/rect.height;
+    const cl = e.touches ? e.touches[0] : e;
+    return {x:(cl.clientX-rect.left)*scaleX, y:(cl.clientY-rect.top)*scaleY, cw:canvas.width, ch:canvas.height};
+  };
+  const start = e => { const pos = getPos(e); dragStart=pos; dragCanvas=canvas; dragPageIdx=pageNum; isDragging=true; };
+  const move = e => {
+    if (!isDragging || dragPageIdx !== pageNum) return;
+    const pos = getPos(e);
+    const x=Math.min(dragStart.x,pos.x), y=Math.min(dragStart.y,pos.y);
+    const w=Math.abs(pos.x-dragStart.x), h=Math.abs(pos.y-dragStart.y);
+    tempZone = {page:pageNum, x, y, w, h, canvasW:canvas.width, canvasH:canvas.height};
+    refreshZoneOverlays();
+  };
+  const end = e => {
+    if (!isDragging) return; isDragging = false;
+    if (tempZone && tempZone.w > 15 && tempZone.h > 8) signZones[currentZoneIdx] = tempZone;
+    refreshZoneOverlays();
+  };
+  wrap.addEventListener('mousedown', start);
+  document.addEventListener('mousemove', move);
+  document.addEventListener('mouseup', end);
+  wrap.addEventListener('touchstart', start, {passive:true});
+  wrap.addEventListener('touchmove', move, {passive:true});
+  wrap.addEventListener('touchend', end);
+}
+
+function refreshZoneOverlays() {
   const container = document.getElementById('pdfScrollContainer');
   container.querySelectorAll('.zone-overlay.current').forEach(el => el.remove());
-  const z = window.firmaSignZones[window.firmaCurrentZoneIdx] || window.firmaTempZone;
+  const z = signZones[currentZoneIdx] || tempZone;
   if (!z) return;
   container.querySelectorAll('.pdf-page-wrap').forEach(wrap => {
     if (parseInt(wrap.dataset.page) !== z.page) return;
-    const cv    = wrap.querySelector('canvas');
-    const sx    = cv.offsetWidth  / z.canvasW;
-    const sy    = cv.offsetHeight / z.canvasH;
-    const color = FIRMA_COLORS[window.firmaCurrentZoneIdx % FIRMA_COLORS.length];
-    const ov    = document.createElement('div');
+    const canvas = wrap.querySelector('canvas');
+    const scaleX = canvas.offsetWidth / z.canvasW, scaleY = canvas.offsetHeight / z.canvasH;
+    const ov = document.createElement('div');
     ov.className = 'zone-overlay current';
-    ov.style.cssText = `left:${z.x*sx}px;top:${z.y*sy}px;width:${z.w*sx}px;height:${z.h*sy}px;border-color:${color};background:${color}22;`;
+    const color = COLORS[currentZoneIdx % COLORS.length];
+    ov.style.cssText = `left:${z.x*scaleX}px;top:${z.y*scaleY}px;width:${z.w*scaleX}px;height:${z.h*scaleY}px;border-color:${color};background:${color}22;`;
     const lbl = document.createElement('div');
-    lbl.className = 'zone-label';
-    lbl.style.background = color;
-    lbl.textContent = window.firmantesTmp[window.firmaCurrentZoneIdx].name;
-    ov.appendChild(lbl);
-    wrap.appendChild(ov);
+    lbl.className = 'zone-label'; lbl.style.background = color; lbl.textContent = firmantes[currentZoneIdx].name;
+    ov.appendChild(lbl); wrap.appendChild(ov);
   });
 }
 
-function clearCurrentZone() {
-  delete window.firmaSignZones[window.firmaCurrentZoneIdx];
-  window.firmaTempZone = null;
-  zoneRefreshOverlay();
-  renderFirmantesUI();
+function clearCurrentZone() { delete signZones[currentZoneIdx]; tempZone = null; refreshZoneOverlays(); renderFirmantes(); }
+function confirmZone() { closeZonePicker(); renderFirmantes(); }
+function closeZonePicker() { document.getElementById('zonePicker').classList.remove('open'); currentZoneIdx = null; tempZone = null; }
+
+// ── FIRMANTES ──
+function agregarFirmante() {
+  const n = document.getElementById('fNombre').value.trim();
+  const e = document.getElementById('fEmail').value.trim();
+  if (!n || !e) { showToast('Completá nombre y email', 'error'); return; }
+  firmantes.push({name:n, email:e});
+  document.getElementById('fNombre').value = ''; document.getElementById('fEmail').value = '';
+  renderFirmantes();
 }
 
-function confirmZone() {
-  closeZonePicker();
-  renderFirmantesUI();
+function renderFirmantes() {
+  document.getElementById('firmanteList').innerHTML = firmantes.map((f, i) => {
+    const z = signZones[i];
+    const color = COLORS[i % COLORS.length];
+    return `<div class="firmante-row">
+      <div class="avatar" style="background:${color}">${f.name[0].toUpperCase()}</div>
+      <div class="finfo"><strong>${f.name}</strong><small>${f.email}</small></div>
+      <button onclick="openZonePicker(${i})" class="btn-assign ${z?'active':''}" style="${z?`background:${color};border-color:${color};color:white`:''}">
+        ${z ? '✅ Zona asignada' : '📍 Asignar zona'}
+      </button>
+      <button onclick="quitarFirmante(${i})" style="background:none;border:none;cursor:pointer;color:#ccc;font-size:1.1rem;margin-left:4px;">✕</button>
+    </div>`;
+  }).join('');
 }
 
-function closeZonePicker() {
-  document.getElementById('zonePicker').classList.remove('open');
-  window.firmaCurrentZoneIdx = null;
-  window.firmaTempZone = null;
+function quitarFirmante(i) {
+  firmantes.splice(i, 1);
+  const newZones = {};
+  Object.keys(signZones).forEach(k => {
+    const ki = parseInt(k);
+    if (ki < i) newZones[ki] = signZones[ki];
+    else if (ki > i) newZones[ki-1] = signZones[ki];
+  });
+  Object.keys(signZones).forEach(k => delete signZones[k]);
+  Object.assign(signZones, newZones);
+  renderFirmantes();
 }
 
-async function crearFirma() {
-  const title    = document.getElementById('firmaTitle').value.trim();
-  const orgName  = document.getElementById('firmaOrgName').value.trim();
-  const orgEmail = document.getElementById('firmaOrgEmail').value.trim();
-  if (!title) { showToast('Ingresá el título del documento','error'); return; }
-  if (!window.firmantesTmp || window.firmantesTmp.length === 0) { showToast('Agregá al menos un firmante','error'); return; }
-  // Validar zonas si hay PDF
-  const pdf = document.getElementById('firmaPdf').files[0];
-  if (pdf) {
-    const sinZona = window.firmantesTmp.filter((_,i) => !window.firmaSignZones[i]);
-    if (sinZona.length) {
-      showToast('⚠️ Falta zona de firma para: ' + sinZona.map(f=>f.name).join(', '), 'error');
-      return;
-    }
-  }
-  const fd = new FormData();
-  fd.append('title', title);
-  fd.append('organizer_name', orgName);
-  fd.append('organizer_email', orgEmail);
-  // Adjuntar zonas a cada firmante
-  const firmantesConZona = window.firmantesTmp.map((f,i) => ({...f, sign_zone: window.firmaSignZones[i] || null}));
-  fd.append('firmantes', JSON.stringify(firmantesConZona));
-  if (pdf) fd.append('pdf_file', pdf);
+// ── ENVIAR DOCUMENTO ──
+async function enviarDocumento() {
+  const titulo = document.getElementById('titulo').value.trim();
+  const orgN = document.getElementById('org-nombre').value.trim();
+  const orgE = document.getElementById('org-email').value.trim();
+  if (!titulo) { showToast('Ingresá el título', 'error'); return; }
+  if (!pdfFile) { showToast('Seleccioná un PDF', 'error'); return; }
+  if (!firmantes.length) { showToast('Agregá al menos un firmante', 'error'); return; }
+  const sinZona = firmantes.filter((_,i) => !signZones[i]);
+  if (sinZona.length) { showToast('⚠️ Falta zona de firma para: ' + sinZona.map(f=>f.name).join(', '), 'error'); return; }
+  document.getElementById('spinner').style.display = 'block';
+  document.getElementById('resultBox').style.display = 'none';
   try {
-    const r    = await fetch('/api/documento', { method:'POST', body:fd });
-    const data = await r.json();
-    if (data.error) { showToast(data.error,'error'); return; }
-    showToast('Links generados y emails enviados ✅','success');
-    const rb = document.getElementById('resultBox');
-    rb.style.display = 'block';
-    document.getElementById('resultLinks').innerHTML = data.firmantes.map(f => `
-      <div class="link-row" style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);">
-        <strong style="display:block;font-size:0.85rem;margin-bottom:2px;">${f.name}</strong>
-        <small style="display:block;font-size:0.72rem;color:var(--text-tertiary);margin-bottom:6px;">${f.email}</small>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <input readonly value="${f.sign_url}" style="flex:1;font-size:0.75rem;font-family:monospace;color:var(--text-secondary);background:var(--cream);">
-          <button class="btn btn-sm btn-outline" onclick="navigator.clipboard.writeText('${f.sign_url}');showToast('Copiado ✓')">Copiar</button>
-        </div>
-      </div>`).join('');
-    window.firmantesTmp  = [];
-    window.firmaSignZones = {};
-    renderFirmantesUI();
-  } catch(e) { showToast('Error al crear firma','error'); }
+    const fd = new FormData();
+    fd.append('pdf_file', pdfFile); fd.append('title', titulo);
+    fd.append('organizer_name', orgN); fd.append('organizer_email', orgE);
+    const firmantesConZona = firmantes.map((f,i) => ({...f, sign_zone:signZones[i]||null}));
+    fd.append('firmantes', JSON.stringify(firmantesConZona));
+    const res = await fetch('/api/documento', {method:'POST', body:fd});
+    const data = await res.json();
+    document.getElementById('spinner').style.display = 'none';
+    if (data.doc_id) {
+      document.getElementById('linksList').innerHTML = data.firmantes.map(f => `
+        <div class="link-row">
+          <strong>${f.name}</strong><small>${f.email}</small>
+          <div class="link-copy">
+            <input type="text" value="${f.sign_url}" readonly id="lnk-${f.token}">
+            <button class="btn-copy" onclick="copiarLink('${f.token}',this)">Copiar</button>
+          </div>
+        </div>`).join('');
+      document.getElementById('btnEstado').href = '/estado/' + data.doc_id;
+      document.getElementById('resultBox').style.display = 'block';
+      showToast('¡Links generados y emails enviados! ✅', 'success');
+      cargarDocumentos();
+    } else { showToast('Error: ' + (data.error||'desconocido'), 'error'); }
+  } catch(e) { document.getElementById('spinner').style.display = 'none'; showToast('Error de conexión', 'error'); }
+}
+
+function copiarLink(token, btn) {
+  navigator.clipboard.writeText(document.getElementById('lnk-'+token).value);
+  btn.textContent = '¡Copiado!'; btn.classList.add('copied');
+  setTimeout(() => { btn.textContent = 'Copiar'; btn.classList.remove('copied'); }, 2000);
 }
 
 // ── CONTACTOS ──
@@ -1702,60 +1532,54 @@ function guardarContacto() {
     operacion:document.getElementById('cOperacion').value, notas:document.getElementById('cNotas').value,
     fecha: new Date().toISOString().split('T')[0]
   };
-  if (!obj.nombre) { showToast('Ingresá el nombre','error'); return; }
-  const idx = LOCAL.contactos.findIndex(c=>c.id===obj.id);
-  if (idx>=0) LOCAL.contactos[idx] = obj; else LOCAL.contactos.unshift(obj);
+  if (!obj.nombre) { showToast('Ingresá el nombre', 'error'); return; }
+  const idx = LOCAL.contactos.findIndex(c => c.id === obj.id);
+  if (idx >= 0) LOCAL.contactos[idx] = obj; else LOCAL.contactos.unshift(obj);
   saveLocal('contactos');
   cerrarModal('modalContacto');
-  showToast('Contacto guardado ✅','success');
+  showToast('Contacto guardado ✅', 'success');
   renderContactos();
-  document.getElementById('badge-consultas').textContent = LOCAL.consultas.length;
 }
 
-function filtrarContactos() {
-  renderContactos();
-}
+function filtrarContactos() { renderContactos(); }
 
 function renderContactos() {
   const q = (document.getElementById('buscarContacto')?.value || '').toLowerCase();
   const tipo = document.getElementById('filtroTipoContacto')?.value || '';
   let lista = LOCAL.contactos.filter(c => {
     const match = !q || c.nombre?.toLowerCase().includes(q) || c.tel?.includes(q) || c.localidad?.toLowerCase().includes(q);
-    const matchTipo = !tipo || c.tipo === tipo;
-    return match && matchTipo;
+    return match && (!tipo || c.tipo === tipo);
   });
   const div = document.getElementById('listaContactos');
   if (!div) return;
   if (lista.length === 0) {
-    div.innerHTML = '<div class="empty-state"><div class="empty-icon">👥</div><p>Sin contactos' + (q?' para "'+q+'"':'') + '</p><button class="btn btn-primary" style="margin-top:12px;" onclick="abrirModalContacto()">+ Agregar contacto</button></div>';
+    div.innerHTML = '<div class="empty-state"><div class="empty-icon">👥</div><p>Sin contactos' + (q?` para "${q}"`:'') + '</p><button class="btn btn-gold" style="margin-top:12px;" onclick="abrirModalContacto()">+ Agregar contacto</button></div>';
     return;
   }
   div.innerHTML = lista.map(c => `
     <div class="contact-card" onclick="abrirModalContacto(${JSON.stringify(c).replace(/"/g,'&quot;')})">
-      <div class="avatar avatar-blue">${(c.nombre||'?').charAt(0).toUpperCase()}</div>
+      <div class="avatar" style="background:var(--gold)">${(c.nombre||'?').charAt(0).toUpperCase()}</div>
       <div class="contact-info">
         <div class="contact-name">${c.nombre}</div>
-        <div class="contact-sub">${c.tel||''} ${c.localidad?'· '+c.localidad:''} ${c.tipo?'· <span class="badge badge-blue">'+c.tipo+'</span>':''}</div>
+        <div class="contact-sub">${c.tel||''} ${c.localidad?'· '+c.localidad:''} ${c.tipo?'· <span class="badge">' + c.tipo + '</span>':''}</div>
       </div>
-      <div style="display:flex;gap:6px;opacity:0;" class="doc-actions">
-        ${c.tel ? `<a href="https://wa.me/${c.tel.replace(/[^0-9]/g,'')}" target="_blank" class="btn btn-sm" onclick="event.stopPropagation()">💬</a>` : ''}
-        <button class="btn btn-sm" style="color:var(--danger);" onclick="event.stopPropagation();eliminarContacto('${c.id}')">✕</button>
+      <div style="display:flex;gap:6px;" class="doc-actions">
+        ${c.tel ? `<a href="https://wa.me/${c.tel.replace(/[^0-9]/g,'')}" target="_blank" class="btn-sm" onclick="event.stopPropagation()">💬</a>` : ''}
+        <button class="btn-sm" style="color:var(--rust);" onclick="event.stopPropagation();eliminarContacto('${c.id}')">✕</button>
       </div>
     </div>`).join('');
 }
 
 function eliminarContacto(id) {
   if (!confirm('¿Eliminar contacto?')) return;
-  LOCAL.contactos = LOCAL.contactos.filter(c=>c.id!==id);
-  saveLocal('contactos');
-  renderContactos();
-  showToast('Contacto eliminado');
+  LOCAL.contactos = LOCAL.contactos.filter(c => c.id !== id);
+  saveLocal('contactos'); renderContactos(); showToast('Contacto eliminado');
 }
 
 // ── CONSULTAS ──
 function abrirModalConsulta() { abrirModal('modalConsulta'); }
 function filtrarConsultas(etapa, el) {
-  document.querySelectorAll('.ctab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.ctab').forEach(t => t.classList.remove('active'));
   if (el) el.classList.add('active');
   renderConsultas(etapa);
 }
@@ -1773,35 +1597,36 @@ function guardarConsulta() {
     obs: document.getElementById('consObs').value,
     fecha: new Date().toISOString().split('T')[0]
   };
-  if (!obj.nombre) { showToast('Ingresá el nombre','error'); return; }
+  if (!obj.nombre) { showToast('Ingresá el nombre', 'error'); return; }
   LOCAL.consultas.unshift(obj);
   saveLocal('consultas');
   cerrarModal('modalConsulta');
-  showToast('Consulta guardada ✅','success');
+  showToast('Consulta guardada ✅', 'success');
   renderConsultas('todos');
+  document.getElementById('badge-consultas').textContent = LOCAL.consultas.length;
 }
 
 function renderConsultas(filtro='todos') {
   let lista = LOCAL.consultas;
-  if (filtro && filtro !== 'todos') lista = lista.filter(c=>c.etapa===filtro);
+  if (filtro && filtro !== 'todos') lista = lista.filter(c => c.etapa === filtro);
   const div = document.getElementById('listaConsultas');
   if (!div) return;
   if (lista.length === 0) {
-    div.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><p>Sin consultas' + (filtro && filtro!=='todos'?' en esta etapa':'') + '</p></div>';
+    div.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><p>Sin consultas' + (filtro&&filtro!=='todos'?' en esta etapa':'') + '</p></div>';
     return;
   }
-  const calMap = {caliente:'🔥',tibio:'🌡️',frio:'❄️'};
+  const calMap = {caliente:'🔥', tibio:'🌡️', frio:'❄️'};
   div.innerHTML = lista.map(c => `
     <div class="contact-card" style="margin-bottom:8px;">
-      <div class="avatar avatar-blue">${(c.nombre||'?').charAt(0).toUpperCase()}</div>
+      <div class="avatar" style="background:var(--gold)">${(c.nombre||'?').charAt(0).toUpperCase()}</div>
       <div class="contact-info">
-        <div class="contact-name">${c.nombre} ${c.calificacion?calMap[c.calificacion]||'':''}</div>
+        <div class="contact-name">${c.nombre} ${c.calificacion ? calMap[c.calificacion]||'' : ''}</div>
         <div class="contact-sub">${c.etapa||''} ${c.propiedad?'· '+c.propiedad:''} ${c.fechaMuestra?'· Muestra: '+c.fechaMuestra:''}</div>
-        ${c.obs?`<div style="font-size:0.77rem;color:var(--text-tertiary);margin-top:3px;">${c.obs.substring(0,80)}...</div>`:''}
+        ${c.obs ? `<div style="font-size:0.77rem;color:#bbb;margin-top:3px;">${c.obs.substring(0,80)}...</div>` : ''}
       </div>
       <div class="doc-actions">
-        ${c.tel?`<a href="https://wa.me/${c.tel.replace(/[^0-9]/g,'')}" target="_blank" class="btn btn-sm" onclick="event.stopPropagation()">💬</a>`:''}
-        <button class="btn btn-sm" style="color:var(--danger);" onclick="LOCAL.consultas=LOCAL.consultas.filter(x=>x.id!=='${c.id}');saveLocal('consultas');renderConsultas('todos')">✕</button>
+        ${c.tel ? `<a href="https://wa.me/${c.tel.replace(/[^0-9]/g,'')}" target="_blank" class="btn-sm" onclick="event.stopPropagation()">💬</a>` : ''}
+        <button class="btn-sm" style="color:var(--rust);" onclick="LOCAL.consultas=LOCAL.consultas.filter(x=>x.id!=='${c.id}');saveLocal('consultas');renderConsultas('todos')">✕</button>
       </div>
     </div>`).join('');
 }
@@ -1815,10 +1640,7 @@ function calcularEmbudo() {
     reservas: LOCAL.cierres.filter(c=>c.tipo==='reserva').length,
     ventas: LOCAL.cierres.length,
   };
-  Object.entries(nums).forEach(([k,v]) => {
-    const el = document.getElementById('emb-'+k);
-    if (el) el.textContent = v;
-  });
+  Object.entries(nums).forEach(([k,v]) => { const el = document.getElementById('emb-'+k); if(el) el.textContent = v; });
   const base = nums.contactos || 1;
   ['consultas','muestras','reservas','ventas'].forEach(k => {
     const el = document.getElementById('pct-'+k);
@@ -1826,29 +1648,43 @@ function calcularEmbudo() {
   });
 }
 
+function showEmbudoDetalle(etapa) {
+  document.querySelectorAll('.embudo-step').forEach(s => s.classList.remove('active'));
+  event.currentTarget?.classList.add('active');
+  const mapas = {
+    contactos: LOCAL.contactos,
+    consultas: LOCAL.consultas,
+    muestras: LOCAL.consultas.filter(c=>c.etapa==='muestra'||c.fechaMuestra),
+    reservas: LOCAL.cierres.filter(c=>c.tipo==='reserva'),
+    ventas: LOCAL.cierres,
+  };
+  const items = mapas[etapa] || [];
+  const div = document.getElementById('embudoDetalle');
+  if (!div) return;
+  if (items.length === 0) { div.innerHTML = '<div style="color:#bbb;font-size:0.83rem;">Sin registros en esta etapa</div>'; return; }
+  div.innerHTML = `<div style="font-size:0.83rem;color:#888;">${items.length} registro(s) en <strong>${etapa}</strong></div>`;
+}
+
 // ── CIERRES ──
 function abrirModalCierre() {
   document.getElementById('ciFecha').value = new Date().toISOString().split('T')[0];
   abrirModal('modalCierre');
-  ['ciValor','ciPct','ciBrokerPct'].forEach(id => {
-    document.getElementById(id)?.addEventListener('input', calcularCierre);
-  });
 }
 
 function calcularCierre() {
   const valor = parseFloat(document.getElementById('ciValor').value)||0;
   const pct = parseFloat(document.getElementById('ciPct').value)||0;
   const brokerPct = parseFloat(document.getElementById('ciBrokerPct').value)||0;
-  if (!valor||!pct) { document.getElementById('ciCalculo').style.display='none'; return; }
+  if (!valor || !pct) { document.getElementById('ciCalculo').style.display = 'none'; return; }
   const bruto = valor * pct / 100;
   const broker = bruto * brokerPct / 100;
   const neto = bruto - broker;
   document.getElementById('ciCalculo').style.display = 'block';
   document.getElementById('ciCalculo').innerHTML = `
     <div style="display:flex;gap:20px;flex-wrap:wrap;">
-      <div><div style="font-size:0.68rem;text-transform:uppercase;color:var(--text-tertiary);">Comisión bruta</div><div style="font-size:1.1rem;font-weight:700;color:var(--rx-blue);">USD ${bruto.toLocaleString('es-AR',{maximumFractionDigits:0})}</div></div>
-      ${brokerPct?`<div><div style="font-size:0.68rem;text-transform:uppercase;color:var(--text-tertiary);">Broker (${brokerPct}%)</div><div style="font-size:1.1rem;font-weight:700;color:var(--warning);">-USD ${broker.toLocaleString('es-AR',{maximumFractionDigits:0})}</div></div>`:''}
-      <div><div style="font-size:0.68rem;text-transform:uppercase;color:var(--text-tertiary);">Comisión neta</div><div style="font-size:1.1rem;font-weight:700;color:var(--success);">USD ${neto.toLocaleString('es-AR',{maximumFractionDigits:0})}</div></div>
+      <div><div style="font-size:0.68rem;text-transform:uppercase;color:#bbb;">Comisión bruta</div><div style="font-size:1.1rem;font-weight:700;color:var(--gold);">USD ${bruto.toLocaleString('es-AR',{maximumFractionDigits:0})}</div></div>
+      ${brokerPct?`<div><div style="font-size:0.68rem;text-transform:uppercase;color:#bbb;">Broker (${brokerPct}%)</div><div style="font-size:1.1rem;font-weight:700;color:var(--rust);">-USD ${broker.toLocaleString('es-AR',{maximumFractionDigits:0})}</div></div>`:''}
+      <div><div style="font-size:0.68rem;text-transform:uppercase;color:#bbb;">Comisión neta</div><div style="font-size:1.1rem;font-weight:700;color:var(--sage);">USD ${neto.toLocaleString('es-AR',{maximumFractionDigits:0})}</div></div>
     </div>`;
 }
 
@@ -1871,68 +1707,60 @@ function guardarCierre() {
   LOCAL.cierres.unshift(obj);
   saveLocal('cierres');
   cerrarModal('modalCierre');
-  showToast('¡Cierre registrado! 🎉','success');
+  showToast('¡Cierre registrado! 🎉', 'success');
   renderCierres();
 }
 
 function renderCierres() {
-  const total = LOCAL.cierres.reduce((a,c)=>a+c.neto,0);
-  const ticket = LOCAL.cierres.length ? total/LOCAL.cierres.length : 0;
+  const total = LOCAL.cierres.reduce((a,c) => a + c.neto, 0);
+  const ticket = LOCAL.cierres.length ? total / LOCAL.cierres.length : 0;
   document.getElementById('ci-neto').textContent = 'USD ' + total.toLocaleString('es-AR',{maximumFractionDigits:0});
   document.getElementById('ci-ticket').textContent = 'USD ' + ticket.toLocaleString('es-AR',{maximumFractionDigits:0});
   document.getElementById('ci-ops').textContent = LOCAL.cierres.length;
   const div = document.getElementById('listaCierres');
   if (!div) return;
-  if (LOCAL.cierres.length === 0) {
-    div.innerHTML = '<div class="empty-state"><div class="empty-icon">💰</div><p>Sin cierres registrados aún</p></div>';
-    return;
-  }
+  if (LOCAL.cierres.length === 0) { div.innerHTML = '<div class="empty-state"><div class="empty-icon">💰</div><p>Sin cierres registrados aún</p></div>'; return; }
   div.innerHTML = LOCAL.cierres.map(c => `
     <div class="cierre-card">
       <div>
         <div class="cierre-dir">${c.direccion || 'Sin dirección'}</div>
         <div class="cierre-meta">${c.fecha||''} · ${c.zona||''} · ${c.tipo||''} · ${c.puntas} punta(s)</div>
-        ${c.notas?`<div style="font-size:0.78rem;color:var(--text-tertiary);margin-top:3px;">${c.notas}</div>`:''}
+        ${c.notas ? `<div style="font-size:0.78rem;color:#bbb;margin-top:3px;">${c.notas}</div>` : ''}
       </div>
       <div style="text-align:right;">
         <div class="cierre-monto">USD ${(c.neto||0).toLocaleString('es-AR',{maximumFractionDigits:0})}</div>
         <div class="cierre-comision">${c.pct}% · Bruto USD ${(c.bruto||0).toLocaleString('es-AR',{maximumFractionDigits:0})}</div>
-        <button class="btn btn-ghost btn-sm" style="color:var(--danger);margin-top:4px;" onclick="LOCAL.cierres=LOCAL.cierres.filter(x=>x.id!=='${c.id}');saveLocal('cierres');renderCierres()">✕</button>
+        <button class="btn-sm" style="color:var(--rust);margin-top:4px;border:none;cursor:pointer;" onclick="LOCAL.cierres=LOCAL.cierres.filter(x=>x.id!=='${c.id}');saveLocal('cierres');renderCierres()">✕ Eliminar</button>
       </div>
     </div>`).join('');
 }
 
 // ── OBJETIVOS ──
 function renderObjetivos() {
-  const metas = LOCAL.objetivos || { captaciones:10, ventas:3, caras:60, nuevos:8, comision:5000 };
+  const metas = LOCAL.objetivos || {captaciones:10, ventas:3, caras:60, nuevos:8, comision:5000};
   const actuals = {
-    captaciones: LOCAL.cierres.length, // simplificado
+    captaciones: LOCAL.cierres.length,
     ventas: LOCAL.cierres.length,
     caras: 0,
     nuevos: LOCAL.contactos.filter(c => {
-      const d = new Date(c.fecha);
-      const h = new Date();
-      return d.getMonth()===h.getMonth()&&d.getFullYear()===h.getFullYear();
+      const d = new Date(c.fecha); const h = new Date();
+      return d.getMonth()===h.getMonth() && d.getFullYear()===h.getFullYear();
     }).length,
-    comision: LOCAL.cierres.reduce((a,c)=>a+c.neto,0)
+    comision: LOCAL.cierres.reduce((a,c) => a + c.neto, 0)
   };
-  const campos = ['captaciones','ventas','caras','nuevos','comision'];
-  campos.forEach(k => {
+  ['captaciones','ventas','caras','nuevos','comision'].forEach(k => {
     const pct = Math.min(Math.round(actuals[k]/(metas[k]||1)*100), 100);
     const barEl = document.getElementById('bar-'+k);
-    if (barEl) {
-      barEl.style.width = pct + '%';
-      barEl.className = 'objetivo-bar' + (pct>=100?' ':(pct>=60?'':' danger'));
-    }
+    if (barEl) barEl.style.width = pct + '%';
     const actEl = document.getElementById('act-'+k);
-    if (actEl) actEl.textContent = k==='comision'?'USD '+actuals[k].toFixed(0):actuals[k];
+    if (actEl) actEl.textContent = k === 'comision' ? 'USD ' + actuals[k].toFixed(0) : actuals[k];
     const metaEl = document.getElementById('meta-'+k);
-    if (metaEl) metaEl.textContent = '/ ' + (k==='comision'?'USD '+metas[k]:metas[k]);
+    if (metaEl) metaEl.textContent = '/ ' + (k === 'comision' ? 'USD ' + metas[k] : metas[k]);
   });
 }
 
 function editarObjetivos() {
-  const metas = LOCAL.objetivos || { captaciones:10, ventas:3, caras:60, nuevos:8, comision:5000 };
+  const metas = LOCAL.objetivos || {captaciones:10, ventas:3, caras:60, nuevos:8, comision:5000};
   const nuevo = {
     captaciones: parseInt(prompt('Meta captaciones/mes:', metas.captaciones)||metas.captaciones),
     ventas: parseInt(prompt('Meta ventas/mes:', metas.ventas)||metas.ventas),
@@ -1940,24 +1768,19 @@ function editarObjetivos() {
     nuevos: parseInt(prompt('Meta nuevos contactos/mes:', metas.nuevos)||metas.nuevos),
     comision: parseInt(prompt('Meta comisión USD/mes:', metas.comision)||metas.comision),
   };
-  LOCAL.objetivos = nuevo;
-  saveLocal('objetivos');
-  renderObjetivos();
-  showToast('Metas guardadas ✅','success');
+  LOCAL.objetivos = nuevo; saveLocal('objetivos'); renderObjetivos(); showToast('Metas guardadas ✅', 'success');
 }
 
 function cambiarPeriodo(p, btn) {
-  document.querySelectorAll('.obj-period button').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.obj-period button').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
 }
 
 // ── PLANILLA ──
 function renderPlanilla() {
   const filas = LOCAL.planilla || [
-    {label:'Captaciones', anual:20},
-    {label:'Ventas', anual:12},
-    {label:'Cara a cara', anual:720},
-    {label:'Comisión USD', anual:60000},
+    {label:'Captaciones', anual:20}, {label:'Ventas', anual:12},
+    {label:'Cara a cara', anual:720}, {label:'Comisión USD', anual:60000},
   ];
   const tbody = document.getElementById('bodyPlanilla');
   if (!tbody) return;
@@ -1980,32 +1803,22 @@ function updatePlanilla(i,k,v) {
   if (!LOCAL.planilla) LOCAL.planilla = [{label:'Captaciones',anual:20},{label:'Ventas',anual:12},{label:'Cara a cara',anual:720},{label:'Comisión USD',anual:60000}];
   LOCAL.planilla[i][k] = v;
 }
-
-function guardarPlanilla() {
-  saveLocal('planilla');
-  showToast('Planilla guardada ✅','success');
-}
-
-function agregarFilaPlanilla() {
-  if (!LOCAL.planilla) LOCAL.planilla = [];
-  LOCAL.planilla.push({label:'Nuevo objetivo',anual:0});
-  renderPlanilla();
-}
+function guardarPlanilla() { saveLocal('planilla'); showToast('Planilla guardada ✅', 'success'); }
+function agregarFilaPlanilla() { if (!LOCAL.planilla) LOCAL.planilla = []; LOCAL.planilla.push({label:'Nuevo objetivo', anual:0}); renderPlanilla(); }
 
 // ── AGENDA ──
 function renderCalendario() {
   const d = calFecha;
-  const mes = d.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
-  document.getElementById('calMesLabel').textContent = mes.charAt(0).toUpperCase()+mes.slice(1);
+  const mes = d.toLocaleDateString('es-AR', {month:'long', year:'numeric'});
+  document.getElementById('calMesLabel').textContent = mes.charAt(0).toUpperCase() + mes.slice(1);
   const strip = document.getElementById('calStrip');
   const hoy = new Date();
   const diasEnMes = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
   let html = '';
-  for (let i=1; i<=diasEnMes; i++) {
+  for (let i = 1; i <= diasEnMes; i++) {
     const fecha = new Date(d.getFullYear(), d.getMonth(), i);
     const fechaStr = fecha.toISOString().split('T')[0];
     const tieneEvento = LOCAL.eventos.some(e=>e.fecha===fechaStr) || LOCAL.tareas.some(t=>t.fecha===fechaStr);
-    const esHoy = fechaStr === hoy.toISOString().split('T')[0];
     const seleccionado = fechaStr === calDiaSeleccionado;
     html += `<div class="cal-day ${seleccionado?'active':''} ${tieneEvento&&!seleccionado?'has-event':''}" onclick="selDia('${fechaStr}')">
       <span class="cal-dow">${fecha.toLocaleDateString('es-AR',{weekday:'short'}).substring(0,2)}</span>
@@ -2013,52 +1826,38 @@ function renderCalendario() {
     </div>`;
   }
   strip.innerHTML = html;
-  // scroll to today
-  const todayIdx = hoy.getDate() - 1;
   setTimeout(() => {
     const days = strip.children;
-    if (days[todayIdx]) days[todayIdx].scrollIntoView({inline:'center',behavior:'smooth'});
+    const todayIdx = hoy.getDate() - 1;
+    if (days[todayIdx]) days[todayIdx].scrollIntoView({inline:'center', behavior:'smooth'});
   }, 50);
   renderEventosDia(calDiaSeleccionado);
 }
 
-function cambiarMes(dir) {
-  calFecha = new Date(calFecha.getFullYear(), calFecha.getMonth()+dir, 1);
-  renderCalendario();
-}
-
-function selDia(fecha) {
-  calDiaSeleccionado = fecha;
-  renderCalendario();
-}
+function cambiarMes(dir) { calFecha = new Date(calFecha.getFullYear(), calFecha.getMonth()+dir, 1); renderCalendario(); }
+function selDia(fecha) { calDiaSeleccionado = fecha; renderCalendario(); }
 
 function renderEventosDia(fecha) {
   document.getElementById('agendaDiaLabel').textContent = '📅 ' + new Date(fecha+'T12:00:00').toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'});
-  const evs = LOCAL.eventos.filter(e=>e.fecha===fecha);
+  const evs = LOCAL.eventos.filter(e => e.fecha === fecha);
   const div = document.getElementById('listaEventosDia');
   if (!div) return;
-  if (evs.length === 0) {
-    div.innerHTML = '<div class="empty-state" style="padding:20px"><div class="empty-icon">📅</div><p>Sin eventos este día</p></div>';
-    return;
-  }
+  if (evs.length === 0) { div.innerHTML = '<div class="empty-state" style="padding:20px"><div class="empty-icon">📅</div><p>Sin eventos este día</p></div>'; return; }
   div.innerHTML = evs.map(e => `
     <div class="agenda-item">
-      <div class="agenda-dot" style="background:var(--rx-blue)"></div>
+      <div class="agenda-dot" style="background:var(--gold)"></div>
       <div class="agenda-info">
         <div class="agenda-titulo">${e.titulo}</div>
         <div class="agenda-meta">${e.hora||''} ${e.contacto?'· '+e.contacto:''} ${e.tipo?'· '+e.tipo:''}</div>
-        ${e.notas?`<div style="font-size:0.77rem;color:var(--text-tertiary);margin-top:2px;">${e.notas}</div>`:''}
+        ${e.notas ? `<div style="font-size:0.77rem;color:#bbb;margin-top:2px;">${e.notas}</div>` : ''}
       </div>
       <div class="agenda-actions">
-        <button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="LOCAL.eventos=LOCAL.eventos.filter(x=>x.id!=='${e.id}');saveLocal('eventos');renderEventosDia('${fecha}')">✕</button>
+        <button class="btn-sm" style="color:var(--rust);" onclick="LOCAL.eventos=LOCAL.eventos.filter(x=>x.id!=='${e.id}');saveLocal('eventos');renderEventosDia('${fecha}')">✕</button>
       </div>
     </div>`).join('');
 }
 
-function abrirModalEvento() {
-  document.getElementById('evFecha').value = calDiaSeleccionado;
-  abrirModal('modalEvento');
-}
+function abrirModalEvento() { document.getElementById('evFecha').value = calDiaSeleccionado; abrirModal('modalEvento'); }
 
 function guardarEvento() {
   const obj = {
@@ -2070,13 +1869,10 @@ function guardarEvento() {
     contacto: document.getElementById('evContacto').value,
     notas: document.getElementById('evNotas').value,
   };
-  if (!obj.titulo) { showToast('Ingresá el título','error'); return; }
-  LOCAL.eventos.push(obj);
-  saveLocal('eventos');
-  cerrarModal('modalEvento');
-  showToast('Evento guardado ✅','success');
-  calDiaSeleccionado = obj.fecha;
-  renderCalendario();
+  if (!obj.titulo) { showToast('Ingresá el título', 'error'); return; }
+  LOCAL.eventos.push(obj); saveLocal('eventos');
+  cerrarModal('modalEvento'); showToast('Evento guardado ✅', 'success');
+  calDiaSeleccionado = obj.fecha; renderCalendario();
 }
 
 // ── TAREAS ──
@@ -2091,53 +1887,47 @@ function guardarTarea() {
     nota: document.getElementById('taNota').value,
     estado: 'pendiente',
   };
-  if (!obj.titulo) { showToast('Ingresá la tarea','error'); return; }
-  LOCAL.tareas.push(obj);
-  saveLocal('tareas');
-  cerrarModal('modalTarea');
-  showToast('Tarea agregada ✅','success');
+  if (!obj.titulo) { showToast('Ingresá la tarea', 'error'); return; }
+  LOCAL.tareas.push(obj); saveLocal('tareas');
+  cerrarModal('modalTarea'); showToast('Tarea agregada ✅', 'success');
   renderTareas();
   document.getElementById('badge-pendientes-agenda').textContent = LOCAL.tareas.filter(t=>t.estado==='pendiente').length;
 }
 
 function renderTareas() {
   ['pendiente','proceso','finalizado'].forEach(estado => {
-    const col = document.getElementById('col-'+estado);
+    const col = document.getElementById('col-' + estado);
     if (!col) return;
-    const lista = LOCAL.tareas.filter(t=>t.estado===estado);
-    if (lista.length===0) {
-      col.innerHTML = '<div style="color:var(--text-tertiary);font-size:0.82rem;text-align:center;padding:16px 0;">Sin tareas</div>';
-      return;
-    }
-    col.innerHTML = lista.map(t => {
-      const acciones = {
-        pendiente: `<button class="btn btn-sm" onclick="moverTarea('${t.id}','proceso')">→ Iniciar</button>`,
-        proceso: `<button class="btn btn-sm" onclick="moverTarea('${t.id}','finalizado')">✅ Completar</button>`,
-        finalizado: `<button class="btn btn-sm" onclick="moverTarea('${t.id}','pendiente')">↺ Reabrir</button>`,
-      };
-      return `<div class="kanban-card">
+    const lista = LOCAL.tareas.filter(t => t.estado === estado);
+    if (lista.length === 0) { col.innerHTML = '<div style="color:#bbb;font-size:0.82rem;text-align:center;padding:16px 0;">Sin tareas</div>'; return; }
+    const acciones = {
+      pendiente: (id) => `<button class="btn-sm" onclick="moverTarea('${id}','proceso')">→ Iniciar</button>`,
+      proceso: (id) => `<button class="btn-sm" onclick="moverTarea('${id}','finalizado')">✅ Completar</button>`,
+      finalizado: (id) => `<button class="btn-sm" onclick="moverTarea('${id}','pendiente')">↺ Reabrir</button>`,
+    };
+    col.innerHTML = lista.map(t => `
+      <div class="kanban-card">
         <div class="kanban-card-title">${t.titulo}</div>
-        ${t.fecha?`<div class="kanban-card-sub">📅 ${t.fecha}</div>`:''}
-        ${t.nota?`<div class="kanban-card-sub">${t.nota}</div>`:''}
+        ${t.fecha ? `<div class="kanban-card-sub">📅 ${t.fecha}</div>` : ''}
+        ${t.nota ? `<div class="kanban-card-sub">${t.nota}</div>` : ''}
         <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center;">
-          ${acciones[estado]}
-          <button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="LOCAL.tareas=LOCAL.tareas.filter(x=>x.id!=='${t.id}');saveLocal('tareas');renderTareas()">✕</button>
+          ${acciones[estado](t.id)}
+          <button class="btn-sm" style="color:var(--rust);" onclick="LOCAL.tareas=LOCAL.tareas.filter(x=>x.id!=='${t.id}');saveLocal('tareas');renderTareas()">✕</button>
         </div>
-      </div>`;
-    }).join('');
+      </div>`).join('');
   });
   document.getElementById('badge-pendientes-agenda').textContent = LOCAL.tareas.filter(t=>t.estado==='pendiente').length;
 }
 
 function moverTarea(id, estado) {
-  const t = LOCAL.tareas.find(t=>t.id===id);
+  const t = LOCAL.tareas.find(t => t.id === id);
   if (t) { t.estado = estado; saveLocal('tareas'); renderTareas(); }
 }
 
 // ── TEXTOS ──
 function abrirModalTexto() { abrirModal('modalTexto'); }
 function filtrarTextos(canal, btn) {
-  document.querySelectorAll('#page-textos .btn-sm').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('#page-textos .btn-sm').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
   renderTextos(canal);
 }
@@ -2150,40 +1940,37 @@ function guardarTexto() {
     contenido: document.getElementById('txContenido').value,
     fecha: new Date().toISOString().split('T')[0],
   };
-  if (!obj.titulo||!obj.contenido) { showToast('Completá todos los campos','error'); return; }
-  LOCAL.textos.unshift(obj);
-  saveLocal('textos');
-  cerrarModal('modalTexto');
-  showToast('Texto guardado ✅','success');
-  renderTextos('todos');
+  if (!obj.titulo || !obj.contenido) { showToast('Completá todos los campos', 'error'); return; }
+  LOCAL.textos.unshift(obj); saveLocal('textos');
+  cerrarModal('modalTexto'); showToast('Texto guardado ✅', 'success'); renderTextos('todos');
 }
 
 function renderTextos(filtro='todos') {
   let lista = LOCAL.textos;
-  if (filtro && filtro!=='todos') lista = lista.filter(t=>t.canal===filtro);
+  if (filtro && filtro !== 'todos') lista = lista.filter(t => t.canal === filtro);
   const div = document.getElementById('listaTextos');
   if (!div) return;
-  if (lista.length===0) {
-    div.innerHTML = '<div class="empty-state"><div class="empty-icon">📄</div><p>Sin textos' + (filtro&&filtro!=='todos'?' en esta categoría':'') + '</p><button class="btn btn-primary" style="margin-top:12px;" onclick="abrirModalTexto()">+ Agregar texto</button></div>';
+  if (lista.length === 0) {
+    div.innerHTML = '<div class="empty-state"><div class="empty-icon">📄</div><p>Sin textos' + (filtro&&filtro!=='todos'?' en esta categoría':'') + '</p><button class="btn btn-gold" style="margin-top:12px;" onclick="abrirModalTexto()">+ Agregar texto</button></div>';
     return;
   }
   div.innerHTML = lista.map(t => `
     <div class="texto-card" onclick="copiarTexto('${t.id}')">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
         <div class="texto-titulo">${t.titulo}</div>
-        <span class="badge badge-blue">${t.canal}</span>
+        <span class="badge">${t.canal}</span>
       </div>
       <div class="texto-preview">${t.contenido.substring(0,100)}...</div>
-      <div style="margin-top:8px;display:flex;gap:6px;opacity:0;" class="doc-actions">
-        <button class="btn btn-sm primary" onclick="event.stopPropagation();copiarTexto('${t.id}')">📋 Copiar</button>
-        <button class="btn btn-sm" style="color:var(--danger);" onclick="event.stopPropagation();LOCAL.textos=LOCAL.textos.filter(x=>x.id!=='${t.id}');saveLocal('textos');renderTextos('todos')">✕</button>
+      <div style="margin-top:8px;display:flex;gap:6px;" class="doc-actions">
+        <button class="btn-sm" onclick="event.stopPropagation();copiarTexto('${t.id}')">📋 Copiar</button>
+        <button class="btn-sm" style="color:var(--rust);" onclick="event.stopPropagation();LOCAL.textos=LOCAL.textos.filter(x=>x.id!=='${t.id}');saveLocal('textos');renderTextos('todos')">✕</button>
       </div>
     </div>`).join('');
 }
 
 function copiarTexto(id) {
-  const t = LOCAL.textos.find(x=>x.id===id);
-  if (t) { navigator.clipboard.writeText(t.contenido); showToast('Texto copiado ✓','success'); }
+  const t = LOCAL.textos.find(x => x.id === id);
+  if (t) { navigator.clipboard.writeText(t.contenido); showToast('Texto copiado ✓', 'success'); }
 }
 
 // ── INSTAGRAM ──
@@ -2200,23 +1987,20 @@ function guardarGuion() {
     fecha: new Date().toISOString().split('T')[0],
     generadoIA: false,
   };
-  if (!obj.titulo) { showToast('Ingresá el título','error'); return; }
-  LOCAL.guiones.unshift(obj);
-  saveLocal('guiones');
-  cerrarModal('modalGuion');
-  showToast('Guion guardado ✅','success');
-  renderGuiones();
+  if (!obj.titulo) { showToast('Ingresá el título', 'error'); return; }
+  LOCAL.guiones.unshift(obj); saveLocal('guiones');
+  cerrarModal('modalGuion'); showToast('Guion guardado ✅', 'success'); renderGuiones();
 }
 
 async function generarGuionIA() {
-  showToast('Generando guion con IA...','info');
+  showToast('Generando guion con IA...', 'info');
   try {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
-        model:'claude-sonnet-4-20250514', max_tokens:800,
-        messages:[{role:'user',content:'Generá un guion corto de video para Instagram de un agente inmobiliario en Argentina. Tema: tips para compradores de primera vivienda. Formato: gancho inicial (1 oración impactante), 3 puntos del desarrollo (bullet style), call to action. Respondé SOLO en JSON: {"titulo":"...","hook":"...","desarrollo":"...","cta":"..."}'}]
+        model: 'claude-sonnet-4-20250514', max_tokens: 800,
+        messages: [{role:'user', content:'Generá un guion corto de video para Instagram de un agente inmobiliario en Argentina. Marca: Realvix. Tema: tips para compradores de primera vivienda. Formato: gancho inicial (1 oración impactante), 3 puntos del desarrollo (bullet style), call to action. Respondé SOLO en JSON sin markdown: {"titulo":"...","hook":"...","desarrollo":"...","cta":"..."}'}]
       })
     });
     const data = await r.json();
@@ -2224,34 +2008,27 @@ async function generarGuionIA() {
     const clean = text.replace(/```json|```/g,'').trim();
     const parsed = JSON.parse(clean);
     const obj = { id:Date.now().toString(), ...parsed, tema:'tips', fecha:new Date().toISOString().split('T')[0], generadoIA:true };
-    LOCAL.guiones.unshift(obj);
-    saveLocal('guiones');
-    showToast('Guion generado ✅','success');
-    renderGuiones();
-  } catch(e) {
-    showToast('Generá guiones desde el modal manual por ahora','error');
-  }
+    LOCAL.guiones.unshift(obj); saveLocal('guiones');
+    showToast('Guion generado ✅', 'success'); renderGuiones();
+  } catch(e) { showToast('Error al generar. Probá el modal manual.', 'error'); }
 }
 
 function renderGuiones() {
   const div = document.getElementById('listaGuiones');
   if (!div) return;
-  if (LOCAL.guiones.length===0) {
-    div.innerHTML = '<div class="empty-state"><div class="empty-icon">📸</div><p>Generá tu primer guion</p></div>';
-    return;
-  }
+  if (LOCAL.guiones.length === 0) { div.innerHTML = '<div class="empty-state"><div class="empty-icon">📸</div><p>Generá tu primer guion</p></div>'; return; }
   div.innerHTML = LOCAL.guiones.map(g => `
     <div class="guion-card">
       <div class="guion-tag">${g.tema||'instagram'} ${g.generadoIA?'· ✨ IA':''}</div>
       <div class="guion-titulo">${g.titulo}</div>
-      ${g.hook?`<div style="font-size:0.84rem;color:var(--rx-blue);font-style:italic;margin-bottom:8px;">"${g.hook}"</div>`:''}
-      ${g.desarrollo?`<div class="guion-cuerpo">${g.desarrollo.replace(/\n/g,'<br>')}</div>`:''}
-      ${g.cta?`<div style="margin-top:8px;font-size:0.82rem;color:var(--success);font-weight:500;">CTA: ${g.cta}</div>`:''}
+      ${g.hook ? `<div style="font-size:0.84rem;color:var(--gold);font-style:italic;margin-bottom:8px;">"${g.hook}"</div>` : ''}
+      ${g.desarrollo ? `<div class="guion-cuerpo">${g.desarrollo.replace(/\n/g,'<br>')}</div>` : ''}
+      ${g.cta ? `<div style="margin-top:8px;font-size:0.82rem;color:var(--sage);font-weight:500;">CTA: ${g.cta}</div>` : ''}
       <div class="guion-footer">
-        <span style="font-size:0.72rem;color:var(--text-tertiary);">📅 ${g.fecha}</span>
+        <span style="font-size:0.72rem;color:#bbb;">📅 ${g.fecha}</span>
         <div style="display:flex;gap:6px;">
-          <button class="btn btn-sm" onclick="navigator.clipboard.writeText('${(g.hook||'')+'\\n\\n'+(g.desarrollo||'')+'\\n\\n'+(g.cta||'')}');showToast('Copiado ✓')">📋 Copiar</button>
-          <button class="btn btn-sm" style="color:var(--danger);" onclick="LOCAL.guiones=LOCAL.guiones.filter(x=>x.id!=='${g.id}');saveLocal('guiones');renderGuiones()">✕</button>
+          <button class="btn-sm" onclick="navigator.clipboard.writeText('${(g.hook||'')+'\\n\\n'+(g.desarrollo||'')+'\\n\\n'+(g.cta||'')}');showToast('Copiado ✓')">📋 Copiar</button>
+          <button class="btn-sm" style="color:var(--rust);" onclick="LOCAL.guiones=LOCAL.guiones.filter(x=>x.id!=='${g.id}');saveLocal('guiones');renderGuiones()">✕</button>
         </div>
       </div>
     </div>`).join('');
@@ -2262,20 +2039,14 @@ function agregarIdea() {
   const input = document.getElementById('inputIdea');
   const texto = input.value.trim();
   if (!texto) return;
-  LOCAL.ideas.unshift({ id:Date.now().toString(), texto, fecha:new Date().toLocaleDateString('es-AR'), completada:false });
-  saveLocal('ideas');
-  input.value = '';
-  renderIdeas();
-  showToast('¡Idea guardada! 💡','success');
+  LOCAL.ideas.unshift({id:Date.now().toString(), texto, fecha:new Date().toLocaleDateString('es-AR'), completada:false});
+  saveLocal('ideas'); input.value = ''; renderIdeas(); showToast('¡Idea guardada! 💡', 'success');
 }
 
 function renderIdeas() {
   const div = document.getElementById('listaIdeas');
   if (!div) return;
-  if (LOCAL.ideas.length===0) {
-    div.innerHTML = '<div class="empty-state"><div class="empty-icon">💡</div><p>¡Tus ideas van a aparecer acá!</p></div>';
-    return;
-  }
+  if (LOCAL.ideas.length === 0) { div.innerHTML = '<div class="empty-state"><div class="empty-icon">💡</div><p>¡Tus ideas van a aparecer acá!</p></div>'; return; }
   div.innerHTML = LOCAL.ideas.map(i => `
     <div class="idea-item" style="${i.completada?'opacity:0.5;':''}">
       <span class="idea-icon" onclick="toggleIdea('${i.id}')" style="cursor:pointer;">${i.completada?'✅':'💡'}</span>
@@ -2283,12 +2054,12 @@ function renderIdeas() {
         <div class="idea-text" style="${i.completada?'text-decoration:line-through;':''}">${i.texto}</div>
         <div class="idea-date">📅 ${i.fecha}</div>
       </div>
-      <button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="LOCAL.ideas=LOCAL.ideas.filter(x=>x.id!=='${i.id}');saveLocal('ideas');renderIdeas()">✕</button>
+      <button class="btn-sm" style="color:var(--rust);" onclick="LOCAL.ideas=LOCAL.ideas.filter(x=>x.id!=='${i.id}');saveLocal('ideas');renderIdeas()">✕</button>
     </div>`).join('');
 }
 
 function toggleIdea(id) {
-  const idea = LOCAL.ideas.find(i=>i.id===id);
+  const idea = LOCAL.ideas.find(i => i.id === id);
   if (idea) { idea.completada = !idea.completada; saveLocal('ideas'); renderIdeas(); }
 }
 
@@ -2297,21 +2068,14 @@ async function enviarMensajeIA() {
   const input = document.getElementById('chatInput');
   const msg = input.value.trim();
   if (!msg) return;
-  input.value = '';
-  input.style.height = 'auto';
-
+  input.value = ''; input.style.height = 'auto';
   const msgs = document.getElementById('chatMessages');
-  msgs.innerHTML += `<div class="chat-msg user"><div class="chat-avatar avatar-blue">${(currentUser?.name||'U').charAt(0)}</div><div class="chat-bubble">${msg}</div></div>`;
+  msgs.innerHTML += `<div class="chat-msg user"><div class="chat-avatar">${(currentUser?.name||'U').charAt(0)}</div><div class="chat-bubble">${msg}</div></div>`;
   msgs.scrollTop = msgs.scrollHeight;
-
-  // Loading
   const loadId = 'load-' + Date.now();
-  msgs.innerHTML += `<div class="chat-msg assistant" id="${loadId}"><div class="chat-avatar" style="background:var(--rx-blue-light);color:var(--rx-blue);">Rx</div><div class="chat-bubble"><span style="color:var(--text-tertiary);">Pensando...</span></div></div>`;
+  msgs.innerHTML += `<div class="chat-msg assistant" id="${loadId}"><div class="chat-avatar">Rx</div><div class="chat-bubble"><span style="color:#bbb;">Pensando...</span></div></div>`;
   msgs.scrollTop = msgs.scrollHeight;
-
-  // Contexto de negocio
   const ctx = {
-    propiedades: '(ver listing)',
     contactos: LOCAL.contactos.length,
     consultas: LOCAL.consultas.length,
     cierres: LOCAL.cierres.length,
@@ -2319,22 +2083,21 @@ async function enviarMensajeIA() {
     ideas: LOCAL.ideas.length,
     tareasPendientes: LOCAL.tareas.filter(t=>t.estado==='pendiente').length,
   };
-
   try {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514', max_tokens:1000,
-        system:`Sos el asistente de Realvix CRM, un CRM inmobiliario para el mercado argentino. Sos experto en el negocio inmobiliario, conocés la metodología OSBA de Pablo Viti, la estacionalidad del mercado (Q1 17%, Q2 23%, Q3 25%, Q4 35%), y el sistema de prospección de 15 cara-a-cara semanales. Respondé en español, de forma clara, motivadora y práctica. Datos actuales del usuario: ${JSON.stringify(ctx)}. Ayudalo a crecer su negocio.`,
-        messages:[{role:'user',content:msg}]
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514', max_tokens: 1000,
+        system: `Sos el asistente de Realvix CRM, un CRM inmobiliario para el mercado argentino. Sos experto en el negocio inmobiliario, conocés la metodología OSBA de Pablo Viti, la estacionalidad del mercado (Q1 17%, Q2 23%, Q3 25%, Q4 35%), y el sistema de prospección de 15 cara-a-cara semanales. Respondé en español, de forma clara, motivadora y práctica. Datos actuales del usuario: ${JSON.stringify(ctx)}.`,
+        messages: [{role:'user', content:msg}]
       })
     });
     const data = await r.json();
     const respuesta = data.content?.[0]?.text || 'No pude responder ahora.';
     document.getElementById(loadId).querySelector('.chat-bubble').innerHTML = respuesta.replace(/\n/g,'<br>');
   } catch(e) {
-    document.getElementById(loadId).querySelector('.chat-bubble').innerHTML = 'Error de conexión. Verificá tu acceso a internet.';
+    document.getElementById(loadId).querySelector('.chat-bubble').innerHTML = 'Error de conexión.';
   }
   msgs.scrollTop = msgs.scrollHeight;
 }
@@ -2346,11 +2109,11 @@ async function cargarConfiguracion() {
     const data = await r.json();
     const div = document.getElementById('configEstadios');
     if (!div) return;
-    if (!data.estados?.length) { div.innerHTML = '<p style="color:var(--text-tertiary)">Sin estadios configurados</p>'; return; }
+    if (!data.estados?.length) { div.innerHTML = '<p style="color:#bbb">Sin estadios configurados</p>'; return; }
     div.innerHTML = data.estados.map(e => `
       <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);">
         <span class="badge color-${e.color}">${e.nombre}</span>
-        <span style="font-size:0.75rem;color:var(--text-tertiary);flex:1;">${e.vista||''}</span>
+        <span style="font-size:0.75rem;color:#bbb;flex:1;">${e.vista||''}</span>
       </div>`).join('');
   } catch(e) {}
 }
@@ -2358,16 +2121,13 @@ async function cargarConfiguracion() {
 async function crearEstadio() {
   const nombre = document.getElementById('nuevoEstadioNombre').value.trim();
   const color = document.getElementById('nuevoEstadioColor').value;
-  if (!nombre) { showToast('Ingresá el nombre','error'); return; }
-  await fetch('/api/estados', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({nombre,color}) });
+  if (!nombre) { showToast('Ingresá el nombre', 'error'); return; }
+  await fetch('/api/estados', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({nombre, color})});
   document.getElementById('nuevoEstadioNombre').value = '';
-  showToast('Estadio creado ✅','success');
-  cargarConfiguracion();
+  showToast('Estadio creado ✅', 'success'); cargarConfiguracion();
 }
 
-function guardarConfiguracion() {
-  showToast('Configuración guardada ✅','success');
-}
+function guardarConfiguracion() { showToast('Configuración guardada ✅', 'success'); }
 
 // ── ESTADO PROPS ──
 async function cargarEstadoProps() {
@@ -2378,24 +2138,20 @@ async function cargarEstadoProps() {
     document.getElementById('ep-total').textContent = props.length;
     document.getElementById('ep-captadas').textContent = props.filter(p=>p.estado_tasacion==='Aceptada').length;
     document.getElementById('ep-seguimiento').textContent = props.filter(p=>!['Aceptada','Rechazada','Vendio con Otro'].includes(p.estado_tasacion)).length;
-
     const tbody = document.getElementById('tablaEstadoProps');
     if (!tbody) return;
-    if (props.length===0) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-tertiary);padding:32px;">Sin propiedades</td></tr>';
-      return;
-    }
-    tbody.innerHTML = props.map(p => `<tr onclick="window.location='/listing'">
+    if (props.length === 0) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#bbb;padding:32px;">Sin propiedades</td></tr>'; return; }
+    tbody.innerHTML = props.map(p => `<tr onclick="window.location='/listing'" style="cursor:pointer;">
       <td style="font-weight:600;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.direccion||'—'}</td>
-      <td style="color:var(--text-secondary);">${p.nombre_propietario||'—'}</td>
-      <td><span class="badge badge-gray">${p.tipologia||'—'}</span></td>
+      <td style="color:#888;">${p.nombre_propietario||'—'}</td>
+      <td><span class="badge">${p.tipologia||'—'}</span></td>
       <td><span class="badge color-${data.estados?.find(e=>e.nombre===p.estado_tasacion)?.color||'gray'}">${p.estado_tasacion||'—'}</span></td>
-      <td style="color:var(--text-secondary);">${p.ultimo_contacto||'—'}</td>
-      <td style="color:var(--text-secondary);">${p.proximo_contacto||'—'}</td>
-      <td><a href="/listing" class="btn btn-sm">Ver →</a></td>
+      <td style="color:#888;">${p.ultimo_contacto||'—'}</td>
+      <td style="color:#888;">${p.proximo_contacto||'—'}</td>
+      <td><a href="/listing" class="btn-sm">Ver →</a></td>
     </tr>`).join('');
   } catch(e) {
-    document.getElementById('tablaEstadoProps').innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-tertiary);">Error al cargar</td></tr>';
+    document.getElementById('tablaEstadoProps').innerHTML = '<tr><td colspan="7" style="text-align:center;color:#bbb;">Error al cargar</td></tr>';
   }
 }
 
@@ -2409,12 +2165,12 @@ async function cargarUsuariosAdmin() {
     if (!div) return;
     div.innerHTML = data.users.map(u => `
       <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
-        <div class="avatar avatar-blue">${u.name.charAt(0)}</div>
+        <div class="avatar" style="background:var(--gold)">${u.name.charAt(0)}</div>
         <div style="flex:1;">
           <div style="font-weight:600;font-size:0.88rem;">${u.name}</div>
-          <div style="font-size:0.75rem;color:var(--text-secondary);">${u.email} · ${u.role}</div>
+          <div style="font-size:0.75rem;color:#888;">${u.email} · ${u.role}</div>
         </div>
-        ${u.id!==currentUser?.id?`<button class="btn btn-sm" style="color:var(--danger);" onclick="eliminarUsuario('${u.id}')">✕</button>`:''}
+        ${u.id!==currentUser?.id ? `<button class="btn-sm" style="color:var(--rust);" onclick="eliminarUsuario('${u.id}')">✕</button>` : ''}
       </div>`).join('');
   } catch(e) {}
 }
@@ -2426,53 +2182,54 @@ async function crearUsuario() {
     password: document.getElementById('adminPass').value,
     role: document.getElementById('adminRol').value,
   };
-  if (!body.name||!body.email||!body.password) { showToast('Completá todos los campos','error'); return; }
-  const r = await fetch('/api/admin/users', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+  if (!body.name || !body.email || !body.password) { showToast('Completá todos los campos', 'error'); return; }
+  const r = await fetch('/api/admin/users', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
   const data = await r.json();
-  if (data.error) { showToast(data.error,'error'); return; }
-  showToast('Usuario creado ✅','success');
-  ['adminNombre','adminEmail','adminPass'].forEach(id => document.getElementById(id).value='');
+  if (data.error) { showToast(data.error, 'error'); return; }
+  showToast('Usuario creado ✅', 'success');
+  ['adminNombre','adminEmail','adminPass'].forEach(id => document.getElementById(id).value = '');
   cargarUsuariosAdmin();
 }
 
 async function eliminarUsuario(id) {
   if (!confirm('¿Eliminar usuario?')) return;
-  await fetch('/api/admin/users/'+id, { method:'DELETE' });
-  showToast('Usuario eliminado');
-  cargarUsuariosAdmin();
+  await fetch('/api/admin/users/' + id, {method:'DELETE'});
+  showToast('Usuario eliminado'); cargarUsuariosAdmin();
 }
 
 // ── INIT ──
 document.addEventListener('DOMContentLoaded', async () => {
   await cargarUsuario();
 
-  // Set today date in event/task modals
   const hoy = new Date().toISOString().split('T')[0];
-  if (document.getElementById('evFecha')) document.getElementById('evFecha').value = hoy;
-  if (document.getElementById('taDate')) document.getElementById('taDate').value = hoy;
+  const evFecha = document.getElementById('evFecha');
+  const taDate = document.getElementById('taDate');
+  if (evFecha) evFecha.value = hoy;
+  if (taDate) taDate.value = hoy;
 
-  // Init calendar
   calFecha = new Date();
   calDiaSeleccionado = hoy;
 
-  // Mostrar dashboard por defecto
-  showPage('dashboard');
+  // Handle ?page= param
+  const p = new URLSearchParams(location.search).get('page');
+  if (p) showPage(p);
+  else showPage('dashboard');
 
-  // Close modals on background click
+  // Cerrar modales con click en fondo
   document.querySelectorAll('.modal-bg').forEach(bg => {
     bg.addEventListener('click', e => { if(e.target===bg) bg.classList.remove('open'); });
   });
 
-  // Calcular cierres cuando se escriben valores
+  // Calcular cierre en tiempo real
   ['ciValor','ciPct','ciBrokerPct'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', calcularCierre);
   });
+
+  // Badges iniciales
+  document.getElementById('badge-consultas').textContent = LOCAL.consultas.length;
+  document.getElementById('badge-pendientes-agenda').textContent = LOCAL.tareas.filter(t=>t.estado==='pendiente').length;
 });
-</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script>
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 </script>
 </body>
 </html>
