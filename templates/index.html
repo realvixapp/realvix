@@ -3045,6 +3045,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (el) el.addEventListener('input', calcularCierre);
   });
 
+  // Expandir todos los grupos del sidebar por defecto
+  ['grpContactos','grpNegocio','grpAgenda','grpFirma','grpContenido','grpConfigura'].forEach(id => {
+    const el = document.getElementById(id);
+    const chv = document.getElementById('chv-' + id);
+    if (el) el.classList.remove('collapsed');
+    if (chv) chv.textContent = '▾';
+  });
+
   // Badges iniciales
   document.getElementById('badge-consultas').textContent = LOCAL.consultas.length;
   document.getElementById('badge-pendientes-agenda').textContent = LOCAL.tareas.filter(t=>t.estado==='pendiente').length;
