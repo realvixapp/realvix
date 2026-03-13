@@ -838,22 +838,42 @@ def listar_propiedades():
         estados = list(seen.values())
 
         if vista == 'all':
-            cur.execute("SELECT * FROM propiedades WHERE user_id=%s ORDER BY updated_at DESC", (uid,))
+            try:
+                cur.execute("SELECT * FROM propiedades WHERE user_id=%s ORDER BY updated_at DESC", (uid,))
+            except:
+                conn.rollback()
+                cur.execute("SELECT * FROM propiedades ORDER BY created_at DESC")
         elif vista == 'listing':
-            cur.execute("""
-                SELECT p.* FROM propiedades p
-                JOIN estado_opciones e ON p.estado_tasacion = e.nombre
-                WHERE p.user_id=%s AND (e.user_id=%s OR e.user_id='global') AND e.vista='listing'
-                ORDER BY p.updated_at DESC
-            """, (uid, uid))
+            try:
+                cur.execute("""
+                    SELECT p.* FROM propiedades p
+                    JOIN estado_opciones e ON p.estado_tasacion = e.nombre
+                    WHERE p.user_id=%s AND (e.user_id=%s OR e.user_id='global') AND e.vista='listing'
+                    ORDER BY p.updated_at DESC
+                """, (uid, uid))
+            except:
+                conn.rollback()
+                cur.execute("SELECT * FROM propiedades ORDER BY created_at DESC")
         elif vista == 'analisis':
-            cur.execute("SELECT * FROM propiedades WHERE user_id=%s ORDER BY updated_at DESC", (uid,))
+            try:
+                cur.execute("SELECT * FROM propiedades WHERE user_id=%s ORDER BY updated_at DESC", (uid,))
+            except:
+                conn.rollback()
+                cur.execute("SELECT * FROM propiedades ORDER BY created_at DESC")
         elif vista.startswith('estado:') or vista in [e['nombre'] for e in estados]:
             estado_nombre = vista.replace('estado:','') if vista.startswith('estado:') else vista
-            cur.execute("SELECT * FROM propiedades WHERE user_id=%s AND estado_tasacion=%s ORDER BY updated_at DESC",
-                (uid, estado_nombre))
+            try:
+                cur.execute("SELECT * FROM propiedades WHERE user_id=%s AND estado_tasacion=%s ORDER BY updated_at DESC",
+                    (uid, estado_nombre))
+            except:
+                conn.rollback()
+                cur.execute("SELECT * FROM propiedades WHERE estado_tasacion=%s ORDER BY created_at DESC", (estado_nombre,))
         else:
-            cur.execute("SELECT * FROM propiedades WHERE user_id=%s ORDER BY updated_at DESC", (uid,))
+            try:
+                cur.execute("SELECT * FROM propiedades WHERE user_id=%s ORDER BY updated_at DESC", (uid,))
+            except:
+                conn.rollback()
+                cur.execute("SELECT * FROM propiedades ORDER BY created_at DESC")
 
         props = [dict(r) for r in cur.fetchall()]
         cur.close(); conn.close()
@@ -872,6 +892,24 @@ def crear_propiedad():
     try:
         pid = str(uuid.uuid4())
         cur = conn.cursor()
+        # Intentar agregar columnas faltantes antes del INSERT
+        cols_nuevas = [
+            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS user_id TEXT DEFAULT 'legacy'",
+            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS email TEXT",
+            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS estadio TEXT",
+            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS referido TEXT",
+            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS url TEXT",
+            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS ultimo_contacto TEXT",
+            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS proximo_contacto TEXT",
+            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS fecha_prelisting TEXT",
+            "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()",
+        ]
+        for sql in cols_nuevas:
+            try: cur.execute(sql)
+            except: conn.rollback()
+        try: conn.commit()
+        except: pass
+
         cur.execute("""
             INSERT INTO propiedades
             (id, user_id, direccion, localidad, zona, tipologia, nombre_propietario,
