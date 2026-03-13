@@ -47,18 +47,24 @@ def init_db():
         return
     try:
         cur = conn.cursor()
+
+        # ── Core tables ──
         cur.execute("""CREATE TABLE IF NOT EXISTS documents (
             id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMP DEFAULT NOW())""")
         cur.execute("""CREATE TABLE IF NOT EXISTS users (
             id TEXT PRIMARY KEY, email TEXT UNIQUE NOT NULL, name TEXT NOT NULL,
             password_hash TEXT NOT NULL, role TEXT DEFAULT 'member',
-            created_at TIMESTAMP DEFAULT NOW(), last_login TIMESTAMP)""")
+            created_at TIMESTAMP DEFAULT NOW(), last_login TIMESTAMP,
+            permisos JSONB DEFAULT '{}')""")
         cur.execute("""CREATE TABLE IF NOT EXISTS user_sessions (
             token TEXT PRIMARY KEY, user_id TEXT NOT NULL,
             created_at TIMESTAMP DEFAULT NOW(), expires_at TIMESTAMP NOT NULL)""")
+
+        # ── Propiedades (per-user) ──
         cur.execute("""CREATE TABLE IF NOT EXISTS propiedades (
             id TEXT PRIMARY KEY,
-            direccion TEXT NOT NULL,
+            user_id TEXT NOT NULL DEFAULT 'legacy',
+            direccion TEXT,
             localidad TEXT,
             zona TEXT,
             tipologia TEXT,
@@ -67,37 +73,184 @@ def init_db():
             email TEXT,
             estado_tasacion TEXT DEFAULT 'Pendiente Visita',
             estadio TEXT,
-            ultimo_contacto DATE,
-            proximo_contacto DATE,
-            fecha_prelisting DATE,
             observaciones TEXT,
             referido TEXT,
             url TEXT,
+            ultimo_contacto TEXT,
+            proximo_contacto TEXT,
+            fecha_prelisting TEXT,
             created_at TIMESTAMP DEFAULT NOW(),
             updated_at TIMESTAMP DEFAULT NOW()
         )""")
-        cur.execute("""CREATE TABLE IF NOT EXISTS estados_tasacion (
-            id TEXT PRIMARY KEY,
-            nombre TEXT UNIQUE NOT NULL,
+        # Migrate legacy propiedades without user_id
+        cur.execute("UPDATE propiedades SET user_id='legacy' WHERE user_id IS NULL OR user_id=''")
+
+        # ── Estados de propiedades (per-user) ──
+        cur.execute("""CREATE TABLE IF NOT EXISTS estado_opciones (
+            id SERIAL PRIMARY KEY,
+            user_id TEXT NOT NULL DEFAULT 'global',
+            nombre TEXT NOT NULL,
             color TEXT DEFAULT 'gray',
-            orden INTEGER DEFAULT 0,
-            activo BOOLEAN DEFAULT TRUE
+            vista TEXT DEFAULT 'listing',
+            orden INTEGER DEFAULT 99,
+            UNIQUE(user_id, nombre)
         )""")
-        estados_default = [
-            ('est-1', 'Pendiente Visita', 'purple', 1),
-            ('est-2', 'Pendiente Respuesta', 'yellow', 2),
-            ('est-3', 'A Realizar', 'gray', 3),
-            ('est-4', 'Aceptada', 'green', 4),
-            ('est-5', 'No contesta hacer seguimiento', 'orange', 5),
-            ('est-6', 'Decide Esperar', 'blue', 6),
-            ('est-7', 'Rechazada', 'red', 7),
-            ('est-8', 'Vendio con Otro', 'pink', 8),
-        ]
-        for e in estados_default:
-            cur.execute("""INSERT INTO estados_tasacion (id, nombre, color, orden)
-                VALUES (%s, %s, %s, %s) ON CONFLICT (nombre) DO NOTHING""", e)
+        # Seed global defaults
+        cur.execute("SELECT COUNT(*) FROM estado_opciones WHERE user_id='global'")
+        if cur.fetchone()[0] == 0:
+            estados = [
+                ('Pendiente Visita', 'purple', 'listing', 1),
+                ('A Realizar', 'gray', 'listing', 2),
+                ('Pendiente Respuesta', 'yellow', 'listing', 3),
+                ('Aceptada', 'green', 'listing', 4),
+                ('No contesta hacer seguimiento', 'orange', 'seguimiento', 5),
+                ('Decide Esperar', 'blue', 'seguimiento', 6),
+                ('Rechazada', 'red', 'rechazados', 7),
+                ('Vendio con Otro', 'red', 'rechazados', 8),
+            ]
+            for e in estados:
+                cur.execute(
+                    "INSERT INTO estado_opciones (user_id, nombre, color, vista, orden) VALUES ('global',%s,%s,%s,%s) ON CONFLICT DO NOTHING",
+                    e
+                )
+
+        # ── Contactos (per-user) ──
+        cur.execute("""CREATE TABLE IF NOT EXISTS contactos (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            nombre TEXT NOT NULL,
+            tipo TEXT DEFAULT 'otro',
+            telefono TEXT,
+            email TEXT,
+            localidad TEXT,
+            referido TEXT,
+            profesion TEXT,
+            familia TEXT,
+            operacion TEXT,
+            notas TEXT,
+            created_at TIMESTAMP DEFAULT NOW(),
+            updated_at TIMESTAMP DEFAULT NOW()
+        )""")
+
+        # ── Consultas (per-user) ──
+        cur.execute("""CREATE TABLE IF NOT EXISTS consultas (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            nombre TEXT,
+            telefono TEXT,
+            email TEXT,
+            propiedad_id TEXT,
+            propiedad_nombre TEXT,
+            mensaje TEXT,
+            estado TEXT DEFAULT 'nuevo',
+            canal TEXT DEFAULT 'whatsapp',
+            presupuesto TEXT,
+            zona_interes TEXT,
+            operacion TEXT DEFAULT 'compra',
+            notas TEXT,
+            created_at TIMESTAMP DEFAULT NOW(),
+            updated_at TIMESTAMP DEFAULT NOW()
+        )""")
+
+        # ── Cierres (per-user) ──
+        cur.execute("""CREATE TABLE IF NOT EXISTS cierres (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            propiedad TEXT,
+            propiedad_id TEXT,
+            comprador TEXT,
+            vendedor TEXT,
+            valor_operacion NUMERIC DEFAULT 0,
+            moneda TEXT DEFAULT 'USD',
+            comision_pct NUMERIC DEFAULT 3,
+            comision_bruta NUMERIC DEFAULT 0,
+            comision_neta NUMERIC DEFAULT 0,
+            fecha TEXT,
+            tipo TEXT DEFAULT 'venta',
+            notas TEXT,
+            created_at TIMESTAMP DEFAULT NOW()
+        )""")
+
+        # ── Eventos de agenda (per-user) ──
+        cur.execute("""CREATE TABLE IF NOT EXISTS eventos (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            titulo TEXT NOT NULL,
+            fecha TEXT NOT NULL,
+            hora TEXT,
+            tipo TEXT DEFAULT 'reunion',
+            notas TEXT,
+            contacto_id TEXT,
+            propiedad_id TEXT,
+            created_at TIMESTAMP DEFAULT NOW()
+        )""")
+
+        # ── Tareas (per-user) ──
+        cur.execute("""CREATE TABLE IF NOT EXISTS tareas (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            titulo TEXT NOT NULL,
+            descripcion TEXT,
+            estado TEXT DEFAULT 'pendiente',
+            prioridad TEXT DEFAULT 'media',
+            fecha_venc TEXT,
+            propiedad_id TEXT,
+            created_at TIMESTAMP DEFAULT NOW(),
+            updated_at TIMESTAMP DEFAULT NOW()
+        )""")
+
+        # ── Textos precargados (per-user) ──
+        cur.execute("""CREATE TABLE IF NOT EXISTS textos (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            titulo TEXT NOT NULL,
+            contenido TEXT,
+            tipo TEXT DEFAULT 'whatsapp',
+            categoria TEXT DEFAULT 'general',
+            created_at TIMESTAMP DEFAULT NOW()
+        )""")
+
+        # ── Guiones Instagram (per-user) ──
+        cur.execute("""CREATE TABLE IF NOT EXISTS guiones (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            titulo TEXT,
+            hook TEXT,
+            desarrollo TEXT,
+            cta TEXT,
+            grabado BOOLEAN DEFAULT FALSE,
+            fecha_grabacion TEXT,
+            tema TEXT,
+            created_at TIMESTAMP DEFAULT NOW()
+        )""")
+
+        # ── Ideas (per-user) ──
+        cur.execute("""CREATE TABLE IF NOT EXISTS ideas (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            texto TEXT NOT NULL,
+            estado TEXT DEFAULT 'pendiente',
+            created_at TIMESTAMP DEFAULT NOW()
+        )""")
+
+        # ── Objetivos (per-user) ──
+        cur.execute("""CREATE TABLE IF NOT EXISTS objetivos (
+            id TEXT PRIMARY KEY,
+            user_id TEXT UNIQUE NOT NULL,
+            data JSONB NOT NULL DEFAULT '{}',
+            updated_at TIMESTAMP DEFAULT NOW()
+        )""")
+
+        # ── Planilla (per-user) ──
+        cur.execute("""CREATE TABLE IF NOT EXISTS planilla (
+            id TEXT PRIMARY KEY,
+            user_id TEXT UNIQUE NOT NULL,
+            data JSONB NOT NULL DEFAULT '[]',
+            updated_at TIMESTAMP DEFAULT NOW()
+        )""")
+
         conn.commit(); cur.close(); conn.close()
-        print("[DB] Tables ready")
+        print("[DB] All tables ready (multi-user)")
     except Exception as e:
         print(f"[DB ERROR] init: {e}")
 
@@ -141,7 +294,8 @@ def get_user_by_email(email):
         cur.execute("SELECT * FROM users WHERE email = %s", (email.lower().strip(),))
         row = cur.fetchone(); cur.close(); conn.close()
         return dict(row) if row else None
-    except: return None
+    except Exception as e:
+        print(f"[AUTH] get_user_by_email: {e}"); return None
 
 def get_user_by_id(uid):
     conn = get_connection()
@@ -151,34 +305,39 @@ def get_user_by_id(uid):
         cur.execute("SELECT * FROM users WHERE id = %s", (uid,))
         row = cur.fetchone(); cur.close(); conn.close()
         return dict(row) if row else None
-    except: return None
+    except Exception as e:
+        return None
 
 def list_users():
     conn = get_connection()
     if not conn: return []
     try:
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("SELECT id, email, name, role, created_at, last_login FROM users ORDER BY created_at")
-        rows = cur.fetchall(); cur.close(); conn.close()
-        return [dict(r) for r in rows]
-    except: return []
+        cur.execute("SELECT id, email, name, role, created_at, last_login, permisos FROM users ORDER BY created_at")
+        rows = [dict(r) for r in cur.fetchall()]
+        cur.close(); conn.close()
+        return rows
+    except Exception as e:
+        return []
 
-def create_user(email, name, password, role='member'):
+def create_user(email, name, password, role='member', permisos=None):
     conn = get_connection()
     if not conn: return None
-    uid = str(uuid.uuid4())
     try:
+        uid = str(uuid.uuid4())
         cur = conn.cursor()
-        cur.execute("INSERT INTO users (id,email,name,password_hash,role) VALUES (%s,%s,%s,%s,%s)",
-            (uid, email.lower().strip(), name, hash_password(password), role))
-        conn.commit(); cur.close(); conn.close(); return uid
+        cur.execute("INSERT INTO users (id,email,name,password_hash,role,permisos) VALUES (%s,%s,%s,%s,%s,%s)",
+            (uid, email.lower().strip(), name, hash_password(password), role,
+             json.dumps(permisos or {})))
+        conn.commit(); cur.close(); conn.close()
+        return uid
     except Exception as e:
         print(f"[AUTH] create_user error: {e}"); return None
 
 def create_session(user_id, remember=False):
+    conn = get_connection()
     token = secrets.token_urlsafe(32)
     expires = datetime.now() + timedelta(days=30 if remember else 1)
-    conn = get_connection()
     if conn:
         try:
             cur = conn.cursor()
@@ -191,7 +350,6 @@ def create_session(user_id, remember=False):
     return token
 
 def validate_session(token):
-    if not token: return None
     conn = get_connection()
     if not conn: return None
     try:
@@ -418,7 +576,8 @@ def api_me():
     user = get_current_user()
     if not user: return jsonify({'error': 'No autenticado'}), 401
     return jsonify({'id': user['id'], 'name': user['name'],
-                    'email': user['email'], 'role': user['role']})
+                    'email': user['email'], 'role': user['role'],
+                    'permisos': user.get('permisos') or {}})
 
 @app.route('/api/admin/users', methods=['GET'])
 @admin_required
@@ -433,13 +592,34 @@ def admin_create_user():
     name = data.get('name','').strip()
     password = data.get('password','').strip()
     role = data.get('role','member')
+    permisos = data.get('permisos', {})
     if not email or not name or not password:
         return jsonify({'error': 'Todos los campos son requeridos'}), 400
     if get_user_by_email(email):
         return jsonify({'error': 'Ya existe una cuenta con ese email'}), 409
-    uid = create_user(email, name, password, role)
+    uid = create_user(email, name, password, role, permisos)
     if not uid: return jsonify({'error': 'Error al crear usuario'}), 500
     return jsonify({'ok': True, 'user_id': uid})
+
+@app.route('/api/admin/users/<user_id>', methods=['PUT'])
+@admin_required
+def admin_update_user(user_id):
+    data = request.json or {}
+    conn = get_connection()
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
+    try:
+        cur = conn.cursor()
+        if 'permisos' in data:
+            cur.execute("UPDATE users SET permisos=%s WHERE id=%s",
+                (json.dumps(data['permisos']), user_id))
+        if 'role' in data:
+            cur.execute("UPDATE users SET role=%s WHERE id=%s", (data['role'], user_id))
+        if 'name' in data:
+            cur.execute("UPDATE users SET name=%s WHERE id=%s", (data['name'], user_id))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/admin/users/<user_id>', methods=['DELETE'])
 @admin_required
@@ -470,7 +650,6 @@ def admin_change_password(user_id):
 
 @app.route('/setup', methods=['GET','POST'])
 def setup():
-    # Only accessible if NO users exist
     conn = get_connection()
     if conn:
         try:
@@ -497,7 +676,7 @@ def setup():
 
 
 # ══════════════════════════════════════════
-#  ROUTES: MAIN (protected)
+#  ROUTES: MAIN
 # ══════════════════════════════════════════
 
 @app.route('/')
@@ -505,113 +684,62 @@ def setup():
 def index():
     return render_template('index.html')
 
-# ─────────────────────────────────────────
-#  PROPIEDADES
-# ─────────────────────────────────────────
-
-def init_propiedades():
-    conn = get_connection()
-    if not conn:
-        return
-    try:
-        cur = conn.cursor()
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS propiedades (
-                id TEXT PRIMARY KEY,
-                direccion TEXT,
-                localidad TEXT,
-                zona TEXT,
-                tipologia TEXT,
-                nombre_propietario TEXT,
-                telefono TEXT,
-                email TEXT,
-                estado_tasacion TEXT DEFAULT 'Pendiente Visita',
-                estadio TEXT,
-                observaciones TEXT,
-                referido TEXT,
-                url TEXT,
-                ultimo_contacto TEXT,
-                proximo_contacto TEXT,
-                fecha_prelisting TEXT,
-                created_at TIMESTAMP DEFAULT NOW(),
-                updated_at TIMESTAMP DEFAULT NOW()
-            )
-        """)
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS estado_opciones (
-                id SERIAL PRIMARY KEY,
-                nombre TEXT UNIQUE NOT NULL,
-                color TEXT DEFAULT 'gray',
-                vista TEXT DEFAULT 'listing',
-                orden INTEGER DEFAULT 99
-            )
-        """)
-        cur.execute("SELECT COUNT(*) FROM estado_opciones")
-        if cur.fetchone()[0] == 0:
-            estados = [
-                ('Pendiente Visita', 'purple', 'listing', 1),
-                ('A Realizar', 'gray', 'listing', 2),
-                ('Pendiente Respuesta', 'yellow', 'listing', 3),
-                ('Aceptada', 'green', 'listing', 4),
-                ('No contesta hacer seguimiento', 'orange', 'seguimiento', 5),
-                ('Decide Esperar', 'blue', 'seguimiento', 6),
-                ('Rechazada', 'red', 'rechazados', 7),
-                ('Vendio con Otro', 'red', 'rechazados', 8),
-            ]
-            for e in estados:
-                cur.execute(
-                    "INSERT INTO estado_opciones (nombre, color, vista, orden) VALUES (%s,%s,%s,%s) ON CONFLICT DO NOTHING",
-                    e
-                )
-        conn.commit()
-        cur.close()
-        conn.close()
-        print("[DB] Propiedades tables ready")
-    except Exception as e:
-        print(f"[DB ERROR] init_propiedades: {e}")
-
 @app.route('/listing')
 @login_required
 def pagina_listing():
     return redirect('/?page=listing')
 
+
+# ══════════════════════════════════════════
+#  PROPIEDADES (per-user)
+# ══════════════════════════════════════════
+
 @app.route('/api/propiedades', methods=['GET'])
 @login_required
 def listar_propiedades():
-    vista = request.args.get('vista', 'all')
+    user = get_current_user()
+    uid = user['id']
+    vista = request.args.get('vista','listing')
     conn = get_connection()
     if not conn:
         return jsonify({'propiedades': [], 'estados': []})
     try:
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("SELECT * FROM estado_opciones ORDER BY orden")
+        # Estados: user-specific OR global
+        cur.execute("""
+            SELECT * FROM estado_opciones
+            WHERE user_id=%s OR user_id='global'
+            ORDER BY orden
+        """, (uid,))
         estados = [dict(r) for r in cur.fetchall()]
+        # Deduplicate: user-specific overrides global
+        seen = {}
+        for e in estados:
+            n = e['nombre']
+            if n not in seen or e['user_id'] == uid:
+                seen[n] = e
+        estados = list(seen.values())
+
         if vista == 'all':
-            cur.execute("SELECT * FROM propiedades ORDER BY updated_at DESC")
-        elif vista in ('listing','seguimiento','rechazados'):
+            cur.execute("SELECT * FROM propiedades WHERE user_id=%s ORDER BY updated_at DESC", (uid,))
+        elif vista == 'listing':
             cur.execute("""
                 SELECT p.* FROM propiedades p
                 JOIN estado_opciones e ON p.estado_tasacion = e.nombre
-                WHERE e.vista = %s ORDER BY p.updated_at DESC
-            """, (vista,))
-        elif vista == 'mensuales':
-            cur.execute("""
-                SELECT * FROM propiedades
-                WHERE DATE_TRUNC('month', created_at) = DATE_TRUNC('month', NOW())
-                ORDER BY created_at DESC
-            """)
-        elif vista.startswith('estado:'):
-            estado_nombre = vista[len('estado:'):]
-            cur.execute("SELECT * FROM propiedades WHERE estado_tasacion = %s ORDER BY updated_at DESC", (estado_nombre,))
+                WHERE p.user_id=%s AND (e.user_id=%s OR e.user_id='global') AND e.vista='listing'
+                ORDER BY p.updated_at DESC
+            """, (uid, uid))
+        elif vista == 'analisis':
+            cur.execute("SELECT * FROM propiedades WHERE user_id=%s ORDER BY updated_at DESC", (uid,))
+        elif vista.startswith('estado:') or vista in [e['nombre'] for e in estados]:
+            estado_nombre = vista.replace('estado:','') if vista.startswith('estado:') else vista
+            cur.execute("SELECT * FROM propiedades WHERE user_id=%s AND estado_tasacion=%s ORDER BY updated_at DESC",
+                (uid, estado_nombre))
         else:
-            cur.execute("SELECT * FROM propiedades WHERE estado_tasacion = %s ORDER BY updated_at DESC", (vista,))
+            cur.execute("SELECT * FROM propiedades WHERE user_id=%s ORDER BY updated_at DESC", (uid,))
+
         props = [dict(r) for r in cur.fetchall()]
-        for p in props:
-            for k,v in p.items():
-                if hasattr(v, 'isoformat'):
-                    p[k] = v.isoformat()
-        cur.close()
-        conn.close()
+        cur.close(); conn.close()
         return jsonify({'propiedades': props, 'estados': estados})
     except Exception as e:
         print(f"[DB ERROR] listar_propiedades: {e}")
@@ -620,31 +748,29 @@ def listar_propiedades():
 @app.route('/api/propiedades', methods=['POST'])
 @login_required
 def crear_propiedad():
+    user = get_current_user()
     data = request.json or {}
-    pid = str(uuid.uuid4())
     conn = get_connection()
-    if not conn:
-        return jsonify({'error': 'Sin DB'}), 500
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
     try:
+        pid = str(uuid.uuid4())
         cur = conn.cursor()
         cur.execute("""
             INSERT INTO propiedades
-            (id, direccion, localidad, zona, tipologia, nombre_propietario, telefono, email,
-             estado_tasacion, estadio, observaciones, referido, url, ultimo_contacto, proximo_contacto, fecha_prelisting)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-        """, (
-            pid,
-            data.get('direccion',''), data.get('localidad',''), data.get('zona',''),
-            data.get('tipologia',''), data.get('nombre_propietario',''),
-            data.get('telefono',''), data.get('email',''),
-            data.get('estado_tasacion','Pendiente Visita'), data.get('estadio',''),
-            data.get('observaciones',''), data.get('referido',''), data.get('url',''),
-            data.get('ultimo_contacto') or None, data.get('proximo_contacto') or None,
-            data.get('fecha_prelisting') or None,
-        ))
-        conn.commit()
-        cur.close()
-        conn.close()
+            (id, user_id, direccion, localidad, zona, tipologia, nombre_propietario,
+             telefono, email, estado_tasacion, estadio, observaciones, referido, url,
+             ultimo_contacto, proximo_contacto, fecha_prelisting)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        """, (pid, user['id'],
+              data.get('direccion',''), data.get('localidad',''), data.get('zona',''),
+              data.get('tipologia',''), data.get('nombre_propietario',''),
+              data.get('telefono',''), data.get('email',''),
+              data.get('estado_tasacion','Pendiente Visita'), data.get('estadio',''),
+              data.get('observaciones',''), data.get('referido',''), data.get('url',''),
+              data.get('ultimo_contacto') or None,
+              data.get('proximo_contacto') or None,
+              data.get('fecha_prelisting') or None))
+        conn.commit(); cur.close(); conn.close()
         return jsonify({'ok': True, 'id': pid})
     except Exception as e:
         print(f"[DB ERROR] crear_propiedad: {e}")
@@ -652,96 +778,861 @@ def crear_propiedad():
 
 @app.route('/api/propiedades/<pid>', methods=['PUT'])
 @login_required
-def actualizar_propiedad_v2(pid):
+def actualizar_propiedad(pid):
+    user = get_current_user()
     data = request.json or {}
     conn = get_connection()
-    if not conn:
-        return jsonify({'error': 'Sin DB'}), 500
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
     try:
         cur = conn.cursor()
         cur.execute("""
             UPDATE propiedades SET
-                direccion=%s, localidad=%s, zona=%s, tipologia=%s,
-                nombre_propietario=%s, telefono=%s, email=%s,
-                estado_tasacion=%s, estadio=%s, observaciones=%s,
-                referido=%s, url=%s, ultimo_contacto=%s,
-                proximo_contacto=%s, fecha_prelisting=%s, updated_at=NOW()
-            WHERE id=%s
-        """, (
-            data.get('direccion',''), data.get('localidad',''), data.get('zona',''),
-            data.get('tipologia',''), data.get('nombre_propietario',''),
-            data.get('telefono',''), data.get('email',''),
-            data.get('estado_tasacion',''), data.get('estadio',''),
-            data.get('observaciones',''), data.get('referido',''), data.get('url',''),
-            data.get('ultimo_contacto') or None, data.get('proximo_contacto') or None,
-            data.get('fecha_prelisting') or None, pid
-        ))
-        conn.commit()
-        cur.close()
-        conn.close()
+            direccion=%s, localidad=%s, zona=%s, tipologia=%s, nombre_propietario=%s,
+            telefono=%s, email=%s, estado_tasacion=%s, estadio=%s, observaciones=%s,
+            referido=%s, url=%s, ultimo_contacto=%s, proximo_contacto=%s,
+            fecha_prelisting=%s, updated_at=NOW()
+            WHERE id=%s AND user_id=%s
+        """, (data.get('direccion',''), data.get('localidad',''), data.get('zona',''),
+              data.get('tipologia',''), data.get('nombre_propietario',''),
+              data.get('telefono',''), data.get('email',''),
+              data.get('estado_tasacion',''), data.get('estadio',''),
+              data.get('observaciones',''), data.get('referido',''), data.get('url',''),
+              data.get('ultimo_contacto') or None,
+              data.get('proximo_contacto') or None,
+              data.get('fecha_prelisting') or None,
+              pid, user['id']))
+        conn.commit(); cur.close(); conn.close()
         return jsonify({'ok': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/propiedades/<pid>', methods=['DELETE'])
 @login_required
-def eliminar_propiedad_v2(pid):
+def eliminar_propiedad(pid):
+    user = get_current_user()
     conn = get_connection()
-    if not conn:
-        return jsonify({'error': 'Sin DB'}), 500
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
     try:
         cur = conn.cursor()
-        cur.execute("DELETE FROM propiedades WHERE id=%s", (pid,))
-        conn.commit()
-        cur.close()
-        conn.close()
+        cur.execute("DELETE FROM propiedades WHERE id=%s AND user_id=%s", (pid, user['id']))
+        conn.commit(); cur.close(); conn.close()
         return jsonify({'ok': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# ── ESTADOS (per-user) ──
 @app.route('/api/estados', methods=['GET'])
 @login_required
 def listar_estados_v2():
+    user = get_current_user()
+    uid = user['id']
     conn = get_connection()
-    if not conn:
-        return jsonify({'estados': []})
+    if not conn: return jsonify({'estados': []})
     try:
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("SELECT * FROM estado_opciones ORDER BY orden")
-        estados = [dict(r) for r in cur.fetchall()]
-        cur.close()
-        conn.close()
-        return jsonify({'estados': estados})
-    except Exception as e:
+        cur.execute("""
+            SELECT * FROM estado_opciones
+            WHERE user_id=%s OR user_id='global'
+            ORDER BY orden
+        """, (uid,))
+        all_estados = [dict(r) for r in cur.fetchall()]
+        cur.close(); conn.close()
+        # User-specific overrides global
+        seen = {}
+        for e in all_estados:
+            n = e['nombre']
+            if n not in seen or e['user_id'] == uid:
+                seen[n] = e
+        return jsonify({'estados': list(seen.values())})
+    except:
         return jsonify({'estados': []})
 
 @app.route('/api/estados', methods=['POST'])
 @login_required
 def crear_estado_v2():
+    user = get_current_user()
     data = request.json or {}
     nombre = data.get('nombre','').strip()
-    if not nombre:
-        return jsonify({'error': 'Nombre requerido'}), 400
+    if not nombre: return jsonify({'error': 'Nombre requerido'}), 400
     conn = get_connection()
-    if not conn:
-        return jsonify({'error': 'Sin DB'}), 500
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
     try:
         cur = conn.cursor()
         cur.execute(
-            "INSERT INTO estado_opciones (nombre, color, vista, orden) VALUES (%s,%s,%s,99) ON CONFLICT DO NOTHING",
-            (nombre, data.get('color','gray'), data.get('vista','listing'))
+            "INSERT INTO estado_opciones (user_id, nombre, color, vista, orden) VALUES (%s,%s,%s,%s,99) ON CONFLICT DO NOTHING",
+            (user['id'], nombre, data.get('color','gray'), data.get('vista','listing'))
         )
-        conn.commit()
-        cur.close()
-        conn.close()
+        conn.commit(); cur.close(); conn.close()
         return jsonify({'ok': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-init_db()
+@app.route('/api/estados/<int:estado_id>', methods=['PUT'])
+@login_required
+def actualizar_estado(estado_id):
+    user = get_current_user()
+    data = request.json or {}
+    conn = get_connection()
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE estado_opciones SET nombre=%s, color=%s
+            WHERE id=%s AND user_id=%s
+        """, (data.get('nombre'), data.get('color'), estado_id, user['id']))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/estados/<int:estado_id>', methods=['DELETE'])
+@login_required
+def eliminar_estado(estado_id):
+    user = get_current_user()
+    conn = get_connection()
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
+    try:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM estado_opciones WHERE id=%s AND user_id=%s", (estado_id, user['id']))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 # ══════════════════════════════════════════
-#  ROUTES: FIRMA ELECTRÓNICA
+#  CONTACTOS (per-user)
+# ══════════════════════════════════════════
+
+@app.route('/api/contactos', methods=['GET'])
+@login_required
+def listar_contactos():
+    user = get_current_user()
+    conn = get_connection()
+    if not conn: return jsonify({'contactos': []})
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT * FROM contactos WHERE user_id=%s ORDER BY created_at DESC", (user['id'],))
+        rows = [dict(r) for r in cur.fetchall()]
+        cur.close(); conn.close()
+        return jsonify({'contactos': rows})
+    except Exception as e:
+        return jsonify({'contactos': []})
+
+@app.route('/api/contactos', methods=['POST'])
+@login_required
+def crear_contacto():
+    user = get_current_user()
+    data = request.json or {}
+    conn = get_connection()
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
+    try:
+        cid = data.get('id') or str(uuid.uuid4())
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO contactos (id, user_id, nombre, tipo, telefono, email, localidad,
+                referido, profesion, familia, operacion, notas)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            ON CONFLICT (id) DO UPDATE SET
+                nombre=EXCLUDED.nombre, tipo=EXCLUDED.tipo, telefono=EXCLUDED.telefono,
+                email=EXCLUDED.email, localidad=EXCLUDED.localidad, referido=EXCLUDED.referido,
+                profesion=EXCLUDED.profesion, familia=EXCLUDED.familia,
+                operacion=EXCLUDED.operacion, notas=EXCLUDED.notas, updated_at=NOW()
+        """, (cid, user['id'], data.get('nombre',''), data.get('tipo','otro'),
+              data.get('telefono',''), data.get('email',''), data.get('localidad',''),
+              data.get('referido',''), data.get('profesion',''), data.get('familia',''),
+              data.get('operacion',''), data.get('notas','')))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({'ok': True, 'id': cid})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/contactos/<cid>', methods=['PUT'])
+@login_required
+def actualizar_contacto(cid):
+    user = get_current_user()
+    data = request.json or {}
+    conn = get_connection()
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE contactos SET nombre=%s, tipo=%s, telefono=%s, email=%s, localidad=%s,
+                referido=%s, profesion=%s, familia=%s, operacion=%s, notas=%s, updated_at=NOW()
+            WHERE id=%s AND user_id=%s
+        """, (data.get('nombre',''), data.get('tipo','otro'), data.get('telefono',''),
+              data.get('email',''), data.get('localidad',''), data.get('referido',''),
+              data.get('profesion',''), data.get('familia',''), data.get('operacion',''),
+              data.get('notas',''), cid, user['id']))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/contactos/<cid>', methods=['DELETE'])
+@login_required
+def eliminar_contacto(cid):
+    user = get_current_user()
+    conn = get_connection()
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
+    try:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM contactos WHERE id=%s AND user_id=%s", (cid, user['id']))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ══════════════════════════════════════════
+#  CONSULTAS (per-user)
+# ══════════════════════════════════════════
+
+@app.route('/api/consultas', methods=['GET'])
+@login_required
+def listar_consultas():
+    user = get_current_user()
+    conn = get_connection()
+    if not conn: return jsonify({'consultas': []})
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT * FROM consultas WHERE user_id=%s ORDER BY created_at DESC", (user['id'],))
+        rows = [dict(r) for r in cur.fetchall()]
+        cur.close(); conn.close()
+        return jsonify({'consultas': rows})
+    except:
+        return jsonify({'consultas': []})
+
+@app.route('/api/consultas', methods=['POST'])
+@login_required
+def crear_consulta():
+    user = get_current_user()
+    data = request.json or {}
+    conn = get_connection()
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
+    try:
+        cid = data.get('id') or str(uuid.uuid4())
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO consultas (id, user_id, nombre, telefono, email, propiedad_id,
+                propiedad_nombre, mensaje, estado, canal, presupuesto, zona_interes, operacion, notas)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            ON CONFLICT (id) DO UPDATE SET
+                nombre=EXCLUDED.nombre, telefono=EXCLUDED.telefono, email=EXCLUDED.email,
+                propiedad_id=EXCLUDED.propiedad_id, propiedad_nombre=EXCLUDED.propiedad_nombre,
+                mensaje=EXCLUDED.mensaje, estado=EXCLUDED.estado, canal=EXCLUDED.canal,
+                presupuesto=EXCLUDED.presupuesto, zona_interes=EXCLUDED.zona_interes,
+                operacion=EXCLUDED.operacion, notas=EXCLUDED.notas, updated_at=NOW()
+        """, (cid, user['id'], data.get('nombre',''), data.get('telefono',''),
+              data.get('email',''), data.get('propiedad_id',''), data.get('propiedad_nombre',''),
+              data.get('mensaje',''), data.get('estado','nuevo'), data.get('canal','whatsapp'),
+              data.get('presupuesto',''), data.get('zona_interes',''),
+              data.get('operacion','compra'), data.get('notas','')))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({'ok': True, 'id': cid})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/consultas/<cid>', methods=['PUT'])
+@login_required
+def actualizar_consulta(cid):
+    user = get_current_user()
+    data = request.json or {}
+    conn = get_connection()
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE consultas SET nombre=%s, telefono=%s, email=%s, propiedad_id=%s,
+                propiedad_nombre=%s, mensaje=%s, estado=%s, canal=%s, presupuesto=%s,
+                zona_interes=%s, operacion=%s, notas=%s, updated_at=NOW()
+            WHERE id=%s AND user_id=%s
+        """, (data.get('nombre',''), data.get('telefono',''), data.get('email',''),
+              data.get('propiedad_id',''), data.get('propiedad_nombre',''),
+              data.get('mensaje',''), data.get('estado','nuevo'), data.get('canal','whatsapp'),
+              data.get('presupuesto',''), data.get('zona_interes',''),
+              data.get('operacion','compra'), data.get('notas',''), cid, user['id']))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/consultas/<cid>', methods=['DELETE'])
+@login_required
+def eliminar_consulta(cid):
+    user = get_current_user()
+    conn = get_connection()
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
+    try:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM consultas WHERE id=%s AND user_id=%s", (cid, user['id']))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ══════════════════════════════════════════
+#  CIERRES (per-user)
+# ══════════════════════════════════════════
+
+@app.route('/api/cierres', methods=['GET'])
+@login_required
+def listar_cierres():
+    user = get_current_user()
+    conn = get_connection()
+    if not conn: return jsonify({'cierres': []})
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT * FROM cierres WHERE user_id=%s ORDER BY created_at DESC", (user['id'],))
+        rows = [dict(r) for r in cur.fetchall()]
+        cur.close(); conn.close()
+        return jsonify({'cierres': rows})
+    except:
+        return jsonify({'cierres': []})
+
+@app.route('/api/cierres', methods=['POST'])
+@login_required
+def crear_cierre():
+    user = get_current_user()
+    data = request.json or {}
+    conn = get_connection()
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
+    try:
+        cid = data.get('id') or str(uuid.uuid4())
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO cierres (id, user_id, propiedad, propiedad_id, comprador, vendedor,
+                valor_operacion, moneda, comision_pct, comision_bruta, comision_neta,
+                fecha, tipo, notas)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            ON CONFLICT (id) DO UPDATE SET
+                propiedad=EXCLUDED.propiedad, propiedad_id=EXCLUDED.propiedad_id,
+                comprador=EXCLUDED.comprador, vendedor=EXCLUDED.vendedor,
+                valor_operacion=EXCLUDED.valor_operacion, moneda=EXCLUDED.moneda,
+                comision_pct=EXCLUDED.comision_pct, comision_bruta=EXCLUDED.comision_bruta,
+                comision_neta=EXCLUDED.comision_neta, fecha=EXCLUDED.fecha,
+                tipo=EXCLUDED.tipo, notas=EXCLUDED.notas
+        """, (cid, user['id'], data.get('propiedad',''), data.get('propiedad_id',''),
+              data.get('comprador',''), data.get('vendedor',''),
+              data.get('valor_operacion',0), data.get('moneda','USD'),
+              data.get('comision_pct',3), data.get('comision_bruta',0),
+              data.get('comision_neta',0), data.get('fecha',''), data.get('tipo','venta'),
+              data.get('notas','')))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({'ok': True, 'id': cid})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/cierres/<cid>', methods=['PUT'])
+@login_required
+def actualizar_cierre(cid):
+    user = get_current_user()
+    data = request.json or {}
+    conn = get_connection()
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE cierres SET propiedad=%s, propiedad_id=%s, comprador=%s, vendedor=%s,
+                valor_operacion=%s, moneda=%s, comision_pct=%s, comision_bruta=%s,
+                comision_neta=%s, fecha=%s, tipo=%s, notas=%s
+            WHERE id=%s AND user_id=%s
+        """, (data.get('propiedad',''), data.get('propiedad_id',''),
+              data.get('comprador',''), data.get('vendedor',''),
+              data.get('valor_operacion',0), data.get('moneda','USD'),
+              data.get('comision_pct',3), data.get('comision_bruta',0),
+              data.get('comision_neta',0), data.get('fecha',''),
+              data.get('tipo','venta'), data.get('notas',''), cid, user['id']))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/cierres/<cid>', methods=['DELETE'])
+@login_required
+def eliminar_cierre(cid):
+    user = get_current_user()
+    conn = get_connection()
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
+    try:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM cierres WHERE id=%s AND user_id=%s", (cid, user['id']))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ══════════════════════════════════════════
+#  EVENTOS / AGENDA (per-user)
+# ══════════════════════════════════════════
+
+@app.route('/api/eventos', methods=['GET'])
+@login_required
+def listar_eventos():
+    user = get_current_user()
+    conn = get_connection()
+    if not conn: return jsonify({'eventos': []})
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT * FROM eventos WHERE user_id=%s ORDER BY fecha, hora", (user['id'],))
+        rows = [dict(r) for r in cur.fetchall()]
+        cur.close(); conn.close()
+        return jsonify({'eventos': rows})
+    except:
+        return jsonify({'eventos': []})
+
+@app.route('/api/eventos', methods=['POST'])
+@login_required
+def crear_evento():
+    user = get_current_user()
+    data = request.json or {}
+    conn = get_connection()
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
+    try:
+        eid = data.get('id') or str(uuid.uuid4())
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO eventos (id, user_id, titulo, fecha, hora, tipo, notas, contacto_id, propiedad_id)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            ON CONFLICT (id) DO UPDATE SET
+                titulo=EXCLUDED.titulo, fecha=EXCLUDED.fecha, hora=EXCLUDED.hora,
+                tipo=EXCLUDED.tipo, notas=EXCLUDED.notas,
+                contacto_id=EXCLUDED.contacto_id, propiedad_id=EXCLUDED.propiedad_id
+        """, (eid, user['id'], data.get('titulo',''), data.get('fecha',''),
+              data.get('hora',''), data.get('tipo','reunion'), data.get('notas',''),
+              data.get('contacto_id',''), data.get('propiedad_id','')))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({'ok': True, 'id': eid})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/eventos/<eid>', methods=['PUT'])
+@login_required
+def actualizar_evento(eid):
+    user = get_current_user()
+    data = request.json or {}
+    conn = get_connection()
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE eventos SET titulo=%s, fecha=%s, hora=%s, tipo=%s, notas=%s,
+                contacto_id=%s, propiedad_id=%s
+            WHERE id=%s AND user_id=%s
+        """, (data.get('titulo',''), data.get('fecha',''), data.get('hora',''),
+              data.get('tipo','reunion'), data.get('notas',''),
+              data.get('contacto_id',''), data.get('propiedad_id',''),
+              eid, user['id']))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/eventos/<eid>', methods=['DELETE'])
+@login_required
+def eliminar_evento(eid):
+    user = get_current_user()
+    conn = get_connection()
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
+    try:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM eventos WHERE id=%s AND user_id=%s", (eid, user['id']))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ══════════════════════════════════════════
+#  TAREAS (per-user)
+# ══════════════════════════════════════════
+
+@app.route('/api/tareas', methods=['GET'])
+@login_required
+def listar_tareas():
+    user = get_current_user()
+    conn = get_connection()
+    if not conn: return jsonify({'tareas': []})
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT * FROM tareas WHERE user_id=%s ORDER BY created_at DESC", (user['id'],))
+        rows = [dict(r) for r in cur.fetchall()]
+        cur.close(); conn.close()
+        return jsonify({'tareas': rows})
+    except:
+        return jsonify({'tareas': []})
+
+@app.route('/api/tareas', methods=['POST'])
+@login_required
+def crear_tarea():
+    user = get_current_user()
+    data = request.json or {}
+    conn = get_connection()
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
+    try:
+        tid = data.get('id') or str(uuid.uuid4())
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO tareas (id, user_id, titulo, descripcion, estado, prioridad, fecha_venc, propiedad_id)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+            ON CONFLICT (id) DO UPDATE SET
+                titulo=EXCLUDED.titulo, descripcion=EXCLUDED.descripcion,
+                estado=EXCLUDED.estado, prioridad=EXCLUDED.prioridad,
+                fecha_venc=EXCLUDED.fecha_venc, propiedad_id=EXCLUDED.propiedad_id,
+                updated_at=NOW()
+        """, (tid, user['id'], data.get('titulo',''), data.get('descripcion',''),
+              data.get('estado','pendiente'), data.get('prioridad','media'),
+              data.get('fecha_venc',''), data.get('propiedad_id','')))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({'ok': True, 'id': tid})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/tareas/<tid>', methods=['PUT'])
+@login_required
+def actualizar_tarea(tid):
+    user = get_current_user()
+    data = request.json or {}
+    conn = get_connection()
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE tareas SET titulo=%s, descripcion=%s, estado=%s, prioridad=%s,
+                fecha_venc=%s, propiedad_id=%s, updated_at=NOW()
+            WHERE id=%s AND user_id=%s
+        """, (data.get('titulo',''), data.get('descripcion',''), data.get('estado','pendiente'),
+              data.get('prioridad','media'), data.get('fecha_venc',''),
+              data.get('propiedad_id',''), tid, user['id']))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/tareas/<tid>', methods=['DELETE'])
+@login_required
+def eliminar_tarea(tid):
+    user = get_current_user()
+    conn = get_connection()
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
+    try:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM tareas WHERE id=%s AND user_id=%s", (tid, user['id']))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ══════════════════════════════════════════
+#  TEXTOS (per-user)
+# ══════════════════════════════════════════
+
+@app.route('/api/textos', methods=['GET'])
+@login_required
+def listar_textos():
+    user = get_current_user()
+    conn = get_connection()
+    if not conn: return jsonify({'textos': []})
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT * FROM textos WHERE user_id=%s ORDER BY created_at DESC", (user['id'],))
+        rows = [dict(r) for r in cur.fetchall()]
+        cur.close(); conn.close()
+        return jsonify({'textos': rows})
+    except:
+        return jsonify({'textos': []})
+
+@app.route('/api/textos', methods=['POST'])
+@login_required
+def crear_texto():
+    user = get_current_user()
+    data = request.json or {}
+    conn = get_connection()
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
+    try:
+        tid = data.get('id') or str(uuid.uuid4())
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO textos (id, user_id, titulo, contenido, tipo, categoria)
+            VALUES (%s,%s,%s,%s,%s,%s)
+            ON CONFLICT (id) DO UPDATE SET
+                titulo=EXCLUDED.titulo, contenido=EXCLUDED.contenido,
+                tipo=EXCLUDED.tipo, categoria=EXCLUDED.categoria
+        """, (tid, user['id'], data.get('titulo',''), data.get('contenido',''),
+              data.get('tipo','whatsapp'), data.get('categoria','general')))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({'ok': True, 'id': tid})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/textos/<tid>', methods=['PUT'])
+@login_required
+def actualizar_texto(tid):
+    user = get_current_user()
+    data = request.json or {}
+    conn = get_connection()
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE textos SET titulo=%s, contenido=%s, tipo=%s, categoria=%s
+            WHERE id=%s AND user_id=%s
+        """, (data.get('titulo',''), data.get('contenido',''),
+              data.get('tipo','whatsapp'), data.get('categoria','general'),
+              tid, user['id']))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/textos/<tid>', methods=['DELETE'])
+@login_required
+def eliminar_texto(tid):
+    user = get_current_user()
+    conn = get_connection()
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
+    try:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM textos WHERE id=%s AND user_id=%s", (tid, user['id']))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ══════════════════════════════════════════
+#  GUIONES INSTAGRAM (per-user)
+# ══════════════════════════════════════════
+
+@app.route('/api/guiones', methods=['GET'])
+@login_required
+def listar_guiones():
+    user = get_current_user()
+    conn = get_connection()
+    if not conn: return jsonify({'guiones': []})
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT * FROM guiones WHERE user_id=%s ORDER BY created_at DESC", (user['id'],))
+        rows = [dict(r) for r in cur.fetchall()]
+        cur.close(); conn.close()
+        return jsonify({'guiones': rows})
+    except:
+        return jsonify({'guiones': []})
+
+@app.route('/api/guiones', methods=['POST'])
+@login_required
+def crear_guion():
+    user = get_current_user()
+    data = request.json or {}
+    conn = get_connection()
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
+    try:
+        gid = data.get('id') or str(uuid.uuid4())
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO guiones (id, user_id, titulo, hook, desarrollo, cta, grabado, fecha_grabacion, tema)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            ON CONFLICT (id) DO UPDATE SET
+                titulo=EXCLUDED.titulo, hook=EXCLUDED.hook, desarrollo=EXCLUDED.desarrollo,
+                cta=EXCLUDED.cta, grabado=EXCLUDED.grabado, fecha_grabacion=EXCLUDED.fecha_grabacion,
+                tema=EXCLUDED.tema
+        """, (gid, user['id'], data.get('titulo',''), data.get('hook',''),
+              data.get('desarrollo',''), data.get('cta',''),
+              data.get('grabado', False), data.get('fecha_grabacion',''), data.get('tema','')))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({'ok': True, 'id': gid})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/guiones/<gid>', methods=['PUT'])
+@login_required
+def actualizar_guion(gid):
+    user = get_current_user()
+    data = request.json or {}
+    conn = get_connection()
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE guiones SET titulo=%s, hook=%s, desarrollo=%s, cta=%s,
+                grabado=%s, fecha_grabacion=%s, tema=%s
+            WHERE id=%s AND user_id=%s
+        """, (data.get('titulo',''), data.get('hook',''), data.get('desarrollo',''),
+              data.get('cta',''), data.get('grabado', False), data.get('fecha_grabacion',''),
+              data.get('tema',''), gid, user['id']))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/guiones/<gid>', methods=['DELETE'])
+@login_required
+def eliminar_guion(gid):
+    user = get_current_user()
+    conn = get_connection()
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
+    try:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM guiones WHERE id=%s AND user_id=%s", (gid, user['id']))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ══════════════════════════════════════════
+#  IDEAS (per-user)
+# ══════════════════════════════════════════
+
+@app.route('/api/ideas', methods=['GET'])
+@login_required
+def listar_ideas():
+    user = get_current_user()
+    conn = get_connection()
+    if not conn: return jsonify({'ideas': []})
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT * FROM ideas WHERE user_id=%s ORDER BY created_at DESC", (user['id'],))
+        rows = [dict(r) for r in cur.fetchall()]
+        cur.close(); conn.close()
+        return jsonify({'ideas': rows})
+    except:
+        return jsonify({'ideas': []})
+
+@app.route('/api/ideas', methods=['POST'])
+@login_required
+def crear_idea():
+    user = get_current_user()
+    data = request.json or {}
+    conn = get_connection()
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
+    try:
+        iid = data.get('id') or str(uuid.uuid4())
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO ideas (id, user_id, texto, estado)
+            VALUES (%s,%s,%s,%s)
+            ON CONFLICT (id) DO UPDATE SET texto=EXCLUDED.texto, estado=EXCLUDED.estado
+        """, (iid, user['id'], data.get('texto',''), data.get('estado','pendiente')))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({'ok': True, 'id': iid})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ideas/<iid>', methods=['PUT'])
+@login_required
+def actualizar_idea(iid):
+    user = get_current_user()
+    data = request.json or {}
+    conn = get_connection()
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
+    try:
+        cur = conn.cursor()
+        cur.execute("UPDATE ideas SET texto=%s, estado=%s WHERE id=%s AND user_id=%s",
+            (data.get('texto',''), data.get('estado','pendiente'), iid, user['id']))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ideas/<iid>', methods=['DELETE'])
+@login_required
+def eliminar_idea(iid):
+    user = get_current_user()
+    conn = get_connection()
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
+    try:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM ideas WHERE id=%s AND user_id=%s", (iid, user['id']))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ══════════════════════════════════════════
+#  OBJETIVOS (per-user)
+# ══════════════════════════════════════════
+
+@app.route('/api/objetivos', methods=['GET'])
+@login_required
+def get_objetivos():
+    user = get_current_user()
+    conn = get_connection()
+    if not conn: return jsonify({'objetivos': {}})
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT data FROM objetivos WHERE user_id=%s", (user['id'],))
+        row = cur.fetchone(); cur.close(); conn.close()
+        return jsonify({'objetivos': row['data'] if row else {}})
+    except:
+        return jsonify({'objetivos': {}})
+
+@app.route('/api/objetivos', methods=['POST'])
+@login_required
+def guardar_objetivos():
+    user = get_current_user()
+    data = request.json or {}
+    conn = get_connection()
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
+    try:
+        oid = str(uuid.uuid4())
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO objetivos (id, user_id, data) VALUES (%s,%s,%s)
+            ON CONFLICT (user_id) DO UPDATE SET data=EXCLUDED.data, updated_at=NOW()
+        """, (oid, user['id'], json.dumps(data.get('data', data))))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Add unique constraint on objetivos.user_id if not exists (handled by ON CONFLICT)
+
+
+# ══════════════════════════════════════════
+#  PLANILLA (per-user)
+# ══════════════════════════════════════════
+
+@app.route('/api/planilla', methods=['GET'])
+@login_required
+def get_planilla():
+    user = get_current_user()
+    conn = get_connection()
+    if not conn: return jsonify({'planilla': []})
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT data FROM planilla WHERE user_id=%s", (user['id'],))
+        row = cur.fetchone(); cur.close(); conn.close()
+        return jsonify({'planilla': row['data'] if row else []})
+    except:
+        return jsonify({'planilla': []})
+
+@app.route('/api/planilla', methods=['POST'])
+@login_required
+def guardar_planilla():
+    user = get_current_user()
+    data = request.json or {}
+    conn = get_connection()
+    if not conn: return jsonify({'error': 'Sin DB'}), 500
+    try:
+        pid = str(uuid.uuid4())
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO planilla (id, user_id, data) VALUES (%s,%s,%s)
+            ON CONFLICT (user_id) DO UPDATE SET data=EXCLUDED.data, updated_at=NOW()
+        """, (pid, user['id'], json.dumps(data.get('data', data))))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ══════════════════════════════════════════
+#  FIRMA ELECTRÓNICA
 # ══════════════════════════════════════════
 
 @app.route('/api/documento', methods=['POST'])
@@ -784,7 +1675,6 @@ def crear_documento():
         'completado': False,
     }
     save_doc(doc_id, doc)
-    # Send email to each firmante
     for f in firmantes:
         if f['email']:
             html = f"""<!DOCTYPE html>
@@ -793,12 +1683,10 @@ def crear_documento():
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f1eb;padding:32px 0;">
   <tr><td align="center">
     <table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
-      <!-- Header -->
       <tr><td style="background:#0f0f0f;padding:24px 32px;border-bottom:3px solid #c9a84c;">
         <div style="font-family:Georgia,serif;font-size:1.3rem;color:#faf8f4;">#confiaenfede<span style="color:#c9a84c;">.</span></div>
         <div style="font-size:0.65rem;color:#888;letter-spacing:2px;text-transform:uppercase;margin-top:3px;">Sistema de Firma Electrónica</div>
       </td></tr>
-      <!-- Body -->
       <tr><td style="padding:32px;">
         <h2 style="margin:0 0 8px;font-family:Georgia,serif;font-size:1.4rem;color:#0f0f0f;">Tenés un documento para firmar</h2>
         <p style="color:#666;font-size:0.9rem;margin:0 0 24px;">Hola <strong style="color:#0f0f0f;">{f['name']}</strong>,</p>
@@ -814,7 +1702,6 @@ def crear_documento():
         <p style="font-size:0.78rem;color:#aaa;margin:0 0 8px;">Si el botón no funciona, copiá y pegá este link en tu navegador:</p>
         <p style="font-size:0.75rem;font-family:monospace;color:#888;background:#f8f8f8;padding:10px 12px;border-radius:6px;word-break:break-all;margin:0;">{f['sign_url']}</p>
       </td></tr>
-      <!-- Footer -->
       <tr><td style="background:#f8f7f4;border-top:1px solid #e8e4dc;padding:16px 32px;text-align:center;">
         <p style="font-size:0.72rem;color:#bbb;margin:0;">#confiaenfede — Sistema de Firma Electrónica · confiaenfede.com.ar</p>
       </td></tr>
@@ -845,8 +1732,7 @@ def listar_documentos():
         cur = conn.cursor(cursor_factory=RealDictCursor)
         cur.execute("SELECT id, data FROM documents ORDER BY created_at DESC")
         rows = cur.fetchall()
-        cur.close()
-        conn.close()
+        cur.close(); conn.close()
         docs = []
         for row in rows:
             d = row['data']
@@ -866,9 +1752,7 @@ def eliminar_documento(doc_id):
         try:
             cur = conn.cursor()
             cur.execute("DELETE FROM documents WHERE id=%s", (doc_id,))
-            conn.commit()
-            cur.close()
-            conn.close()
+            conn.commit(); cur.close(); conn.close()
         except Exception as e:
             print(f"[DB ERROR] eliminar: {e}")
     else:
@@ -916,6 +1800,10 @@ def guardar_firma(doc_id, token):
     signature_dataurl = data.get('signature_dataurl', '')
     if not signature_dataurl:
         return jsonify({'error': 'Firma vacía'}), 400
+    # Validate email if provided
+    email_confirmado = data.get('email_confirmado', '').strip()
+    if email_confirmado and firmante.get('email') and email_confirmado.lower() != firmante['email'].lower():
+        return jsonify({'error': 'El email no coincide con el registrado'}), 400
     ip = request.headers.get('X-Forwarded-For', request.remote_addr)
     firmante['signed'] = True
     firmante['signed_at'] = datetime.now().isoformat()
@@ -931,12 +1819,9 @@ def guardar_firma(doc_id, token):
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f1eb;padding:32px 0;">
   <tr><td align="center">
     <table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
-      <!-- Header -->
       <tr><td style="background:#0f0f0f;padding:24px 32px;border-bottom:3px solid #c9a84c;">
         <div style="font-family:Georgia,serif;font-size:1.3rem;color:#faf8f4;">#confiaenfede<span style="color:#c9a84c;">.</span></div>
-        <div style="font-size:0.65rem;color:#888;letter-spacing:2px;text-transform:uppercase;margin-top:3px;">Sistema de Firma Electrónica</div>
       </td></tr>
-      <!-- Body -->
       <tr><td style="padding:32px;">
         <div style="text-align:center;margin-bottom:20px;">
           <div style="display:inline-block;background:#e8f5e9;border-radius:50%;width:56px;height:56px;line-height:56px;font-size:1.8rem;">✅</div>
@@ -945,17 +1830,10 @@ def guardar_firma(doc_id, token):
         <p style="color:#666;font-size:0.9rem;margin:0 0 24px;text-align:center;">Todos los firmantes completaron el documento</p>
         <div style="background:#f0faf4;border-left:4px solid #52b788;border-radius:6px;padding:14px 18px;margin:0 0 24px;">
           <div style="font-weight:700;font-size:1rem;color:#0f0f0f;">{doc.get('title')}</div>
-          <div style="font-size:0.8rem;color:#666;margin-top:4px;">{len(doc['firmantes'])} firmante{'s' if len(doc['firmantes'])>1 else ''} · Completado el {datetime.now().strftime('%d/%m/%Y a las %H:%M')}</div>
         </div>
-        <p style="color:#555;font-size:0.88rem;margin:0 0 8px;">El PDF con todas las firmas y el certificado de auditoría se encuentra adjunto a este email.</p>
-        <p style="font-size:0.8rem;color:#aaa;margin:0;">Firmantes:</p>
-        <ul style="margin:8px 0 0;padding:0 0 0 18px;">
-          {''.join(f'<li style="font-size:0.82rem;color:#555;margin-bottom:4px;"><strong>{f["name"]}</strong> — {f["email"]} <span style="color:#2d6a4f;">✓</span></li>' for f in doc['firmantes'])}
-        </ul>
       </td></tr>
-      <!-- Footer -->
       <tr><td style="background:#f8f7f4;border-top:1px solid #e8e4dc;padding:16px 32px;text-align:center;">
-        <p style="font-size:0.72rem;color:#bbb;margin:0;">#confiaenfede — Sistema de Firma Electrónica · confiaenfede.com.ar</p>
+        <p style="font-size:0.72rem;color:#bbb;margin:0;">#confiaenfede — confiaenfede.com.ar</p>
       </td></tr>
     </table>
   </td></tr>
@@ -991,8 +1869,8 @@ def descargar_certificado(doc_id):
     return resp
 
 
+# ── Init ──
 init_db()
-init_propiedades()
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
