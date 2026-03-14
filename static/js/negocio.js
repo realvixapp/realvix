@@ -32,11 +32,11 @@ function switchTab(tab, btn) {
   if (btn) btn.classList.add('active');
   document.getElementById('tabListing').style.display   = tab === 'listing'   ? '' : 'none';
   const tabEst = document.getElementById('tabEstado');
-  if (tabEst) tabEst.style.display = 'none'; // removed
+  if (tabEst) tabEst.style.display = tab === 'estado' ? '' : 'none';
   document.getElementById('tabContactos').style.display = tab === 'contactos' ? '' : 'none';
-  // actividad moved to propiedades.html
   const tabAct = document.getElementById('tabActividad');
   if (tabAct) tabAct.style.display = 'none';
+  if (tab === 'estado') actualizarContadoresEstado();
 }
 
 // ══ PROPIEDADES (datos comunes) ══
@@ -163,6 +163,10 @@ async function cambiarRespuestaListing(pid, valor) {
     if (updates.estado_tasacion) p.estado_tasacion = updates.estado_tasacion;
     renderListing();
     actualizarStatsListing();
+    // Si aceptó → redirigir a propiedades para continuar el seguimiento
+    if (valor === 'aceptado') {
+      setTimeout(() => { window.location.href = '/propiedades'; }, 900);
+    }
   } catch(e) { showToast(e.message, 'error'); }
 }
 
@@ -193,6 +197,13 @@ function actualizarStatsListing() {
   s('lsTotalCartera', total);
   s('lsCaptadas', captadas);
   s('lsSeguimiento', seguimiento);
+}
+
+function actualizarContadoresEstado() {
+  const s = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  s('cntPublicadas', NEG.propiedades.filter(p => p.estado_tasacion === 'publicado').length);
+  s('cntReservadas', NEG.propiedades.filter(p => p.estado_tasacion === 'reservado').length);
+  s('cntCerradas',   NEG.propiedades.filter(p => p.estado_tasacion === 'cerrado').length);
 }
 
 // ══ ESTADO DE PROPIEDADES ══
@@ -296,8 +307,8 @@ function abrirNuevaPropiedad() {
     'propPrelisting','propObservaciones'];
   campos.forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
   document.getElementById('propTipologia').value = '';
-  document.getElementById('propEstado').value = '';
-  document.getElementById('propEstadio').value = '';
+  document.getElementById('propEstado').value    = 'nuevo';      // default al crear
+  document.getElementById('propEstadio').value   = 'nuevo';      // default al crear
   document.querySelector('#modalPropiedad .modal-footer .btn-primary').textContent = 'Crear propiedad';
   document.getElementById('modalPropTitulo').textContent = 'Nueva propiedad';
   abrirModal('modalPropiedad');
