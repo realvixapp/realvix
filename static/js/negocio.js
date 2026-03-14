@@ -309,7 +309,7 @@ function abrirNuevaPropiedad() {
   document.getElementById('propTipologia').value = '';
   document.getElementById('propEstado').value    = 'pendiente';
   const selResp = document.getElementById('propRespuesta');
-  if (selResp) selResp.value = 'esperando_respuesta';
+  if (selResp) selResp.value = '';
   // Inicializar listas (#6 y #7)
   _propietariosList = [];
   _documentosList   = [];
@@ -338,9 +338,10 @@ function editarPropiedad(id) {
   document.getElementById('propPrelisting').value    = p.fecha_prelisting || '';
   document.getElementById('propObservaciones').value = p.observaciones || '';
 
-  // Estado tasación
+  // Estado tasación - cargar valor real sin forzar opciones inválidas
   const selEstado  = document.getElementById('propEstado');
-  const valEstado  = p.estado_tasacion || 'pendiente';
+  const valEstado  = p.estado_tasacion || p.estadio || 'pendiente';
+  // Agregar opción dinámica si no existe
   if (!Array.from(selEstado.options).find(o => o.value === valEstado)) {
     const opt = document.createElement('option');
     opt.value = valEstado; opt.text = valEstado; opt.hidden = true;
@@ -350,7 +351,7 @@ function editarPropiedad(id) {
 
   // Respuesta propietario
   const selResp = document.getElementById('propRespuesta');
-  if (selResp) selResp.value = p.respuesta_listing || 'esperando_respuesta';
+  if (selResp) selResp.value = p.respuesta_listing || '';
 
   // Cargar propietarios existentes (#6)
   _propietariosList = [];
@@ -566,7 +567,10 @@ function renderContactoRow(ct, TIPO_COLORS) {
     const dias = Math.ceil((proxCum - hoy) / 86400000);
     if (dias <= 30) cumpleBadge = `<span style="font-size:0.68rem;background:#FFF7ED;color:#F97316;border-radius:8px;padding:1px 6px;font-weight:600;">🎂 ${dias === 0 ? '¡Hoy!' : 'en ' + dias + 'd'}</span>`;
   }
-  // Use data-id attribute to avoid quote nesting issues
+  const calColors = { 'A+':'#059669', 'B':'#2563EB', 'C':'#D97706', 'D':'#DC2626' };
+  const calBadge = ct.calificacion
+    ? `<span style="font-size:0.68rem;padding:1px 7px;border-radius:8px;font-weight:700;background:${calColors[ct.calificacion]||'#888'}22;color:${calColors[ct.calificacion]||'#888'};border:1px solid ${calColors[ct.calificacion]||'#888'}44;">★ ${ct.calificacion}</span>`
+    : '';
   return `
     <div class="card" style="padding:12px 16px;display:flex;align-items:center;gap:14px;margin-bottom:6px;cursor:pointer;"
       data-ctcid="${ct.id}" onclick="editarContacto(this.dataset.ctcid)" title="Click para editar">
@@ -577,6 +581,7 @@ function renderContactoRow(ct, TIPO_COLORS) {
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
           <span style="font-weight:600;font-size:0.9rem;color:var(--rx-blue);text-decoration:underline dotted;">${escHtml(ct.nombre)}</span>
           <span style="font-size:0.68rem;padding:1px 7px;border-radius:10px;font-weight:600;background:${tc.bg};color:${tc.color};">${ct.tipo||'otro'}</span>
+          ${calBadge}
           ${cumpleBadge}
         </div>
         <div style="display:flex;gap:14px;margin-top:3px;font-size:0.79rem;color:#666;flex-wrap:wrap;">
@@ -584,9 +589,11 @@ function renderContactoRow(ct, TIPO_COLORS) {
           ${ct.telefono  ? `<span>📞 ${escHtml(ct.telefono)}</span>`  : ''}
           ${ct.email     ? `<span>✉️ ${escHtml(ct.email)}</span>`     : ''}
           ${ct.localidad ? `<span>📍 ${escHtml(ct.localidad)}</span>` : ''}
+          ${ct.zona      ? `<span>🗺️ ${escHtml(ct.zona)}</span>`      : ''}
+          ${ct.barrio    ? `<span>🏘️ ${escHtml(ct.barrio)}</span>`    : ''}
+          ${ct.referido  ? `<span>🔗 Ref: ${escHtml(ct.referido)}</span>` : ''}
         </div>
-        ${ct.hijos || ct.hobbies ? `<div style="font-size:0.75rem;color:#aaa;margin-top:2px;">${ct.hijos ? '👨‍👧‍👦 ' + escHtml(ct.hijos) : ''}${ct.hijos && ct.hobbies ? ' · ' : ''}${ct.hobbies ? '🎯 ' + escHtml(ct.hobbies) : ''}</div>` : ''}
-        ${ct.gustos ? `<div style="font-size:0.75rem;color:#aaa;">🏠 ${escHtml(ct.gustos)}</div>` : ''}
+        ${ct.hobbies ? `<div style="font-size:0.75rem;color:#aaa;margin-top:2px;">🎯 ${escHtml(ct.hobbies)}</div>` : ''}
         ${ct.notas  ? `<div style="font-size:0.74rem;color:#ccc;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:520px;">${escHtml(ct.notas)}</div>` : ''}
       </div>
       <div style="display:flex;gap:4px;flex-shrink:0;" onclick="event.stopPropagation()">
@@ -599,9 +606,11 @@ function renderContactoRow(ct, TIPO_COLORS) {
 
 function abrirNuevoContacto() {
   ['ctcId','ctcNombre','ctcTelefono','ctcEmail','ctcLocalidad','ctcNotas',
-   'ctcCumple','ctcProfesion','ctcHijos','ctcHobbies','ctcGustos'].forEach(id => {
+   'ctcCumple','ctcProfesion','ctcHobbies','ctcGustos','ctcBarrio','ctcReferido'].forEach(id => {
     const e = document.getElementById(id); if (e) e.value = '';
   });
+  const ctcZona = document.getElementById('ctcZona'); if (ctcZona) ctcZona.value = '';
+  const ctcCal = document.getElementById('ctcCalificacion'); if (ctcCal) ctcCal.value = '';
   document.getElementById('ctcTipo').value = 'propietario';
   document.getElementById('modalCtcTitulo').textContent = 'Nuevo contacto';
   abrirModal('modalContacto');
@@ -619,9 +628,12 @@ function editarContacto(id) {
   document.getElementById('ctcNotas').value     = c.notas     || '';
   document.getElementById('ctcCumple').value    = c.cumpleanos || '';
   document.getElementById('ctcProfesion').value = c.profesion  || '';
-  document.getElementById('ctcHijos').value     = c.hijos      || '';
   document.getElementById('ctcHobbies').value   = c.hobbies    || '';
-  document.getElementById('ctcGustos').value    = c.gustos     || '';
+  const ctcGustos = document.getElementById('ctcGustos'); if (ctcGustos) ctcGustos.value = c.gustos || '';
+  const ctcBarrio = document.getElementById('ctcBarrio'); if (ctcBarrio) ctcBarrio.value = c.barrio || '';
+  const ctcReferido = document.getElementById('ctcReferido'); if (ctcReferido) ctcReferido.value = c.referido || '';
+  const ctcZona = document.getElementById('ctcZona'); if (ctcZona) ctcZona.value = c.zona || '';
+  const ctcCal = document.getElementById('ctcCalificacion'); if (ctcCal) ctcCal.value = c.calificacion || '';
   document.getElementById('modalCtcTitulo').textContent = 'Editar contacto';
   abrirModal('modalContacto');
 }
@@ -633,16 +645,19 @@ async function guardarContacto() {
   const cumple = document.getElementById('ctcCumple').value;
   const body = {
     nombre,
-    tipo:       document.getElementById('ctcTipo').value,
-    telefono:   document.getElementById('ctcTelefono').value,
-    email:      document.getElementById('ctcEmail').value,
-    localidad:  document.getElementById('ctcLocalidad').value,
-    notas:      document.getElementById('ctcNotas').value,
-    cumpleanos: cumple,
-    profesion:  document.getElementById('ctcProfesion').value,
-    hijos:      document.getElementById('ctcHijos').value,
-    hobbies:    document.getElementById('ctcHobbies').value,
-    gustos:     document.getElementById('ctcGustos').value,
+    tipo:          document.getElementById('ctcTipo').value,
+    telefono:      document.getElementById('ctcTelefono').value,
+    email:         document.getElementById('ctcEmail').value,
+    localidad:     document.getElementById('ctcLocalidad').value,
+    notas:         document.getElementById('ctcNotas').value,
+    cumpleanos:    cumple,
+    profesion:     document.getElementById('ctcProfesion').value,
+    hobbies:       document.getElementById('ctcHobbies').value,
+    barrio:        document.getElementById('ctcBarrio')?.value || '',
+    referido:      document.getElementById('ctcReferido')?.value || '',
+    zona:          document.getElementById('ctcZona')?.value || '',
+    calificacion:  document.getElementById('ctcCalificacion')?.value || '',
+    gustos:        document.getElementById('ctcGustos')?.value || '',
   };
   try {
     if (id) await apiPut(`/api/contactos/${id}`, body);
