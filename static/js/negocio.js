@@ -57,22 +57,65 @@ async function cargarPropiedades() {
 // Columnas: Dirección · Propietario · Teléfono · Tipología · Estado tasación · Acciones
 function filtrarListing() { renderListing(); }
 
+let _listingSeleccionados = new Set();
+
+function toggleSeleccionListing(pid) {
+  if (_listingSeleccionados.has(pid)) _listingSeleccionados.delete(pid);
+  else _listingSeleccionados.add(pid);
+  _actualizarBarraSeleccionListing();
+}
+
+function toggleSeleccionTodosListing(checked, pids) {
+  if (checked) pids.forEach(id => _listingSeleccionados.add(id));
+  else _listingSeleccionados.clear();
+  _actualizarBarraSeleccionListing();
+  // re-render checkboxes
+  document.querySelectorAll('.listing-checkbox-row').forEach(cb => {
+    cb.checked = checked;
+  });
+}
+
+function _actualizarBarraSeleccionListing() {
+  const barra = document.getElementById('barraSeleccionListing');
+  if (!barra) return;
+  if (_listingSeleccionados.size > 0) {
+    barra.style.display = 'flex';
+    document.getElementById('selCountListing').textContent = `${_listingSeleccionados.size} seleccionada(s)`;
+  } else {
+    barra.style.display = 'none';
+  }
+}
+
+async function eliminarSeleccionadosListing() {
+  if (_listingSeleccionados.size === 0) return;
+  if (!confirmar(`¿Eliminar ${_listingSeleccionados.size} propiedad(es)? No se puede deshacer.`)) return;
+  try {
+    for (const pid of _listingSeleccionados) {
+      await apiDelete(`/api/propiedades/${pid}`);
+    }
+    _listingSeleccionados.clear();
+    showToast('Propiedades eliminadas ✓', 'success');
+    await cargarPropiedades();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
 function renderListing() {
   const q    = (document.getElementById('filtroListing')?.value || '').toLowerCase();
   const tipo = document.getElementById('filtroTipoListing')?.value || '';
 
-  const lista = NEG.propiedades.filter(p =>
+  const listaCompleta = NEG.propiedades.filter(p =>
     (!q || (p.direccion||'').toLowerCase().includes(q) ||
            (p.nombre_propietario||'').toLowerCase().includes(q) ||
            (p.localidad||'').toLowerCase().includes(q)) &&
     (!tipo || p.tipologia === tipo)
   );
 
+  // Separar aceptadas de las demás
+  const listaAceptadas = listaCompleta.filter(p => p.respuesta_listing === 'aceptado');
+  const lista = listaCompleta.filter(p => p.respuesta_listing !== 'aceptado');
+
   const container = document.getElementById('listingTable');
   if (!container) return;
-  if (lista.length === 0) {
-    container.innerHTML = `<div class="empty-state">No hay propiedades en el listing</div>`; return;
-  }
 
   const RESP_MAP = {
     '':                   { label: '—',                  color:'#aaa',    bg:'#f9fafb' },
@@ -81,70 +124,124 @@ function renderListing() {
     'rechazado':          { label: '❌ Rechazado',       color:'#DC2626', bg:'#FEF2F2' },
     'decide_esperar':     { label: '🕐 Decide esperar',  color:'#7C3AED', bg:'#F5F3FF' },
     'vendio_con_otro':    { label: '🔄 Vendió con otro', color:'#6B7280', bg:'#F3F4F6' },
+    'completada':         { label: '✔️ Completada',      color:'#059669', bg:'#ECFDF5' },
   };
 
-  container.innerHTML = `
-    <table class="table">
-      <thead><tr>
-        <th>Dirección</th>
-        <th>Propietario</th>
-        <th>Teléfono</th>
-        <th>Tipología</th>
-        <th>Estado tasación</th>
-        <th>Respuesta propietario</th>
-        <th style="text-align:right">Acciones</th>
-      </tr></thead>
-      <tbody>
-        ${lista.map(p => {
-          const est   = ESTADIO_MAP[p.estado_tasacion] || { label: p.estado_tasacion || '—', color: '#888', bg: '#f3f4f6' };
-          const resp  = p.respuesta_listing || '';
-          const rInfo = RESP_MAP[resp] || RESP_MAP[''];
-          return `<tr>
-            <td>
-              <div style="font-weight:600;color:var(--rx-blue);cursor:pointer;text-decoration:underline dotted;"
-                data-pid="${p.id}" onclick="editarPropiedad(this.dataset.pid)">${escHtml(p.direccion || '—')}</div>
-              ${p.localidad ? `<div style="font-size:0.75rem;color:#888;">${escHtml(p.localidad)}${p.zona ? ' · ' + escHtml(p.zona) : ''}</div>` : ''}
-            </td>
-            <td>${escHtml(p.nombre_propietario || '—')}</td>
-            <td>
-              ${p.telefono
-                ? `<a href="tel:${escHtml(p.telefono)}" style="color:var(--text-primary);text-decoration:none;">${escHtml(p.telefono)}</a>`
-                : '—'}
-            </td>
-            <td>${escHtml(p.tipologia || '—')}</td>
-            <td>
-              <select class="estadio-inline-select" data-pid="${p.id}"
-                onchange="cambiarEstadioListing(this.dataset.pid, this.value)"
-                style="font-size:0.75rem;padding:3px 8px;border-radius:12px;border:1px solid ${est.color}44;background:${est.bg};color:${est.color};font-weight:600;cursor:pointer;outline:none;">
-                <option value="pendiente"           ${(p.estado_tasacion||'')==='pendiente'          ?'selected':''}>⏳ Pendiente</option>
-                <option value="esperando_respuesta" ${(p.estado_tasacion||'')==='esperando_respuesta'?'selected':''}>📋 Esperando resp.</option>
-              </select>
-            </td>
-            <td>
-              <select style="font-size:0.75rem;padding:3px 8px;height:auto;border-radius:12px;border:1.5px solid ${rInfo.color}55;background:${rInfo.bg};color:${rInfo.color};font-weight:600;cursor:pointer;outline:none;pointer-events:auto;min-width:130px;"
-                data-pid="${p.id}"
-                onchange="cambiarRespuestaListing(this.dataset.pid, this.value)">
-                <option value="" ${resp===''?'selected':''}>—</option>
-                <option value="esperando_respuesta" ${resp==='esperando_respuesta'?'selected':''}>⏳ Esperando resp.</option>
-                <option value="aceptado"        ${resp==='aceptado'       ?'selected':''}>✅ Aceptado</option>
-                <option value="rechazado"       ${resp==='rechazado'      ?'selected':''}>❌ Rechazado</option>
-                <option value="decide_esperar"  ${resp==='decide_esperar' ?'selected':''}>🕐 Decide esperar</option>
-                <option value="vendio_con_otro" ${resp==='vendio_con_otro'?'selected':''}>🔄 Vendió con otro</option>
-              </select>
-            </td>
-            <td style="text-align:right;white-space:nowrap;">
-              ${p.url ? `<a class="btn-icon-sm" href="${escHtml(p.url)}" target="_blank" title="Ver portal">🔗</a>` : ''}
-              ${p.telefono ? `<button class="btn-icon-sm" title="WhatsApp" onclick="abrirWA('${escHtml(p.telefono)}','${escHtml(p.nombre_propietario||'')}')">💬</button>` : ''}
-              <button class="btn-icon-sm" title="Ver más" data-dir="${escHtml(p.direccion||'')}"
-                onclick="verMasNegocio(this.dataset.dir)"
-                style="font-size:0.72rem;padding:3px 9px;border-radius:12px;border:1.5px solid var(--rx-blue);color:var(--rx-blue);background:var(--rx-blue-light,#EFF6FF);font-weight:600;cursor:pointer;white-space:nowrap;">Ver más</button>
-              <button class="btn-icon-sm" title="Editar" onclick="editarPropiedad('${p.id}')">✏️</button>
-              <button class="btn-icon-sm danger" title="Eliminar" onclick="eliminarPropiedad('${p.id}')">🗑️</button>
-            </td>
-          </tr>`;
-        }).join('')}
-      </tbody>
-    </table>`;
+  const renderTabla = (items, showSelect = true) => {
+    if (items.length === 0) return '';
+    const pids = items.map(p => `'${p.id}'`).join(',');
+    return `
+      <table class="table">
+        <thead><tr>
+          ${showSelect ? `<th style="width:32px;padding:8px 6px;">
+            <input type="checkbox" style="cursor:pointer;" onchange="toggleSeleccionTodosListing(this.checked,[${pids}])">
+          </th>` : '<th style="width:32px;"></th>'}
+          <th>Dirección</th>
+          <th>Propietario</th>
+          <th>Teléfono</th>
+          <th>Tipología</th>
+          <th>Estado tasación</th>
+          <th>Respuesta propietario</th>
+          <th style="text-align:right">Acciones</th>
+        </tr></thead>
+        <tbody>
+          ${items.map(p => {
+            const estVal = p.estado_tasacion || '';
+            // Si la respuesta es "esperando_respuesta" → mostrar "Completada" en estado tasación si no es pendiente
+            let estDisplay = estVal;
+            if (p.respuesta_listing && p.respuesta_listing !== '' && p.respuesta_listing !== 'esperando_respuesta' && p.respuesta_listing !== 'pendiente') {
+              estDisplay = 'completada';
+            }
+            const est   = ESTADIO_MAP[estDisplay] || ESTADIO_MAP[estVal] || { label: estDisplay || '—', color: '#888', bg: '#f3f4f6' };
+            const resp  = p.respuesta_listing || '';
+            const rInfo = RESP_MAP[resp] || RESP_MAP[''];
+            const isSelected = _listingSeleccionados.has(p.id);
+            return `<tr style="${isSelected ? 'background:#EFF6FF;' : ''}">
+              <td style="padding:8px 6px;">
+                <input type="checkbox" class="listing-checkbox-row" style="cursor:pointer;" ${isSelected?'checked':''} onchange="toggleSeleccionListing('${p.id}')">
+              </td>
+              <td>
+                <div style="font-weight:600;color:var(--rx-blue);cursor:pointer;text-decoration:underline dotted;"
+                  data-pid="${p.id}" onclick="editarPropiedad(this.dataset.pid)">${escHtml(p.direccion || '—')}</div>
+                ${p.localidad ? `<div style="font-size:0.75rem;color:#888;">${escHtml(p.localidad)}${p.zona ? ' · ' + escHtml(p.zona) : ''}</div>` : ''}
+              </td>
+              <td>${escHtml(p.nombre_propietario || '—')}</td>
+              <td>
+                ${p.telefono
+                  ? `<a href="tel:${escHtml(p.telefono)}" style="color:var(--text-primary);text-decoration:none;">${escHtml(p.telefono)}</a>`
+                  : '—'}
+              </td>
+              <td>${escHtml(p.tipologia || '—')}</td>
+              <td>
+                <select class="estadio-inline-select" data-pid="${p.id}"
+                  onchange="cambiarEstadioListing(this.dataset.pid, this.value)"
+                  style="font-size:0.75rem;padding:3px 8px;border-radius:12px;border:1px solid ${est.color}44;background:${est.bg};color:${est.color};font-weight:600;cursor:pointer;outline:none;">
+                  <option value="pendiente"           ${(estVal||'')==='pendiente'          ?'selected':''}>⏳ Pendiente</option>
+                  <option value="esperando_respuesta" ${(estVal||'')==='esperando_respuesta'?'selected':''}>📋 Esperando resp.</option>
+                  ${(estVal==='completada') ? '<option value="completada" selected>✔️ Completada</option>' : ''}
+                </select>
+              </td>
+              <td>
+                <select style="font-size:0.75rem;padding:3px 8px;height:auto;border-radius:12px;border:1.5px solid ${rInfo.color}55;background:${rInfo.bg};color:${rInfo.color};font-weight:600;cursor:pointer;outline:none;pointer-events:auto;min-width:130px;"
+                  data-pid="${p.id}"
+                  onchange="cambiarRespuestaListing(this.dataset.pid, this.value)">
+                  <option value="" ${resp===''?'selected':''}>—</option>
+                  <option value="esperando_respuesta" ${resp==='esperando_respuesta'?'selected':''}>⏳ Esperando resp.</option>
+                  <option value="aceptado"        ${resp==='aceptado'       ?'selected':''}>✅ Aceptado</option>
+                  <option value="rechazado"       ${resp==='rechazado'      ?'selected':''}>❌ Rechazado</option>
+                  <option value="decide_esperar"  ${resp==='decide_esperar' ?'selected':''}>🕐 Decide esperar</option>
+                  <option value="vendio_con_otro" ${resp==='vendio_con_otro'?'selected':''}>🔄 Vendió con otro</option>
+                </select>
+              </td>
+              <td style="text-align:right;white-space:nowrap;">
+                ${p.telefono ? `<button class="btn-icon-sm" title="WhatsApp" onclick="abrirWA('${escHtml(p.telefono)}','${escHtml(p.nombre_propietario||'')}')">💬</button>` : ''}
+                <button class="btn-icon-sm" title="Editar" onclick="editarPropiedad('${p.id}')">✏️</button>
+                <button class="btn-icon-sm danger" title="Eliminar" onclick="eliminarPropiedad('${p.id}')">🗑️</button>
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+  };
+
+  let html = '';
+
+  // Barra de selección múltiple
+  html += `<div id="barraSeleccionListing" style="display:none;align-items:center;gap:10px;padding:8px 12px;background:#FEF9C3;border-radius:8px;margin-bottom:10px;border:1px solid #FDE047;">
+    <span id="selCountListing" style="font-size:0.85rem;font-weight:600;color:#92400E;"></span>
+    <button onclick="eliminarSeleccionadosListing()"
+      style="padding:5px 14px;border-radius:8px;border:none;background:#DC2626;color:white;cursor:pointer;font-size:0.82rem;font-weight:600;">🗑️ Eliminar seleccionadas</button>
+    <button onclick="_listingSeleccionados.clear();_actualizarBarraSeleccionListing();renderListing();"
+      style="padding:5px 12px;border-radius:8px;border:1px solid #e5e7eb;background:white;cursor:pointer;font-size:0.82rem;">✕ Cancelar</button>
+  </div>`;
+
+  if (lista.length === 0 && listaAceptadas.length === 0) {
+    html += `<div class="empty-state">No hay propiedades en el listing</div>`;
+    container.innerHTML = html;
+    return;
+  }
+
+  // Tabla principal (no aceptadas)
+  if (lista.length > 0) {
+    html += renderTabla(lista);
+  }
+
+  // Sección ACEPTADAS separada
+  if (listaAceptadas.length > 0) {
+    html += `
+      <div style="margin-top:24px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:10px 14px;background:linear-gradient(135deg,#ECFDF5,#D1FAE5);border-radius:10px;border:1px solid #6EE7B7;">
+          <span style="font-size:1rem;">✅</span>
+          <span style="font-weight:700;font-size:0.92rem;color:#065F46;">Aceptadas</span>
+          <span style="font-size:0.75rem;background:#059669;color:white;padding:1px 8px;border-radius:10px;font-weight:600;">${listaAceptadas.length}</span>
+          <span style="font-size:0.75rem;color:#6B7280;margin-left:4px;">→ Pasadas a Propiedades automáticamente</span>
+        </div>
+        ${renderTabla(listaAceptadas, false)}
+      </div>`;
+  }
+
+  container.innerHTML = html;
+  _actualizarBarraSeleccionListing();
 }
 
 
@@ -154,8 +251,8 @@ async function cambiarRespuestaListing(pid, valor) {
   if (!p) return;
   try {
     const updates = { ...p, respuesta_listing: valor };
-    // Si acepta → auto-mover a Captado (si no estaba ya en captado/publicado/reservado)
     if (valor === 'aceptado') {
+      // Aceptado → mover a Captado
       const estActual = (p.estado_tasacion || '').toLowerCase();
       if (!['captado','publicado','reservado','cerrado'].includes(estActual)) {
         updates.estado_tasacion = 'captado';
@@ -164,15 +261,28 @@ async function cambiarRespuestaListing(pid, valor) {
       } else {
         showToast('Respuesta: Aceptado ✓', 'success');
       }
+    } else if (valor === 'esperando_respuesta') {
+      // Sincronizar estado de tasación a esperando_respuesta también
+      updates.estado_tasacion = 'esperando_respuesta';
+      updates.estadio = 'esperando_respuesta';
+      showToast('Respuesta actualizada ✓');
+    } else if (valor !== '' && valor !== 'pendiente') {
+      // Cualquier otra respuesta distinta a vacío/pendiente → estado tasación = "completada"
+      // (se guarda como 'completada' para indicar que el proceso finalizó)
+      updates.estado_tasacion = 'completada';
+      updates.estadio = 'completada';
+      showToast('Respuesta actualizada ✓');
     } else {
       showToast('Respuesta actualizada ✓');
     }
     await apiPut(`/api/propiedades/${pid}`, updates);
     p.respuesta_listing = valor;
     if (updates.estado_tasacion) p.estado_tasacion = updates.estado_tasacion;
+    if (updates.estadio) p.estadio = updates.estadio;
     renderListing();
+    renderEstado();
     actualizarStatsListing();
-    // Si aceptó → redirigir a propiedades para continuar el seguimiento
+    actualizarContadoresEstado();
     if (valor === 'aceptado') {
       setTimeout(() => { window.location.href = '/propiedades'; }, 900);
     }
@@ -183,10 +293,19 @@ async function cambiarEstadioListing(pid, nuevoEstadio) {
   const p = NEG.propiedades.find(x => x.id === pid);
   if (!p) return;
   try {
-    await apiPut(`/api/propiedades/${pid}`, { ...p, estado_tasacion: nuevoEstadio, estadio: nuevoEstadio });
+    const updates = { ...p, estado_tasacion: nuevoEstadio, estadio: nuevoEstadio };
+    // Si cambia a esperando_respuesta → sincronizar respuesta_listing también
+    if (nuevoEstadio === 'esperando_respuesta') {
+      updates.respuesta_listing = 'esperando_respuesta';
+      p.respuesta_listing = 'esperando_respuesta';
+    }
+    await apiPut(`/api/propiedades/${pid}`, updates);
     p.estado_tasacion = nuevoEstadio;
     p.estadio = nuevoEstadio;
+    renderListing();
+    renderEstado();
     actualizarStatsListing();
+    actualizarContadoresEstado();
     showToast('Estado actualizado ✓');
     if (['en_tasacion','captado'].includes(nuevoEstadio)) {
       const label = ESTADIO_MAP[nuevoEstadio]?.label || nuevoEstadio;
@@ -227,74 +346,189 @@ function filtrarEstadioEstado(est, btn) {
 
 function filtrarEstado() { renderEstado(); }
 
+let _estadoSeleccionados = new Set();
+
+function toggleSeleccionEstado(pid) {
+  if (_estadoSeleccionados.has(pid)) _estadoSeleccionados.delete(pid);
+  else _estadoSeleccionados.add(pid);
+  _actualizarBarraSeleccionEstado();
+}
+
+function toggleSeleccionTodosEstado(checked, pids) {
+  if (checked) pids.forEach(id => _estadoSeleccionados.add(id));
+  else _estadoSeleccionados.clear();
+  _actualizarBarraSeleccionEstado();
+  document.querySelectorAll('.estado-checkbox-row').forEach(cb => { cb.checked = checked; });
+}
+
+function _actualizarBarraSeleccionEstado() {
+  const barra = document.getElementById('barraSeleccionEstado');
+  if (!barra) return;
+  if (_estadoSeleccionados.size > 0) {
+    barra.style.display = 'flex';
+    document.getElementById('selCountEstado').textContent = `${_estadoSeleccionados.size} seleccionada(s)`;
+  } else {
+    barra.style.display = 'none';
+  }
+}
+
+async function eliminarSeleccionadosEstado() {
+  if (_estadoSeleccionados.size === 0) return;
+  if (!confirmar(`¿Eliminar ${_estadoSeleccionados.size} propiedad(es)? No se puede deshacer.`)) return;
+  try {
+    for (const pid of _estadoSeleccionados) {
+      await apiDelete(`/api/propiedades/${pid}`);
+    }
+    _estadoSeleccionados.clear();
+    showToast('Propiedades eliminadas ✓', 'success');
+    await cargarPropiedades();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+let _respuestaFiltroEstado = '';
+
+function filtrarRespuestaEstado(resp) {
+  _respuestaFiltroEstado = resp;
+  // Update active button style
+  document.querySelectorAll('#respFiltroEstadoBtns .resp-btn-est').forEach(b => {
+    b.style.background = b.dataset.val === resp ? 'var(--rx-blue)' : 'white';
+    b.style.color = b.dataset.val === resp ? 'white' : '#444';
+  });
+  renderEstado();
+}
+
 function renderEstado() {
   const q = (document.getElementById('filtroEstadoBuscar')?.value || '').toLowerCase();
-  const lista = NEG.propiedades.filter(p => {
+  let lista = NEG.propiedades.filter(p => {
     const matchEst = _estadioFiltro === 'todos' || p.estado_tasacion === _estadioFiltro || p.estadio === _estadioFiltro;
     const matchQ   = !q || (p.direccion||'').toLowerCase().includes(q) ||
                           (p.nombre_propietario||'').toLowerCase().includes(q);
-    return matchEst && matchQ;
+    const matchResp = !_respuestaFiltroEstado || (p.respuesta_listing||'') === _respuestaFiltroEstado;
+    return matchEst && matchQ && matchResp;
   });
+
+  // Separar aceptadas
+  const listaAceptadas = lista.filter(p => p.respuesta_listing === 'aceptado');
+  const listaNormal    = lista.filter(p => p.respuesta_listing !== 'aceptado');
 
   const container = document.getElementById('estadoTable');
   if (!container) return;
-  if (lista.length === 0) {
-    container.innerHTML = `<div class="empty-state">No hay propiedades en este estadio</div>`; return;
-  }
 
   const hoy = new Date().toISOString().split('T')[0];
 
-  container.innerHTML = `
-    <table class="table">
-      <thead><tr>
-        <th>Dirección</th>
-        <th>Estadio</th>
-        <th>Próximo contacto</th>
-        <th>Último contacto</th>
-        <th>Observaciones</th>
-        <th style="text-align:right">Acciones</th>
-      </tr></thead>
-      <tbody>
-        ${lista.map(p => {
-          const estadio = p.estado_tasacion || p.estadio || '';
-          const est = ESTADIO_MAP[estadio] || { label: estadio || '—', color: '#888', bg: '#f3f4f6' };
-          const proximo = p.proximo_contacto || '';
-          const vencido = proximo && proximo < hoy;
-          const hoyFlag  = proximo === hoy;
-          return `<tr>
-            <td>
-              <div style="font-weight:600;">${escHtml(p.direccion || '—')}</div>
-              ${p.nombre_propietario ? `<div style="font-size:0.75rem;color:#888;">${escHtml(p.nombre_propietario)}</div>` : ''}
-            </td>
-            <td>
-              <select class="estadio-inline-select" onchange="cambiarEstadio('${p.id}', this.value)"
-                style="font-size:0.78rem;padding:3px 8px;border-radius:20px;border:1px solid ${est.color}44;background:${est.bg};color:${est.color};font-weight:600;cursor:pointer;outline:none;">
-                <option value="pendiente" ${estadio==='pendiente'?'selected':''}>⏳ Pendiente</option>
-                <option value="esperando_respuesta" ${estadio==='esperando_respuesta'?'selected':''}>📋 Esperando respuesta</option>
-              </select>
-            </td>
-            <td>
-              ${proximo
-                ? `<span style="font-size:0.82rem;font-weight:${vencido||hoyFlag?'700':'400'};color:${vencido?'var(--danger)':hoyFlag?'var(--rx-blue)':'inherit'};">
-                    ${vencido ? '⚠️ ' : hoyFlag ? '📌 ' : ''}${formatFecha(proximo)}
-                  </span>`
-                : '<span style="color:#ccc;">—</span>'}
-            </td>
-            <td style="font-size:0.82rem;color:#666;">${formatFecha(p.ultimo_contacto)}</td>
-            <td style="max-width:220px;">
-              ${p.observaciones
-                ? `<div style="font-size:0.78rem;color:#666;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px;" title="${escHtml(p.observaciones)}">${escHtml(p.observaciones)}</div>`
-                : '<span style="color:#ccc;">—</span>'}
-            </td>
-            <td style="text-align:right;white-space:nowrap;">
-              ${p.telefono ? `<button class="btn-icon-sm" onclick="abrirWA('${escHtml(p.telefono)}','${escHtml(p.nombre_propietario||'')}')">💬</button>` : ''}
-              <button class="btn-icon-sm" onclick="editarPropiedad('${p.id}')">✏️</button>
-              <button class="btn-icon-sm danger" onclick="eliminarPropiedad('${p.id}')">🗑️</button>
-            </td>
-          </tr>`;
-        }).join('')}
-      </tbody>
-    </table>`;
+  const RESP_MAP_E = {
+    '':                   { label: '—',                  color:'#aaa' },
+    'esperando_respuesta':{ label: '⏳ Esperando resp.', color:'#D97706' },
+    'aceptado':           { label: '✅ Aceptado',        color:'#059669' },
+    'rechazado':          { label: '❌ Rechazado',       color:'#DC2626' },
+    'decide_esperar':     { label: '🕐 Decide esperar',  color:'#7C3AED' },
+    'vendio_con_otro':    { label: '🔄 Vendió con otro', color:'#6B7280' },
+    'completada':         { label: '✔️ Completada',      color:'#059669' },
+  };
+
+  const renderFilas = (items) => {
+    const pids = items.map(p => `'${p.id}'`).join(',');
+    return `
+      <table class="table">
+        <thead><tr>
+          <th style="width:32px;padding:8px 6px;">
+            <input type="checkbox" style="cursor:pointer;" onchange="toggleSeleccionTodosEstado(this.checked,[${pids}])">
+          </th>
+          <th>Dirección</th>
+          <th>Estadio</th>
+          <th>Respuesta prop.</th>
+          <th>Próximo contacto</th>
+          <th>Último contacto</th>
+          <th>Observaciones</th>
+          <th style="text-align:right">Acciones</th>
+        </tr></thead>
+        <tbody>
+          ${items.map(p => {
+            const estadio = p.estado_tasacion || p.estadio || '';
+            const est = ESTADIO_MAP[estadio] || { label: estadio || '—', color: '#888', bg: '#f3f4f6' };
+            const proximo = p.proximo_contacto || '';
+            const vencido = proximo && proximo < hoy;
+            const hoyFlag  = proximo === hoy;
+            const resp = p.respuesta_listing || '';
+            const rLabel = RESP_MAP_E[resp]?.label || '—';
+            const rColor = RESP_MAP_E[resp]?.color || '#aaa';
+            const isSelected = _estadoSeleccionados.has(p.id);
+            return `<tr style="${isSelected ? 'background:#EFF6FF;' : ''}">
+              <td style="padding:8px 6px;">
+                <input type="checkbox" class="estado-checkbox-row" style="cursor:pointer;" ${isSelected?'checked':''} onchange="toggleSeleccionEstado('${p.id}')">
+              </td>
+              <td>
+                <div style="font-weight:600;">${escHtml(p.direccion || '—')}</div>
+                ${p.nombre_propietario ? `<div style="font-size:0.75rem;color:#888;">${escHtml(p.nombre_propietario)}</div>` : ''}
+              </td>
+              <td>
+                <select class="estadio-inline-select" onchange="cambiarEstadio('${p.id}', this.value)"
+                  style="font-size:0.78rem;padding:3px 8px;border-radius:20px;border:1px solid ${est.color}44;background:${est.bg};color:${est.color};font-weight:600;cursor:pointer;outline:none;">
+                  <option value="pendiente" ${estadio==='pendiente'?'selected':''}>⏳ Pendiente</option>
+                  <option value="esperando_respuesta" ${estadio==='esperando_respuesta'?'selected':''}>📋 Esperando respuesta</option>
+                  ${estadio==='completada'?'<option value="completada" selected>✔️ Completada</option>':''}
+                </select>
+              </td>
+              <td>
+                <span style="font-size:0.75rem;font-weight:600;color:${rColor};">${rLabel}</span>
+              </td>
+              <td>
+                ${proximo
+                  ? `<span style="font-size:0.82rem;font-weight:${vencido||hoyFlag?'700':'400'};color:${vencido?'var(--danger)':hoyFlag?'var(--rx-blue)':'inherit'};">
+                      ${vencido ? '⚠️ ' : hoyFlag ? '📌 ' : ''}${formatFecha(proximo)}
+                    </span>`
+                  : '<span style="color:#ccc;">—</span>'}
+              </td>
+              <td style="font-size:0.82rem;color:#666;">${formatFecha(p.ultimo_contacto)}</td>
+              <td style="max-width:220px;">
+                ${p.observaciones
+                  ? `<div style="font-size:0.78rem;color:#666;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px;" title="${escHtml(p.observaciones)}">${escHtml(p.observaciones)}</div>`
+                  : '<span style="color:#ccc;">—</span>'}
+              </td>
+              <td style="text-align:right;white-space:nowrap;">
+                ${p.telefono ? `<button class="btn-icon-sm" onclick="abrirWA('${escHtml(p.telefono)}','${escHtml(p.nombre_propietario||'')}')">💬</button>` : ''}
+                <button class="btn-icon-sm" onclick="editarPropiedad('${p.id}')">✏️</button>
+                <button class="btn-icon-sm danger" onclick="eliminarPropiedad('${p.id}')">🗑️</button>
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+  };
+
+  let html = '';
+
+  // Barra de selección
+  html += `<div id="barraSeleccionEstado" style="display:none;align-items:center;gap:10px;padding:8px 12px;background:#FEF9C3;border-radius:8px;margin-bottom:10px;border:1px solid #FDE047;">
+    <span id="selCountEstado" style="font-size:0.85rem;font-weight:600;color:#92400E;"></span>
+    <button onclick="eliminarSeleccionadosEstado()"
+      style="padding:5px 14px;border-radius:8px;border:none;background:#DC2626;color:white;cursor:pointer;font-size:0.82rem;font-weight:600;">🗑️ Eliminar seleccionadas</button>
+    <button onclick="_estadoSeleccionados.clear();_actualizarBarraSeleccionEstado();renderEstado();"
+      style="padding:5px 12px;border-radius:8px;border:1px solid #e5e7eb;background:white;cursor:pointer;font-size:0.82rem;">✕ Cancelar</button>
+  </div>`;
+
+  if (lista.length === 0) {
+    html += `<div class="empty-state">No hay propiedades en este estadio</div>`;
+    container.innerHTML = html;
+    return;
+  }
+
+  if (listaNormal.length > 0) html += renderFilas(listaNormal);
+
+  if (listaAceptadas.length > 0) {
+    html += `
+      <div style="margin-top:24px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:10px 14px;background:linear-gradient(135deg,#ECFDF5,#D1FAE5);border-radius:10px;border:1px solid #6EE7B7;">
+          <span style="font-size:1rem;">✅</span>
+          <span style="font-weight:700;font-size:0.92rem;color:#065F46;">Aceptadas</span>
+          <span style="font-size:0.75rem;background:#059669;color:white;padding:1px 8px;border-radius:10px;font-weight:600;">${listaAceptadas.length}</span>
+        </div>
+        ${renderFilas(listaAceptadas)}
+      </div>`;
+  }
+
+  container.innerHTML = html;
+  _actualizarBarraSeleccionEstado();
 }
 
 async function cambiarEstadio(id, nuevoEstadio) {
@@ -1171,20 +1405,29 @@ function renderDocumentosLista() {
     return;
   }
   const ESTADOS_DOC = ['Pendiente','En trámite','Recibido','Observado'];
+  const ICONOS = { pdf:'📄', doc:'📝', docx:'📝', xls:'📊', xlsx:'📊', jpg:'🖼️', jpeg:'🖼️', png:'🖼️', gif:'🖼️', txt:'📋', zip:'🗜️' };
   cont.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
     <thead><tr style="background:#f3f4f6;">
       <th style="padding:6px 8px;text-align:left;font-weight:600;color:#374151;">Documento</th>
       <th style="padding:6px 8px;text-align:left;font-weight:600;color:#374151;">Estado</th>
       <th style="padding:6px 8px;text-align:left;font-weight:600;color:#374151;">Notas</th>
+      <th style="padding:6px 4px;text-align:center;font-weight:600;color:#374151;">Archivo</th>
       <th style="padding:6px 4px;"></th>
     </tr></thead>
     <tbody>
-      ${_documentosList.map((d, i) => `
+      ${_documentosList.map((d, i) => {
+        const ext = (d.tipo || (d.nombre||'').split('.').pop() || '').toLowerCase();
+        const icono = ICONOS[ext] || '📎';
+        const hasFile = !!d.dataUrl;
+        return `
         <tr style="border-bottom:1px solid #f3f4f6;">
           <td style="padding:6px 8px;">
-            <input type="text" value="${escHtml(d.nombre||'')}" placeholder="Nombre doc."
-              onchange="_documentosList[${i}].nombre=this.value;syncDocJSON()"
-              style="border:none;background:transparent;width:100%;font-size:0.8rem;outline:none;color:var(--text-primary);">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="font-size:1rem;">${icono}</span>
+              <input type="text" value="${escHtml(d.nombre||'')}" placeholder="Nombre doc."
+                onchange="_documentosList[${i}].nombre=this.value;syncDocJSON()"
+                style="border:none;background:transparent;width:100%;font-size:0.8rem;outline:none;color:var(--text-primary);">
+            </div>
           </td>
           <td style="padding:6px 8px;">
             <select onchange="_documentosList[${i}].estado=this.value;syncDocJSON()"
@@ -1197,17 +1440,60 @@ function renderDocumentosLista() {
               onchange="_documentosList[${i}].notas=this.value;syncDocJSON()"
               style="border:none;background:transparent;width:100%;font-size:0.78rem;outline:none;color:#888;">
           </td>
+          <td style="padding:4px;text-align:center;white-space:nowrap;">
+            ${hasFile
+              ? `<a href="${d.dataUrl}" download="${escHtml(d.nombre||'documento')}"
+                  style="font-size:0.78rem;color:#059669;font-weight:600;text-decoration:none;padding:2px 7px;border-radius:6px;border:1px solid #059669;background:#ECFDF5;" title="Descargar">⬇️</a>`
+              : `<span style="font-size:0.72rem;color:#ccc;">Sin archivo</span>`}
+          </td>
           <td style="padding:4px;">
             <button onclick="quitarDocumento(${i})"
               style="background:none;border:none;cursor:pointer;color:#DC2626;font-size:0.9rem;">✕</button>
           </td>
-        </tr>`).join('')}
+        </tr>`}).join('')}
     </tbody>
   </table>`;
   syncDocJSON();
 }
 
-function syncDocJSON() {
+function onCambioRespuestaPropModal(valor) {
+  // Sincronizar estado oculto
+  const selEstado = document.getElementById('propEstado');
+  if (!selEstado) return;
+  if (valor === 'esperando_respuesta') {
+    selEstado.value = 'esperando_respuesta';
+  } else if (valor === 'pendiente' || valor === '') {
+    selEstado.value = 'pendiente';
+  } else if (valor === 'aceptado') {
+    selEstado.value = 'captado';
+  } else {
+    selEstado.value = 'completada';
+  }
+}
+
+function cargarArchivosDocumentacion(files) {
+  Array.from(files).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target.result;
+      const ext = file.name.split('.').pop().toLowerCase();
+      _documentosList.push({
+        nombre: file.name,
+        estado: 'Pendiente',
+        notas: '',
+        dataUrl: dataUrl,
+        tipo: ext,
+        tamano: file.size,
+      });
+      renderDocumentosLista();
+    };
+    reader.readAsDataURL(file);
+  });
+  // Reset input para poder subir el mismo archivo de nuevo
+  document.getElementById('inputArchivoDoc').value = '';
+}
+
+
   const el = document.getElementById('propDocumentosJSON');
   if (el) el.value = JSON.stringify(_documentosList);
 }
