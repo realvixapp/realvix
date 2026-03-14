@@ -64,19 +64,15 @@
     <input type="text" id="filtroEstadoBuscar" placeholder="Buscar propiedad..." class="input-base" style="max-width:280px;" oninput="filtrarEstado()">
   </div>
 
-  <!-- Contadores por estado -->
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;" id="estadoCounters">
-    <div class="stat-mini" style="border-left:4px solid #059669;">
-      <div class="stat-mini-label" style="color:#059669;font-weight:600;text-transform:uppercase;font-size:0.72rem;letter-spacing:0.5px;">● Publicadas</div>
-      <div class="stat-mini-num" id="cntPublicadas" style="color:#059669;">—</div>
+  <!-- Contadores por estado tasación -->
+  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px;" id="estadoCounters">
+    <div class="stat-mini" style="border-left:4px solid #6B7280;">
+      <div class="stat-mini-label" style="color:#6B7280;font-weight:600;text-transform:uppercase;font-size:0.72rem;letter-spacing:0.5px;">⏳ Pendientes</div>
+      <div class="stat-mini-num" id="cntPendientes" style="color:#6B7280;">—</div>
     </div>
-    <div class="stat-mini" style="border-left:4px solid #DC2626;">
-      <div class="stat-mini-label" style="color:#DC2626;font-weight:600;text-transform:uppercase;font-size:0.72rem;letter-spacing:0.5px;">● Reservadas</div>
-      <div class="stat-mini-num" id="cntReservadas" style="color:#DC2626;">—</div>
-    </div>
-    <div class="stat-mini" style="border-left:4px solid #374151;">
-      <div class="stat-mini-label" style="color:#374151;font-weight:600;text-transform:uppercase;font-size:0.72rem;letter-spacing:0.5px;">■ Cerradas</div>
-      <div class="stat-mini-num" id="cntCerradas" style="color:#374151;">—</div>
+    <div class="stat-mini" style="border-left:4px solid #7C3AED;">
+      <div class="stat-mini-label" style="color:#7C3AED;font-weight:600;text-transform:uppercase;font-size:0.72rem;letter-spacing:0.5px;">📋 Esperando respuesta</div>
+      <div class="stat-mini-num" id="cntEsperando" style="color:#7C3AED;">—</div>
     </div>
   </div>
 
@@ -190,6 +186,16 @@
         <div class="field" style="grid-column:span 2">
           <label class="field-label">Link de ficha / portal</label>
           <input type="text" id="propUrl" class="input-base" placeholder="https://zonaprop.com.ar/...">
+        </div>
+        <div class="field" style="grid-column:span 2">
+          <label class="field-label">Respuesta propietario</label>
+          <select id="propRespuesta" class="input-base">
+            <option value="esperando_respuesta">⏳ Esperando respuesta</option>
+            <option value="aceptado">✅ Aceptado</option>
+            <option value="rechazado">❌ Rechazado</option>
+            <option value="decide_esperar">🕐 Decide esperar</option>
+            <option value="vendio_con_otro">🔄 Vendió con otro</option>
+          </select>
         </div>
       </div>
 
