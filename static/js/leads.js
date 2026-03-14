@@ -310,34 +310,81 @@ async function cargarActividadLeads() {
   } catch(e) { showToast('Error al cargar actividad', 'error'); }
 }
 
+function _filtrarPorPeriodo(consultas) {
+  const periodo = document.getElementById('filtroPeriodoLead')?.value || 'todos';
+  const rango = document.getElementById('rangoPersonalizadoLead');
+  if (rango) rango.style.display = periodo === 'personalizado' ? 'flex' : 'none';
+
+  if (periodo === 'todos') return consultas;
+  const hoy = new Date();
+  let desde, hasta;
+  if (periodo === 'trimestre') {
+    const mes = hoy.getMonth();
+    const inicioTrimestre = new Date(hoy.getFullYear(), Math.floor(mes/3)*3, 1);
+    desde = inicioTrimestre; hasta = hoy;
+  } else if (periodo === 'cuatrimestre') {
+    const mes = hoy.getMonth();
+    const inicioCuat = new Date(hoy.getFullYear(), Math.floor(mes/4)*4, 1);
+    desde = inicioCuat; hasta = hoy;
+  } else if (periodo === 'anual') {
+    desde = new Date(hoy.getFullYear(), 0, 1); hasta = hoy;
+  } else if (periodo === 'personalizado') {
+    const d = document.getElementById('fechaDesde')?.value;
+    const h = document.getElementById('fechaHasta')?.value;
+    if (!d && !h) return consultas;
+    desde = d ? new Date(d) : null;
+    hasta = h ? new Date(h) : hoy;
+  }
+  return consultas.filter(c => {
+    const f = new Date(c.created_at || c.fecha_visita || '2000-01-01');
+    return (!desde || f >= desde) && (!hasta || f <= hasta);
+  });
+}
+
 function renderActividadLeads() {
   const s = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
 
-  // Stats respuesta propietario
-  s('lActRespAcept', LACT.propiedades.filter(p => p.respuesta_listing === 'aceptado').length);
-  s('lActRespRech',  LACT.propiedades.filter(p => p.respuesta_listing === 'rechazado').length);
-  s('lActRespEsp',   LACT.propiedades.filter(p => (p.respuesta_listing||'esperando_respuesta') === 'esperando_respuesta').length);
+  const ESTADIO_LABELS = {
+    'nuevo':            { label:'Nuevo',           color:'#6B7280', bg:'#F3F4F6' },
+    'pendiente_visita': { label:'Pend. visita',     color:'#7C3AED', bg:'#F5F3FF' },
+    'contesto':         { label:'Contestó',         color:'#D97706', bg:'#FFFBEB' },
+    'seguimiento':      { label:'Seguimiento',      color:'#2563EB', bg:'#EFF6FF' },
+    'visito':           { label:'Visitó ✓',         color:'#059669', bg:'#ECFDF5' },
+  };
 
-  // Solo publicadas/reservadas para actividad
+  const consultasFiltradas = _filtrarPorPeriodo(LACT.consultas);
+
+  // Stats por estadio de LEAD (etiquetas correctas)
+  const statsEl = document.getElementById('lActStatsEstadios');
+  if (statsEl) {
+    statsEl.innerHTML = Object.entries(ESTADIO_LABELS).map(([k, v]) => {
+      const cnt = consultasFiltradas.filter(c => c.estado === k).length;
+      return `<div class="stat-mini" style="border-left:3px solid ${v.color};min-width:110px;">
+        <div class="stat-mini-label" style="color:${v.color};font-weight:600;font-size:0.7rem;text-transform:uppercase;">${v.label}</div>
+        <div class="stat-mini-num" style="color:${v.color};">${cnt}</div>
+      </div>`;
+    }).join('');
+  }
+
+  const totalVisitas = consultasFiltradas.filter(c => ['visito','visitó'].includes((c.estado||'').toLowerCase())).length;
+  const pendVisita   = consultasFiltradas.filter(c => c.estado === 'pendiente_visita').length;
+  const seguimiento  = consultasFiltradas.filter(c => c.estado === 'seguimiento').length;
+  s('lActTotalLeads',   consultasFiltradas.length);
+  s('lActTotalVisitas', totalVisitas);
+  s('lActPendVisita',   pendVisita);
+  s('lActSeguimiento',  seguimiento);
+
+  // Solo publicadas/reservadas para el detalle por propiedad
   const props = LACT.propiedades.filter(p => {
     const est = (p.estado_tasacion || p.estadio || '').toLowerCase().trim();
     return ['publicado','reservado','publicada','reservada'].includes(est);
   });
 
-  const conPorProp = (p) => LACT.consultas.filter(c =>
+  const conPorProp = (p) => consultasFiltradas.filter(c =>
     c.propiedad_nombre && p.direccion &&
     c.propiedad_nombre.trim().toLowerCase() === p.direccion.trim().toLowerCase()
   );
 
-  const todosLeads   = props.flatMap(p => conPorProp(p));
-  const totalVisitas = todosLeads.filter(c => ['visito','visitó'].includes((c.estado||'').toLowerCase())).length;
-  const pendVisita   = todosLeads.filter(c => c.estado === 'pendiente_visita').length;
-  s('lActTotalProps',   props.length);
-  s('lActTotalLeads',   todosLeads.length);
-  s('lActTotalVisitas', totalVisitas);
-  s('lActPendVisita',   pendVisita);
-
-  // Ordenar por consultas
   const propsConConteo = props.map(p => ({ ...p, consultas: conPorProp(p) }))
     .sort((a, b) => b.consultas.length - a.consultas.length);
 
@@ -354,17 +401,17 @@ function renderActividadLeads() {
         <div style="font-size:1.2rem;margin-bottom:4px;">${medals[i]}</div>
         <div style="font-weight:700;font-size:0.85rem;margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(p.direccion)}</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
-          <span style="font-size:0.73rem;background:var(--rx-blue-light);color:var(--rx-blue);padding:2px 7px;border-radius:8px;font-weight:600;">${p.consultas.length} consultas</span>
-          <span style="font-size:0.73rem;background:var(--success-bg);color:var(--success);padding:2px 7px;border-radius:8px;font-weight:600;">${visitaron} visitas</span>
+          <span style="font-size:0.73rem;background:#EFF6FF;color:#2563EB;padding:2px 7px;border-radius:8px;font-weight:600;">${p.consultas.length} consultas</span>
+          <span style="font-size:0.73rem;background:#ECFDF5;color:#059669;padding:2px 7px;border-radius:8px;font-weight:600;">${visitaron} visitas</span>
         </div>
       </div>`;
     }).join('');
   }
 
-  // Índice por nombre de propiedad
+  // Índice por propiedad
   const indexEl = document.getElementById('lPropNombreIndex');
   if (indexEl && propsConConteo.length > 0) {
-    indexEl.innerHTML = `<div style="background:var(--cream);border:1px solid var(--border);border-radius:8px;padding:10px 14px;">
+    indexEl.innerHTML = `<div style="background:var(--cream,#f8f9ff);border:1px solid var(--border);border-radius:8px;padding:10px 14px;">
       <div style="font-size:0.72rem;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">Filtrar por propiedad</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
         <button onclick="filtrarPropLead('')"
@@ -395,14 +442,6 @@ function renderActividadLeads() {
     container.innerHTML = `<div class="empty-state">No hay propiedades publicadas o reservadas todavía.</div>`; return;
   }
 
-  const ESTADIO_LABELS = {
-    'nuevo':            { label:'Nuevo',           color:'#6B7280', bg:'#F3F4F6' },
-    'pendiente_visita': { label:'Pend. visita',     color:'#7C3AED', bg:'#F5F3FF' },
-    'contesto':         { label:'Contestó',         color:'#D97706', bg:'#FFFBEB' },
-    'seguimiento':      { label:'Seguimiento',      color:'#2563EB', bg:'#EFF6FF' },
-    'visito':           { label:'Visitó ✓',         color:'#059669', bg:'#ECFDF5' },
-  };
-
   container.innerHTML = mostrar.map(p => {
     const est = (p.estado_tasacion||'').toLowerCase();
     const esP = est.includes('publ');
@@ -423,7 +462,7 @@ function renderActividadLeads() {
           ${p.nombre_propietario?`<div style="font-size:0.79rem;color:#888;">👤 ${escHtml(p.nombre_propietario)}</div>`:''}
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          ${[['Consultas',p.consultas.length,'var(--rx-blue)'],['Visitaron',nV,'#059669'],['Pend.visita',nPV,'#7C3AED'],['Seguim.',nS,'#2563EB']].map(([lbl,num,col])=>
+          ${[['Consultas',p.consultas.length,'#2563EB'],['Visitaron',nV,'#059669'],['Pend.visita',nPV,'#7C3AED'],['Seguim.',nS,'#2563EB']].map(([lbl,num,col])=>
             `<div style="text-align:center;padding:6px 10px;background:white;border-radius:8px;border:1px solid var(--border);min-width:50px;">
               <div style="font-size:1.1rem;font-weight:700;color:${col};">${num}</div>
               <div style="font-size:0.6rem;color:#888;white-space:nowrap;">${lbl}</div>
@@ -431,11 +470,11 @@ function renderActividadLeads() {
         </div>
       </div>
       ${p.consultas.length===0
-        ?`<div style="padding:16px;text-align:center;color:#bbb;font-size:0.82rem;">Sin consultas asociadas todavía</div>`
+        ?`<div style="padding:16px;text-align:center;color:#bbb;font-size:0.82rem;">Sin consultas en el período seleccionado</div>`
         :`<div style="padding:10px 18px 14px;">
           <div style="font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Consultas (${p.consultas.length})</div>
           ${p.consultas.map(c=>{
-            const st=ESTADIO_LABELS[c.estado]||{label:c.estado,color:'#888',bg:'#f3f4f6'};
+            const st=ESTADIO_LABELS[c.estado]||{label:c.estado||'—',color:'#888',bg:'#f3f4f6'};
             return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:${st.bg}22;border:1px solid ${st.color}22;margin-bottom:5px;flex-wrap:wrap;">
               <div style="flex:1;min-width:0;">
                 <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
