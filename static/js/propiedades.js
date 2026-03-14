@@ -79,22 +79,12 @@ function renderEstadoProp() {
   }
 
   const hoy = new Date().toISOString().split('T')[0];
-  const RESP_LABELS = {
-    'aceptado':           '✅ Aceptado',
-    'rechazado':          '❌ Rechazado',
-    'esperando_respuesta':'⏳ Esperando resp.',
-    'decide_esperar':     '🕐 Decide esperar',
-    'vendio_con_otro':    '🔄 Vendió con otro',
-    '':                   '—',
-  };
-
   container.innerHTML = `
     <table class="table">
       <thead><tr>
         <th>Dirección</th>
         <th>Estadio</th>
         <th>Propietario</th>
-        <th>Respuesta propietario</th>
         <th>Observaciones</th>
         <th style="text-align:right">Acciones</th>
       </tr></thead>
@@ -102,16 +92,6 @@ function renderEstadoProp() {
         ${lista.map(p => {
           const pEst = (p.estado_tasacion || p.estadio || '').toLowerCase();
           const estInfo = ESTADIO_MAP_P[pEst] || { label: p.estado_tasacion || '—', color:'#888', bg:'#f3f4f6' };
-          const resp = p.respuesta_listing || '';
-          const RESP_COLORS = {
-            'aceptado':           {color:'#059669',bg:'#ECFDF5'},
-            'rechazado':          {color:'#DC2626',bg:'#FEF2F2'},
-            'esperando_respuesta':{color:'#D97706',bg:'#FFFBEB'},
-            'decide_esperar':     {color:'#7C3AED',bg:'#F5F3FF'},
-            'vendio_con_otro':    {color:'#6B7280',bg:'#F3F4F6'},
-            '':                   {color:'#9CA3AF',bg:'#F9FAFB'},
-          };
-          const rc = RESP_COLORS[resp] || RESP_COLORS[''];
           return `<tr>
             <td>
               <div style="font-weight:600;cursor:pointer;color:var(--rx-blue);"
@@ -132,11 +112,7 @@ function renderEstadoProp() {
               <div style="font-size:0.84rem;">${escHtml(p.nombre_propietario||'—')}</div>
               ${p.telefono ? `<div style="font-size:0.74rem;color:#888;">📞 ${escHtml(p.telefono)}</div>` : ''}
             </td>
-            <td>
-              <span style="font-size:0.75rem;padding:2px 9px;border-radius:10px;font-weight:600;background:${rc.bg};color:${rc.color};">
-                ${RESP_LABELS[resp]||'—'}
-              </span>
-            </td>
+
             <td style="max-width:180px;">
               ${p.observaciones
                 ? `<div style="font-size:0.77rem;color:#666;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:170px;" title="${escHtml(p.observaciones)}">${escHtml(p.observaciones)}</div>`
@@ -242,19 +218,21 @@ function renderActividadProp() {
   const top5Grid = document.getElementById('top5Grid');
   if (top5El && top5Grid && propsConConteo.length > 0) {
     top5El.style.display = '';
-    const top5 = propsConConteo.slice(0, 5);
+    const top5 = propsConConteo.slice(0, Math.min(5, propsConConteo.length));
+    const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
     top5Grid.innerHTML = top5.map((p, i) => {
-      const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
       const visitaron = p.consultas.filter(c => ['visito','visitó'].includes((c.estado||'').toLowerCase())).length;
+      const isActive  = PROPS.propFiltroActividad === p.direccion;
       return `
-        <div class="card" style="padding:12px 14px;cursor:pointer;border:2px solid ${PROPS.propFiltroActividad === p.direccion ? 'var(--rx-blue)' : 'transparent'};"
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 14px;border-radius:8px;cursor:pointer;
+          background:${isActive ? 'var(--rx-blue-light)' : 'white'};
+          border:1.5px solid ${isActive ? 'var(--rx-blue)' : 'var(--border)'};
+          transition:all 0.1s;"
           onclick="filtrarPropActividad('${escHtml(p.direccion)}')">
-          <div style="font-size:1.2rem;margin-bottom:4px;">${medals[i]}</div>
-          <div style="font-weight:700;font-size:0.85rem;margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(p.direccion)}</div>
-          <div style="display:flex;gap:8px;">
-            <span style="font-size:0.75rem;background:var(--rx-blue-light);color:var(--rx-blue);padding:2px 7px;border-radius:8px;font-weight:600;">${p.consultas.length} consultas</span>
-            <span style="font-size:0.75rem;background:var(--success-bg);color:var(--success);padding:2px 7px;border-radius:8px;font-weight:600;">${visitaron} visitas</span>
-          </div>
+          <span style="font-size:1rem;flex-shrink:0;">${medals[i]}</span>
+          <span style="font-weight:600;font-size:0.83rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${isActive ? 'var(--rx-blue)' : 'inherit'};">${escHtml(p.direccion)}</span>
+          <span style="font-size:0.72rem;background:var(--rx-blue-light);color:var(--rx-blue);padding:1px 7px;border-radius:8px;font-weight:600;flex-shrink:0;">${p.consultas.length}</span>
+          <span style="font-size:0.72rem;background:var(--success-bg);color:var(--success);padding:1px 7px;border-radius:8px;font-weight:600;flex-shrink:0;">${visitaron}🏠</span>
         </div>`;
     }).join('');
   }
