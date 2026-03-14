@@ -101,7 +101,8 @@ function renderListing() {
           const rInfo = RESP_MAP[resp] || RESP_MAP[''];
           return `<tr>
             <td>
-              <div style="font-weight:600;">${escHtml(p.direccion || '—')}</div>
+              <div style="font-weight:600;color:var(--rx-blue);cursor:pointer;text-decoration:underline dotted;"
+                data-pid="${p.id}" onclick="editarPropiedad(this.dataset.pid)">${escHtml(p.direccion || '—')}</div>
               ${p.localidad ? `<div style="font-size:0.75rem;color:#888;">${escHtml(p.localidad)}${p.zona ? ' · ' + escHtml(p.zona) : ''}</div>` : ''}
             </td>
             <td>${escHtml(p.nombre_propietario || '—')}</td>
@@ -134,6 +135,9 @@ function renderListing() {
             <td style="text-align:right;white-space:nowrap;">
               ${p.url ? `<a class="btn-icon-sm" href="${escHtml(p.url)}" target="_blank" title="Ver portal">🔗</a>` : ''}
               ${p.telefono ? `<button class="btn-icon-sm" title="WhatsApp" onclick="abrirWA('${escHtml(p.telefono)}','${escHtml(p.nombre_propietario||'')}')">💬</button>` : ''}
+              <button class="btn-icon-sm" title="Ver más" data-dir="${escHtml(p.direccion||'')}"
+                onclick="verMasNegocio(this.dataset.dir)"
+                style="font-size:0.72rem;padding:3px 9px;border-radius:12px;border:1.5px solid var(--rx-blue);color:var(--rx-blue);background:var(--rx-blue-light,#EFF6FF);font-weight:600;cursor:pointer;white-space:nowrap;">Ver más</button>
               <button class="btn-icon-sm" title="Editar" onclick="editarPropiedad('${p.id}')">✏️</button>
               <button class="btn-icon-sm danger" title="Eliminar" onclick="eliminarPropiedad('${p.id}')">🗑️</button>
             </td>
@@ -409,7 +413,7 @@ async function guardarPropiedad() {
     proximo_contacto:   document.getElementById('propProximo').value,
     fecha_prelisting:   document.getElementById('propPrelisting').value,
     observaciones:      document.getElementById('propObservaciones').value,
-    respuesta_listing:  document.getElementById('propRespuesta')?.value || 'esperando_respuesta',
+    respuesta_listing:  document.getElementById('propRespuesta')?.value || '',
     propietarios_json:  document.getElementById('propPropietariosJSON')?.value || '[]',
     documentos_json:    document.getElementById('propDocumentosJSON')?.value   || '[]',
   };
@@ -450,6 +454,34 @@ async function eliminarPropiedad(id) {
 
 function abrirWA(tel, nombre) {
   window.open(buildWhatsAppUrl(tel, `Hola ${nombre}!`), '_blank');
+}
+
+function verMasNegocio(direccion) {
+  // Ir a la tab Actividad Listing y filtrar por esa propiedad
+  const tabBtn = document.querySelector('.tab-btn[data-tab="actividad"]') ||
+                 [...document.querySelectorAll('.tab-btn')].find(b => b.textContent.includes('Actividad'));
+  if (tabBtn) {
+    switchTab('actividad', tabBtn);
+    // Esperar render y luego filtrar
+    setTimeout(() => {
+      if (typeof ACT !== 'undefined' && ACT.propiedades && ACT.propiedades.length > 0) {
+        const filtroEl = document.getElementById('filtroActividadEstado');
+        // Scroll al card de esa propiedad
+        const cards = document.querySelectorAll('#actividadGrid .card');
+        cards.forEach(card => {
+          const title = card.querySelector('[style*="font-weight:700"]');
+          if (title && title.textContent.trim().toLowerCase().includes(direccion.toLowerCase())) {
+            card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            card.style.outline = '2.5px solid var(--rx-blue)';
+            card.style.borderRadius = '14px';
+            setTimeout(() => card.style.outline = '', 2500);
+          }
+        });
+      }
+    }, 400);
+  } else {
+    showToast('Actividad Listing: buscá "' + direccion + '"', 'info');
+  }
 }
 
 // ══ CONTACTOS ══
@@ -704,6 +736,17 @@ async function eliminarContacto(id) {
 const ACT = { consultas: [], propiedades: [] };
 
 
+function abrirWAActividadNeg(cid) {
+  // Si LEADS está disponible (mismo contexto), usar overlay
+  if (typeof abrirWAConMensajes === 'function' && typeof LEADS !== 'undefined') {
+    const c = LEADS.consultas.find(x => x.id === cid);
+    if (c) { abrirWAConMensajes(cid); return; }
+  }
+  // Fallback: abrir directo
+  const c = ACT.consultas.find(x => x.id === cid);
+  if (c && c.telefono) window.open(buildWhatsAppUrl(c.telefono, `Hola ${c.nombre||''}!`), '_blank');
+}
+
 function abrirWALead(tel, nombre, direccion) {
   const msg = nombre
     ? `Hola ${nombre}, te contacto por la propiedad ${direccion}`
@@ -794,7 +837,8 @@ function renderActividad() {
       <div style="padding:14px 18px;background:linear-gradient(135deg,#f8f9ff,#f0f4ff);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
         <div style="flex:1;min-width:0;">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
-            <span style="font-weight:700;font-size:0.95rem;">${escHtml(p.direccion || '—')}</span>
+            <span style="font-weight:700;font-size:0.95rem;color:var(--rx-blue);cursor:pointer;text-decoration:underline dotted;"
+              data-pid="${p.id}" onclick="abrirModalInfoPropiedad(this.dataset.pid)">${escHtml(p.direccion || '—')}</span>
             <span style="font-size:0.7rem;padding:2px 9px;border-radius:12px;font-weight:700;background:${badgeBg};color:${badgeColor};">${badgeLabel}</span>
             ${p.tipologia ? `<span style="font-size:0.72rem;color:#888;background:#f3f4f6;padding:2px 7px;border-radius:8px;">${escHtml(p.tipologia)}</span>` : ''}
           </div>
@@ -837,10 +881,10 @@ function renderActividad() {
                 const estadio = ESTADIO_LABELS[c.estado] || { label: c.estado, color:'#888', bg:'#f3f4f6' };
                 return `
                   <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:${estadio.bg}22;border:1px solid ${estadio.color}22;flex-wrap:wrap;">
-                    <!-- Nombre + estado -->
-                    <div style="flex:1;min-width:0;">
+                  <div style="flex:1;min-width:0;">
                       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                        <span style="font-weight:600;font-size:0.85rem;">${escHtml(c.nombre || 'Sin nombre')}</span>
+                        <span style="font-weight:600;font-size:0.85rem;color:var(--rx-blue);cursor:pointer;text-decoration:underline dotted;"
+                          data-cid="${c.id}" onclick="abrirFichaDesdeActividad(this.dataset.cid)">${escHtml(c.nombre || 'Sin nombre')}</span>
                         <span style="font-size:0.68rem;padding:1px 7px;border-radius:10px;font-weight:600;background:${estadio.bg};color:${estadio.color};">${estadio.label}</span>
                         ${c.fecha_visita ? `<span style="font-size:0.68rem;background:#EDE9FE;color:#7C3AED;border-radius:8px;padding:1px 6px;">📅 ${formatFecha(c.fecha_visita)}</span>` : ''}
                       </div>
@@ -850,11 +894,14 @@ function renderActividad() {
                         ${c.operacion  ? `<span>🔑 ${escHtml(c.operacion)}</span>` : ''}
                         <span style="color:#ccc;">${formatFecha(c.created_at)}</span>
                       </div>
-                      ${c.mensaje ? `<div style="font-size:0.73rem;color:#aaa;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:420px;">${escHtml(c.mensaje)}</div>` : ''}
+                      ${c.mensaje || c.notas ? `<div style="font-size:0.73rem;color:#555;margin-top:5px;padding:6px 9px;background:#f8f9fa;border-radius:6px;border-left:3px solid #d1d5db;white-space:pre-line;">${escHtml(c.mensaje || c.notas)}</div>` : ''}
                     </div>
                     <!-- Acciones rápidas -->
                     <div style="display:flex;gap:4px;flex-shrink:0;">
-                      ${c.telefono ? `<button class="btn-icon-sm" onclick="abrirWALead('${escHtml(c.telefono)}','${escHtml(c.nombre||'')}','${escHtml(p.direccion||'')}')">💬</button>` : ''}
+                      ${c.telefono ? `<button class="btn-icon-sm" onclick="abrirWAActividadNeg('${escHtml(c.id)}')" title="WhatsApp"
+                        style="background:#25D366;color:white;border:none;border-radius:8px;width:28px;height:28px;font-size:0.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="14" height="14"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.556 4.121 1.526 5.851L.057 23.868c-.11.415.271.802.687.702l6.225-1.634A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.027-1.384l-.36-.214-3.714.975.992-3.621-.235-.372A9.818 9.818 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>
+                        </button>` : ''}
                       <select class="input-base" style="font-size:0.72rem;padding:3px 6px;height:auto;width:130px;"
                         onchange="cambiarEstadioActividad('${c.id}', this.value, this)">
                         ${Object.entries(ESTADIO_LABELS).map(([k,v]) =>
@@ -869,6 +916,85 @@ function renderActividad() {
       }
     </div>`;
   }).join('');
+}
+
+function abrirModalInfoPropiedad(pid) {
+  const p = ACT.propiedades.find(x => x.id === pid) || NEG.propiedades.find(x => x.id === pid);
+  if (!p) return;
+  let ov = document.getElementById('_propInfoOverlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = '_propInfoOverlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9100;display:flex;align-items:center;justify-content:center;padding:16px;';
+    document.body.appendChild(ov);
+  }
+  const ESTADIO_MAP2 = { captado:'Captado', publicado:'Publicado', reservado:'Reservado', cerrado:'Cerrado ✓', pendiente:'Pendiente', esperando_respuesta:'Esperando respuesta' };
+  ov.innerHTML = `
+    <div style="background:white;border-radius:14px;max-width:480px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,0.22);">
+      <div style="padding:18px 20px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;">
+        <div style="font-weight:700;font-size:1rem;">📋 ${escHtml(p.direccion||'Propiedad')}</div>
+        <button onclick="document.getElementById('_propInfoOverlay').style.display='none'"
+          style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#888;">✕</button>
+      </div>
+      <div style="padding:16px 20px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        ${p.localidad    ? `<div><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Localidad</div><div style="font-size:0.84rem;">📍 ${escHtml(p.localidad)}${p.zona?' · '+escHtml(p.zona):''}</div></div>` : ''}
+        ${p.tipologia    ? `<div><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Tipología</div><div style="font-size:0.84rem;">${escHtml(p.tipologia)}</div></div>` : ''}
+        ${p.nombre_propietario ? `<div><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Propietario</div><div style="font-size:0.84rem;">👤 ${escHtml(p.nombre_propietario)}</div></div>` : ''}
+        ${p.telefono     ? `<div><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Teléfono</div><div style="font-size:0.84rem;">📞 ${escHtml(p.telefono)}</div></div>` : ''}
+        ${p.estado_tasacion ? `<div><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Estado</div><div style="font-size:0.84rem;">${ESTADIO_MAP2[p.estado_tasacion]||p.estado_tasacion}</div></div>` : ''}
+        ${p.url          ? `<div style="grid-column:span 2;"><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Ficha/Portal</div><a href="${escHtml(p.url)}" target="_blank" style="font-size:0.84rem;color:var(--rx-blue);">🔗 Ver ficha</a></div>` : ''}
+        ${p.observaciones? `<div style="grid-column:span 2;"><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:4px;">Observaciones</div><div style="font-size:0.82rem;background:#f8f9fa;padding:8px;border-radius:6px;border-left:3px solid #d1d5db;white-space:pre-line;">${escHtml(p.observaciones)}</div></div>` : ''}
+      </div>
+      <div style="padding:12px 20px;border-top:1px solid #e5e7eb;display:flex;gap:8px;justify-content:flex-end;">
+        <button onclick="document.getElementById('_propInfoOverlay').style.display='none';editarPropiedad('${p.id}')"
+          style="padding:7px 16px;border-radius:8px;border:1px solid #e5e7eb;background:white;cursor:pointer;font-size:0.84rem;font-weight:600;">✏️ Editar</button>
+        <button onclick="document.getElementById('_propInfoOverlay').style.display='none'"
+          style="padding:7px 16px;border-radius:8px;border:none;background:var(--rx-blue);color:white;cursor:pointer;font-size:0.84rem;font-weight:600;">Cerrar</button>
+      </div>
+    </div>`;
+  ov.style.display = 'flex';
+  ov.onclick = e => { if (e.target === ov) ov.style.display = 'none'; };
+}
+
+function abrirFichaDesdeActividad(cid) {
+  // Intentar abrir ficha desde LEADS (si está disponible) o mostrar modal simple
+  if (typeof abrirFichaLead === 'function' && typeof LEADS !== 'undefined') {
+    const c = LEADS.consultas.find(x => x.id === cid);
+    if (c) { abrirFichaLead(cid); return; }
+  }
+  // Buscar en ACT
+  const c = ACT.consultas.find(x => x.id === cid);
+  if (!c) return;
+  let ov = document.getElementById('_leadInfoOverlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = '_leadInfoOverlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9100;display:flex;align-items:center;justify-content:center;padding:16px;';
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML = `
+    <div style="background:white;border-radius:14px;max-width:460px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,0.22);">
+      <div style="padding:18px 20px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;">
+        <div style="font-weight:700;font-size:1rem;">👤 ${escHtml(c.nombre||'Lead')}</div>
+        <button onclick="document.getElementById('_leadInfoOverlay').style.display='none'"
+          style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#888;">✕</button>
+      </div>
+      <div style="padding:16px 20px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        ${c.telefono    ? `<div><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Teléfono</div><div style="font-size:0.84rem;">📞 ${escHtml(c.telefono)}</div></div>` : ''}
+        ${c.operacion   ? `<div><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Operación</div><div style="font-size:0.84rem;">${escHtml(c.operacion)}</div></div>` : ''}
+        ${c.presupuesto ? `<div><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Presupuesto</div><div style="font-size:0.84rem;">💰 ${escHtml(c.presupuesto)}</div></div>` : ''}
+        ${c.propiedad_nombre ? `<div><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Propiedad</div><div style="font-size:0.84rem;">🏠 ${escHtml(c.propiedad_nombre)}</div></div>` : ''}
+        ${c.zona_interes? `<div><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Zona</div><div style="font-size:0.84rem;">📍 ${escHtml(c.zona_interes)}</div></div>` : ''}
+        ${c.fecha_visita? `<div><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Fecha visita</div><div style="font-size:0.84rem;color:#7C3AED;font-weight:600;">📅 ${formatFecha(c.fecha_visita)}</div></div>` : ''}
+        ${c.mensaje||c.notas ? `<div style="grid-column:span 2;"><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:4px;">Notas / Observaciones</div><div style="font-size:0.82rem;background:#f8f9fa;padding:8px;border-radius:6px;border-left:3px solid #d1d5db;white-space:pre-line;">${escHtml(c.mensaje||c.notas)}</div></div>` : ''}
+      </div>
+      <div style="padding:12px 20px;border-top:1px solid #e5e7eb;text-align:right;">
+        <button onclick="document.getElementById('_leadInfoOverlay').style.display='none'"
+          style="padding:7px 16px;border-radius:8px;border:none;background:var(--rx-blue);color:white;cursor:pointer;font-size:0.84rem;font-weight:600;">Cerrar</button>
+      </div>
+    </div>`;
+  ov.style.display = 'flex';
+  ov.onclick = e => { if (e.target === ov) ov.style.display = 'none'; };
 }
 
 async function cambiarEstadioActividad(id, nuevoEstado, selectEl) {
