@@ -188,6 +188,7 @@ def init_db():
         "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS permisos JSONB DEFAULT '{}'",
         "UPDATE propiedades SET user_id='legacy' WHERE user_id IS NULL OR user_id=''",
+        # Nuevas columnas
         "ALTER TABLE consultas ADD COLUMN IF NOT EXISTS fecha_visita TEXT",
         "ALTER TABLE contactos ADD COLUMN IF NOT EXISTS cumpleanos TEXT",
         "ALTER TABLE contactos ADD COLUMN IF NOT EXISTS hijos TEXT",
@@ -342,11 +343,10 @@ def negocio_page():
     return render_template('negocio.html')
 
 @app.route('/propiedades')
+@login_required
 def propiedades_page():
-    from app import get_current_user
-    user = get_current_user()
-    if not user: return redirect(url_for('login_page'))
     return render_template('propiedades.html')
+
 
 @app.route('/leads')
 @login_required
