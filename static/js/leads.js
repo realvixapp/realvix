@@ -4,7 +4,7 @@
 const LEADS = { consultas: [], estadioFiltro: 'todos', propiedades: [] };
 
 async function initLeads() {
-  await Promise.all([cargarConsultas(), cargarPropiedadesLead()]);
+  await Promise.all([cargarConsultas(), cargarPropiedadesLead(), cargarActividadLeads()]);
   setBadge('badgeLeads', LEADS.consultas.filter(c => c.estado === 'nuevo').length);
 }
 
@@ -456,10 +456,10 @@ function _abrirWAOverlay(leadId) {
           <div style="font-size:0.68rem;color:#888;font-weight:600;text-transform:uppercase;margin-bottom:6px;">Atributos</div>
           <div style="font-size:0.68rem;color:#aaa;margin-bottom:10px;">Click para insertar</div>
           ${atributos.map(a=>`
-            <button onclick="insertarAtributoWA('${a.key}')"
+            <button data-attr="${escHtml(a.key)}" onclick="insertarAtributoWA(this.dataset.attr)"
               style="display:block;width:100%;text-align:left;padding:7px 9px;border-radius:7px;border:1px solid #e5e7eb;background:white;cursor:pointer;margin-bottom:6px;"
               onmouseover="this.style.borderColor='#2563EB'" onmouseout="this.style.borderColor='#e5e7eb'">
-              <div style="font-weight:700;color:#2563EB;font-size:0.78rem;">${a.key}</div>
+              <div style="font-weight:700;color:#2563EB;font-size:0.78rem;">${escHtml(a.key)}</div>
               <div style="color:#888;font-size:0.67rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px;">${escHtml(a.valor||'(vacío)')}</div>
             </button>`).join('')}
         </div>
