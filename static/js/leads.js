@@ -64,8 +64,10 @@ function switchLeadsTab(tab, btn) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
   document.getElementById('tabConsultas').style.display = tab === 'consultas' ? '' : 'none';
+  document.getElementById('tabMuestras').style.display  = tab === 'muestras'  ? '' : 'none';
   const tabAct = document.getElementById('tabActividad');
   if (tabAct) tabAct.style.display = tab === 'actividad' ? '' : 'none';
+  if (tab === 'muestras')   renderMuestras();
   if (tab === 'actividad')  cargarActividadLeads();
 }
 
@@ -287,6 +289,37 @@ function abrirWAConMensajes(leadId) {
   const c = LEADS.consultas.find(x => x.id === leadId);
   if (!c || !c.telefono) return;
 
+  if (LEADS_TEXTOS_WA.length === 0) {
+    cargarTextosWA().then(() => _abrirWAOverlay(leadId));
+    return;
+  }
+  _abrirWAOverlay(leadId);
+}
+
+function _abrirWAOverlay(leadId) {
+  const c = LEADS.consultas.find(x => x.id === leadId);
+  if (!c) return;
+
+  // Buscar la propiedad asociada para obtener la URL de la ficha
+  const propObj = (typeof NEG !== 'undefined' && NEG.propiedades)
+    ? NEG.propiedades.find(p => p.direccion === c.propiedad_nombre)
+    : null;
+  const fichaUrl = propObj?.url || '';
+
+  const CAT_LABELS = {
+    'bienvenida_lead':         'Bienvenida Lead',
+    'seguimiento_lead':        'Seguimiento Lead',
+    'visita_lead':             'Visita Lead',
+    'seguimiento_propietario': 'Seguimiento Propietario',
+  };
+
+  // Atributos con valores reales: {propiedad} = URL ficha
+  const atributos = [
+    { key: '{nombre}',             label: 'Nombre lead',       valor: c.nombre || '' },
+    { key: '{propiedad}',          label: 'Ficha propiedad',   valor: fichaUrl || c.propiedad_nombre || '' },
+    { key: '{nombre_propietario}', label: 'Nombre propietario',valor: propObj?.nombre_propietario || '' },
+  ];
+
   let overlay = document.getElementById('_waOverlay');
   if (!overlay) {
     overlay = document.createElement('div');
@@ -295,143 +328,134 @@ function abrirWAConMensajes(leadId) {
     document.body.appendChild(overlay);
   }
 
-  const textos = LEADS_TEXTOS_WA.length > 0 ? LEADS_TEXTOS_WA : [];
-  const CAT_LABELS = {
-    'bienvenida_lead': 'Bienvenida Lead',
-    'seguimiento_lead': 'Seguimiento Lead',
-    'visita_lead': 'Visita Lead',
-    'seguimiento_propietario': 'Seguimiento Propietario',
-  };
-
-  const atributos = [
-    { key: '{nombre}',             label: 'Nombre del lead',      valor: c.nombre || '' },
-    { key: '{propiedad}',          label: 'Ficha propiedad',      valor: c.propiedad_nombre || '' },
-    { key: '{nombre_propietario}', label: 'Nombre propietario',   valor: '' },
-  ];
+  // Mostrar todos los textos al inicio
+  const todosTextos = LEADS_TEXTOS_WA;
+  const textosHTML = (lista) => lista.length > 0
+    ? lista.map(t => `
+        <div onclick="usarTextoWA('${t.id}','${leadId}')"
+          style="padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;cursor:pointer;font-size:0.8rem;background:white;margin-bottom:4px;"
+          onmouseover="this.style.borderColor='#25D366';this.style.background='#f0fff4'" onmouseout="this.style.borderColor='#e5e7eb';this.style.background='white'">
+          <div style="font-weight:600;color:#374151;margin-bottom:2px;">${escHtml(t.titulo)}</div>
+          <div style="color:#888;font-size:0.72rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml((t.contenido||'').substring(0,90))}…</div>
+        </div>`).join('')
+    : '<div style="font-size:0.8rem;color:#aaa;padding:8px 0;">No hay textos en esta categoría.</div>';
 
   overlay.innerHTML = `
-    <div style="background:var(--bg-card,white);border-radius:14px;max-width:620px;width:100%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,0.25);">
-      <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;">
+    <div style="background:var(--bg-card,white);border-radius:14px;max-width:660px;width:100%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,0.25);">
+      <!-- Header -->
+      <div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;">
         <div style="width:36px;height:36px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">💬</div>
         <div style="flex:1;">
           <div style="font-weight:700;font-size:0.95rem;">Enviar WhatsApp</div>
-          <div style="font-size:0.75rem;color:#888;">📞 ${escHtml(c.telefono)} · ${escHtml(c.nombre || 'Lead')}</div>
+          <div style="font-size:0.75rem;color:#888;">📞 ${escHtml(c.telefono)} · ${escHtml(c.nombre||'Lead')}${c.propiedad_nombre ? ' · 🏠 ' + escHtml(c.propiedad_nombre) : ''}</div>
         </div>
         <button onclick="document.getElementById('_waOverlay').style.display='none'"
-          style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#888;">✕</button>
+          style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#888;padding:4px;">✕</button>
       </div>
+      <!-- Body -->
       <div style="display:flex;flex:1;overflow:hidden;min-height:0;">
-        <!-- Panel mensaje -->
-        <div style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;">
-          <!-- Selector categoría -->
-          <div>
-            <div style="font-size:0.7rem;color:#888;font-weight:600;text-transform:uppercase;margin-bottom:6px;">Categoría</div>
-            <select id="waCategoriaSelect" class="input-base" style="font-size:0.82rem;" onchange="filtrarTextosWACat(this.value, '${leadId}')">
+        <!-- Panel izquierdo -->
+        <div style="flex:1;padding:14px 16px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;">
+          <!-- Filtro categoría -->
+          <div style="display:flex;align-items:center;gap:8px;">
+            <label style="font-size:0.7rem;font-weight:600;color:#888;text-transform:uppercase;white-space:nowrap;">Categoría:</label>
+            <select id="waCategoriaSelect" style="flex:1;font-size:0.82rem;padding:5px 8px;border:1px solid #e5e7eb;border-radius:8px;outline:none;cursor:pointer;"
+              onchange="filtrarTextosWACat(this.value,'${leadId}')">
               <option value="">— Todas —</option>
               ${Object.entries(CAT_LABELS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}
             </select>
           </div>
-          <!-- Textos predeterminados -->
-          <div id="waTextosLista">
-            ${textos.length > 0 ? `
-            <div style="font-size:0.7rem;color:#888;font-weight:600;text-transform:uppercase;margin-bottom:6px;">Textos predeterminados</div>
-            <div style="display:flex;flex-direction:column;gap:5px;max-height:200px;overflow-y:auto;" id="waTextosGrid">
-              ${textos.map(t => `
-                <div onclick="usarTextoWA('${t.id}','${leadId}')"
-                  style="padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;cursor:pointer;font-size:0.8rem;background:white;"
-                  onmouseover="this.style.borderColor='#25D366'" onmouseout="this.style.borderColor='#e5e7eb'">
-                  <div style="font-weight:600;margin-bottom:2px;">${escHtml(t.titulo)}</div>
-                  <div style="color:#888;font-size:0.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml((t.contenido||'').substring(0,80))}…</div>
-                </div>`).join('')}
-            </div>` : '<div style="font-size:0.8rem;color:#aaa;">No hay textos guardados. Podés escribir uno directamente.</div>'}
-          </div>
-          <!-- Mensaje a enviar (editable) -->
+          <!-- Lista textos predeterminados -->
           <div>
-            <div style="font-size:0.7rem;color:#888;font-weight:600;text-transform:uppercase;margin-bottom:6px;">Mensaje a enviar</div>
-            <textarea id="waMensajeTexto" rows="6"
-              style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:10px;font-size:0.85rem;resize:vertical;font-family:inherit;box-sizing:border-box;"
-              placeholder="Escribí o seleccioná un texto predeterminado arriba..."></textarea>
+            <div style="font-size:0.7rem;font-weight:600;color:#888;text-transform:uppercase;margin-bottom:6px;">Textos predeterminados</div>
+            <div id="waTextosGrid" style="max-height:180px;overflow-y:auto;">
+              ${textosHTML(todosTextos)}
+            </div>
+          </div>
+          <!-- Textarea mensaje -->
+          <div style="flex:1;display:flex;flex-direction:column;">
+            <div style="font-size:0.7rem;font-weight:600;color:#888;text-transform:uppercase;margin-bottom:5px;">Mensaje a enviar</div>
+            <textarea id="waMensajeTexto" rows="5"
+              style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:10px;font-size:0.85rem;resize:vertical;font-family:inherit;box-sizing:border-box;outline:none;"
+              placeholder="Seleccioná un texto arriba o escribí uno directamente..."></textarea>
           </div>
         </div>
         <!-- Panel atributos -->
-        <div style="width:160px;flex-shrink:0;border-left:1px solid var(--border);padding:14px 12px;background:#f8f9fa;overflow-y:auto;">
-          <div style="font-size:0.68rem;color:#888;font-weight:600;text-transform:uppercase;margin-bottom:8px;">Atributos</div>
-          <div style="font-size:0.7rem;color:#aaa;margin-bottom:10px;">Hacé click para insertar</div>
-          ${atributos.map(a => `
+        <div style="width:170px;flex-shrink:0;border-left:1px solid var(--border);padding:14px 12px;background:#f8f9fa;overflow-y:auto;">
+          <div style="font-size:0.68rem;color:#888;font-weight:600;text-transform:uppercase;margin-bottom:6px;">Atributos</div>
+          <div style="font-size:0.7rem;color:#aaa;margin-bottom:10px;">Click para insertar en el mensaje</div>
+          ${atributos.map(a=>`
             <button onclick="insertarAtributoWA('${a.key}')"
-              style="display:block;width:100%;text-align:left;padding:6px 8px;border-radius:6px;border:1px solid #e5e7eb;background:white;cursor:pointer;margin-bottom:5px;font-size:0.75rem;"
-              title="Valor: ${escHtml(a.valor)}">
-              <div style="font-weight:600;color:#2563EB;">${a.key}</div>
-              <div style="color:#888;font-size:0.68rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(a.valor || '(vacío)')}</div>
+              style="display:block;width:100%;text-align:left;padding:7px 9px;border-radius:7px;border:1px solid #e5e7eb;background:white;cursor:pointer;margin-bottom:6px;"
+              onmouseover="this.style.borderColor='#2563EB'" onmouseout="this.style.borderColor='#e5e7eb'">
+              <div style="font-weight:700;color:#2563EB;font-size:0.78rem;">${a.key}</div>
+              <div style="color:#888;font-size:0.68rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px;">${escHtml(a.valor||'(vacío)')}</div>
             </button>`).join('')}
         </div>
       </div>
-      <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;align-items:center;">
-        <div style="flex:1;font-size:0.75rem;color:#888;">El mensaje se abrirá en WhatsApp Web</div>
+      <!-- Footer -->
+      <div style="padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;align-items:center;">
+        <div style="flex:1;font-size:0.75rem;color:#aaa;">El mensaje se abrirá en WhatsApp Web</div>
         <button onclick="document.getElementById('_waOverlay').style.display='none'"
           style="padding:8px 16px;border-radius:8px;border:1px solid #e5e7eb;background:white;cursor:pointer;font-size:0.84rem;">Cancelar</button>
         <button onclick="enviarMensajeWA('${escHtml(c.telefono)}')"
-          style="padding:8px 20px;border-radius:8px;border:none;background:#25D366;color:white;cursor:pointer;font-size:0.84rem;font-weight:700;">
+          style="padding:8px 22px;border-radius:8px;border:none;background:#25D366;color:white;cursor:pointer;font-size:0.84rem;font-weight:700;display:flex;align-items:center;gap:6px;">
           💬 Abrir WhatsApp
         </button>
       </div>
     </div>`;
 
   overlay.style.display = 'flex';
-  overlay.onclick = (e) => { if (e.target === overlay) overlay.style.display = 'none'; };
+  overlay.onclick = e => { if (e.target === overlay) overlay.style.display = 'none'; };
 }
 
 function filtrarTextosWACat(cat, leadId) {
-  const c = LEADS.consultas.find(x => x.id === leadId);
-  const textosFiltrados = cat
-    ? LEADS_TEXTOS_WA.filter(t => t.categoria === cat)
-    : LEADS_TEXTOS_WA;
+  const filtrados = cat ? LEADS_TEXTOS_WA.filter(t => t.categoria === cat) : LEADS_TEXTOS_WA;
   const grid = document.getElementById('waTextosGrid');
   if (!grid) return;
-  if (textosFiltrados.length === 0) {
-    grid.innerHTML = `<div style="font-size:0.8rem;color:#aaa;padding:8px;">No hay textos en esta categoría.</div>`;
-    return;
-  }
-  grid.innerHTML = textosFiltrados.map(t => `
-    <div onclick="usarTextoWA('${t.id}','${leadId}')"
-      style="padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;cursor:pointer;font-size:0.8rem;background:white;"
-      onmouseover="this.style.borderColor='#25D366'" onmouseout="this.style.borderColor='#e5e7eb'">
-      <div style="font-weight:600;margin-bottom:2px;">${escHtml(t.titulo)}</div>
-      <div style="color:#888;font-size:0.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml((t.contenido||'').substring(0,80))}…</div>
-    </div>`).join('');
+  grid.innerHTML = filtrados.length > 0
+    ? filtrados.map(t=>`
+        <div onclick="usarTextoWA('${t.id}','${leadId}')"
+          style="padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;cursor:pointer;font-size:0.8rem;background:white;margin-bottom:4px;"
+          onmouseover="this.style.borderColor='#25D366';this.style.background='#f0fff4'" onmouseout="this.style.borderColor='#e5e7eb';this.style.background='white'">
+          <div style="font-weight:600;color:#374151;margin-bottom:2px;">${escHtml(t.titulo)}</div>
+          <div style="color:#888;font-size:0.72rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml((t.contenido||'').substring(0,90))}…</div>
+        </div>`).join('')
+    : '<div style="font-size:0.8rem;color:#aaa;padding:8px 0;">No hay textos en esta categoría.</div>';
 }
 
 function usarTextoWA(textoId, leadId) {
   const t = LEADS_TEXTOS_WA.find(x => x.id === textoId);
   const c = LEADS.consultas.find(x => x.id === leadId);
   if (!t || !c) return;
+  // Buscar URL ficha de la propiedad
+  const propObj = (typeof NEG !== 'undefined' && NEG.propiedades)
+    ? NEG.propiedades.find(p => p.direccion === c.propiedad_nombre)
+    : null;
+  const fichaUrl = propObj?.url || '';
   let msg = t.contenido || '';
   msg = msg
     .replace(/\{nombre\}/gi,             c.nombre || '')
-    .replace(/\{propiedad\}/gi,          c.propiedad_nombre || '')
-    .replace(/\{nombre_propietario\}/gi, '')
-    .replace(/\{telefono\}/gi,           c.telefono || '')
-    .replace(/\{presupuesto\}/gi,        c.presupuesto || '');
+    .replace(/\{propiedad\}/gi,          fichaUrl || c.propiedad_nombre || '')
+    .replace(/\{nombre_propietario\}/gi, propObj?.nombre_propietario || '');
   const textarea = document.getElementById('waMensajeTexto');
-  if (textarea) textarea.value = msg;
+  if (textarea) { textarea.value = msg; textarea.focus(); }
 }
 
 function insertarAtributoWA(atributo) {
   const textarea = document.getElementById('waMensajeTexto');
   if (!textarea) return;
-  const start = textarea.selectionStart;
-  const end   = textarea.selectionEnd;
-  const val   = textarea.value;
-  textarea.value = val.substring(0, start) + atributo + val.substring(end);
-  textarea.selectionStart = textarea.selectionEnd = start + atributo.length;
+  const s = textarea.selectionStart, e = textarea.selectionEnd;
+  textarea.value = textarea.value.substring(0,s) + atributo + textarea.value.substring(e);
+  textarea.selectionStart = textarea.selectionEnd = s + atributo.length;
   textarea.focus();
 }
 
 function enviarMensajeWA(telefono) {
   const msg = document.getElementById('waMensajeTexto')?.value || '';
-  const url = buildWhatsAppUrl(telefono, msg);
-  window.open(url, '_blank');
-  document.getElementById('_waOverlay').style.display = 'none';
+  window.open(buildWhatsAppUrl(telefono, msg), '_blank');
+  const ov = document.getElementById('_waOverlay');
+  if (ov) ov.style.display = 'none';
 }
 
 
@@ -705,7 +729,7 @@ function renderActividadLeads() {
           <div style="font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Consultas (${p.consultas.length})</div>
           ${p.consultas.map(c=>{
             const st=ESTADIO_LABELS[c.estado]||{label:c.estado,color:'#888',bg:'#f3f4f6'};
-            return `<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 12px;border-radius:8px;background:${st.bg}22;border:1px solid ${st.color}22;margin-bottom:5px;flex-wrap:wrap;">
+            return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:${st.bg}22;border:1px solid ${st.color}22;margin-bottom:5px;flex-wrap:wrap;">
               <div style="flex:1;min-width:0;">
                 <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                   <span style="font-weight:600;font-size:0.85rem;">${escHtml(c.nombre||'Sin nombre')}</span>
@@ -714,12 +738,13 @@ function renderActividadLeads() {
                 </div>
                 <div style="font-size:0.75rem;color:#888;margin-top:2px;display:flex;gap:10px;flex-wrap:wrap;">
                   ${c.telefono?`<span>📞 ${escHtml(c.telefono)}</span>`:''}
+                  ${c.presupuesto?`<span>💰 ${escHtml(c.presupuesto)}</span>`:''}
                   <span style="color:#ccc;">${formatFecha(c.created_at)}</span>
                 </div>
-                ${(c.notas||c.mensaje)?`<div style="font-size:0.76rem;color:#555;margin-top:4px;background:#f8f9fa;padding:5px 8px;border-radius:6px;border-left:3px solid ${st.color}44;">💬 ${escHtml(c.notas||c.mensaje)}</div>`:''}
               </div>
-              <div style="display:flex;gap:4px;flex-shrink:0;align-items:center;">
-                ${c.telefono?`<button class="btn-icon-sm" data-lid="${c.id}" onclick="abrirWAConMensajes(this.dataset.lid)" style="background:#25D366;color:white;border:none;border-radius:8px;" title="WhatsApp">💬</button>`:''}
+              <div style="display:flex;gap:4px;flex-shrink:0;">
+                ${c.telefono?`<button class="btn-icon-sm" data-tel="${escHtml(c.telefono)}" data-nom="${escHtml(c.nombre||'')}"
+                  onclick="window.open(buildWhatsAppUrl(this.dataset.tel,'Hola '+this.dataset.nom),'_blank')">💬</button>`:''}
                 <select class="input-base" style="font-size:0.72rem;padding:3px 6px;height:auto;width:128px;"
                   data-cid="${c.id}" onchange="cambiarEstadioActLeads(this.dataset.cid,this.value,this)">
                   ${Object.entries(ESTADIO_LABELS).map(([k,v])=>`<option value="${k}" ${c.estado===k?'selected':''}>${v.label}</option>`).join('')}
