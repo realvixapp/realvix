@@ -34,8 +34,9 @@ function switchTab(tab, btn) {
   const tabEst = document.getElementById('tabEstado');
   if (tabEst) tabEst.style.display = 'none'; // removed
   document.getElementById('tabContactos').style.display = tab === 'contactos' ? '' : 'none';
-  document.getElementById('tabActividad').style.display = tab === 'actividad' ? '' : 'none';
-  if (tab === 'actividad') cargarActividad();
+  // actividad moved to propiedades.html
+  const tabAct = document.getElementById('tabActividad');
+  if (tabAct) tabAct.style.display = 'none';
 }
 
 // ══ PROPIEDADES (datos comunes) ══
