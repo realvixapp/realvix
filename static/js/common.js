@@ -21,10 +21,45 @@ async function loadUser() {
     // Mostrar link admin si es admin
     const adminLink = document.getElementById('adminLink');
     if (adminLink && data.role === 'admin') adminLink.style.display = '';
+
+    // ── Aplicar permisos al sidebar ──
+    applySidebarPermisos(data);
+
     return data;
   } catch (e) {
     window.location.href = '/login';
   }
+}
+
+/**
+ * Muestra u oculta los items del sidebar según los permisos del usuario.
+ * Los admins ven todo. Los members solo ven lo que tienen habilitado.
+ */
+function applySidebarPermisos(user) {
+  const permisos = user.permisos || {};
+  const isAdmin = user.role === 'admin';
+
+  // Grupos de secciones para mostrar/ocultar separadores
+  const grupos = {
+    negocio:   ['negocio', 'leads', 'metricas', 'cierres'],
+    gestion:   ['agenda', 'firma', 'asistente'],
+    contenido: ['contenido', 'guiones', 'ideas'],
+  };
+
+  // Mostrar/ocultar items individuales
+  document.querySelectorAll('[data-section]').forEach(el => {
+    const sec = el.getAttribute('data-section');
+    const visible = isAdmin || permisos[sec];
+    el.style.display = visible ? '' : 'none';
+  });
+
+  // Mostrar/ocultar separadores de grupo solo si al menos un item del grupo es visible
+  Object.entries(grupos).forEach(([grupo, secciones]) => {
+    const grupoVisible = isAdmin || secciones.some(s => permisos[s]);
+    document.querySelectorAll(`[data-section-sep="${grupo}"]`).forEach(el => {
+      el.style.display = grupoVisible ? '' : 'none';
+    });
+  });
 }
 
 async function logout() {
