@@ -11,33 +11,6 @@ const NEG = {
   tabActual: 'listing',
 };
 
-// ── Modal de confirmación reutilizable (reemplaza confirm() nativo) ──
-function mostrarConfirmacion(titulo, subtitulo) {
-  return new Promise(resolve => {
-    let overlay = document.getElementById('_confirmOverlay');
-    if (!overlay) {
-      overlay = document.createElement('div');
-      overlay.id = '_confirmOverlay';
-      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;justify-content:center;';
-      document.body.appendChild(overlay);
-    }
-    overlay.innerHTML = `
-      <div style="background:var(--bg-card,white);border-radius:12px;padding:28px 32px;max-width:380px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.18);">
-        <div style="font-size:1rem;font-weight:700;margin-bottom:8px;">${titulo}</div>
-        ${subtitulo ? `<div style="font-size:0.85rem;color:#666;margin-bottom:20px;">${subtitulo}</div>` : '<div style="margin-bottom:20px;"></div>'}
-        <div style="display:flex;gap:10px;justify-content:flex-end;">
-          <button id="_confirmCancelar" style="padding:8px 18px;border-radius:8px;border:1px solid #e5e7eb;background:white;cursor:pointer;font-size:0.88rem;">Cancelar</button>
-          <button id="_confirmAceptar" style="padding:8px 18px;border-radius:8px;border:none;background:#DC2626;color:white;cursor:pointer;font-size:0.88rem;font-weight:600;">Eliminar</button>
-        </div>
-      </div>`;
-    overlay.style.display = 'flex';
-    const cerrar = (val) => { overlay.style.display = 'none'; resolve(val); };
-    document.getElementById('_confirmAceptar').onclick  = () => cerrar(true);
-    document.getElementById('_confirmCancelar').onclick = () => cerrar(false);
-    overlay.onclick = (e) => { if (e.target === overlay) cerrar(false); };
-  });
-}
-
 // Mapa de colores por estadio
 const ESTADIO_MAP = {
   pendiente:            { label: 'Pendiente',           color: '#6B7280', bg: '#F3F4F6' },
@@ -54,7 +27,6 @@ const ESTADIO_MAP = {
 async function initNegocio() {
   await Promise.all([cargarPropiedades(), cargarContactos()]);
 }
-
 
 // ── TABS ──
 function switchTab(tab, btn) {
@@ -230,37 +202,165 @@ function actualizarStatsListing() {
 }
 
 function actualizarContadoresEstado() {
-  const s = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
-  s('cntPendientes',  NEG.propiedades.filter(p => (p.estado_tasacion||'pendiente') === 'pendiente').length);
-  s('cntEsperando',   NEG.propiedades.filter(p => p.estado_tasacion === 'esperando_respuesta').length);
+  // Ahora los contadores se generan dinámicamente en renderEstado
+  renderEstado();
 }
 
-// ══ ESTADO DE PROPIEDADES ══
-// Columnas: Dirección · Estadio · Próximo contacto · Último contacto · Observaciones · Acciones
+// ══ ESTADO DE PROPIEDADES — filtros dinámicos con TODOS los estados ══
 let _estadioFiltro = 'todos';
+let _respFiltro    = 'todos';
+
+// Todos los estados de tasación posibles
+const TODOS_ESTADOS = [
+  { key:'pendiente',           label:'⏳ Pendiente',           color:'#6B7280', bg:'#F3F4F6' },
+  { key:'esperando_respuesta', label:'📋 Esperando resp.',     color:'#7C3AED', bg:'#F5F3FF' },
+  { key:'captado',             label:'🔷 Captado',             color:'#2563EB', bg:'#EFF6FF' },
+  { key:'publicado',           label:'🟢 Publicado',           color:'#D97706', bg:'#FFFBEB' },
+  { key:'reservado',           label:'🔴 Reservado',           color:'#DC2626', bg:'#FEF2F2' },
+  { key:'cerrado',             label:'✅ Cerrado',             color:'#059669', bg:'#ECFDF5' },
+];
+
+const TODOS_RESP = [
+  { key:'esperando_respuesta', label:'⏳ Esperando resp.',  color:'#D97706', bg:'#FFFBEB' },
+  { key:'aceptado',            label:'✅ Aceptado',         color:'#059669', bg:'#ECFDF5' },
+  { key:'rechazado',           label:'❌ Rechazado',        color:'#DC2626', bg:'#FEF2F2' },
+  { key:'decide_esperar',      label:'🕐 Decide esperar',   color:'#7C3AED', bg:'#F5F3FF' },
+  { key:'vendio_con_otro',     label:'🔄 Vendió con otro',  color:'#6B7280', bg:'#F3F4F6' },
+];
+
+function renderFiltrosBotonesEstado() {
+  const cont = document.getElementById('filtrosBotonesEstado');
+  if (!cont) return;
+  const props = NEG.propiedades;
+
+  // Botón Todos
+  let html = `<button onclick="filtrarEstadioEstado('todos',this)"
+    style="border-radius:20px;padding:5px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;border:none;
+    background:${_estadioFiltro==='todos'?'var(--rx-blue)':'#f3f4f6'};
+    color:${_estadioFiltro==='todos'?'white':'#374151'};">
+    Todos <span style="opacity:0.7;">(${props.length})</span></button>`;
+
+  // Un botón por estado que tenga al menos 1 propiedad
+  TODOS_ESTADOS.forEach(e => {
+    const cnt = props.filter(p => (p.estado_tasacion||'pendiente') === e.key).length;
+    if (cnt === 0) return;
+    const activo = _estadioFiltro === e.key;
+    html += `<button onclick="filtrarEstadioEstado('${e.key}',this)"
+      style="border-radius:20px;padding:5px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;
+      border:1px solid ${e.color}44;
+      background:${activo ? e.color : e.bg};
+      color:${activo ? 'white' : e.color};">
+      ${e.label} <span style="opacity:0.75;">(${cnt})</span></button>`;
+  });
+  cont.innerHTML = html;
+}
+
+function renderFiltrosBotonesResp() {
+  const cont = document.getElementById('filtrosBotonesResp');
+  if (!cont) return;
+  const props = NEG.propiedades;
+
+  let html = `<button onclick="filtrarRespEstado('todos',this)"
+    style="border-radius:20px;padding:5px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;border:none;
+    background:${_respFiltro==='todos'?'var(--rx-blue)':'#f3f4f6'};
+    color:${_respFiltro==='todos'?'white':'#374151'};">
+    Todos</button>`;
+
+  TODOS_RESP.forEach(r => {
+    const cnt = props.filter(p => (p.respuesta_listing||'esperando_respuesta') === r.key).length;
+    if (cnt === 0) return;
+    const activo = _respFiltro === r.key;
+    html += `<button onclick="filtrarRespEstado('${r.key}',this)"
+      style="border-radius:20px;padding:5px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;
+      border:1px solid ${r.color}44;
+      background:${activo ? r.color : r.bg};
+      color:${activo ? 'white' : r.color};">
+      ${r.label} <span style="opacity:0.75;">(${cnt})</span></button>`;
+  });
+  cont.innerHTML = html;
+}
+
+function renderContadoresEstado() {
+  const cont = document.getElementById('estadoCounters');
+  if (!cont) return;
+  const props = NEG.propiedades;
+  cont.innerHTML = TODOS_ESTADOS.map(e => {
+    const cnt = props.filter(p => (p.estado_tasacion||'pendiente') === e.key).length;
+    return `<div class="stat-mini" style="border-left:3px solid ${e.color};min-width:120px;">
+      <div class="stat-mini-label" style="color:${e.color};font-weight:600;font-size:0.7rem;text-transform:uppercase;">${e.label}</div>
+      <div class="stat-mini-num" style="color:${e.color};">${cnt}</div>
+    </div>`;
+  }).join('');
+}
+
+// Cambio #11 — Embudo de listing
+function renderEmbudoListing() {
+  const cont = document.getElementById('embudoListing');
+  if (!cont) return;
+  const props = NEG.propiedades;
+  const total      = props.length;
+  const captadas   = props.filter(p => ['captado','publicado','reservado','cerrado'].includes(p.estado_tasacion||'')).length;
+  const publicadas = props.filter(p => ['publicado','reservado','cerrado'].includes(p.estado_tasacion||'')).length;
+  const reservadas = props.filter(p => ['reservado','cerrado'].includes(p.estado_tasacion||'')).length;
+  const cerradas   = props.filter(p => (p.estado_tasacion||'') === 'cerrado').length;
+
+  const pasos = [
+    { label:'Total cartera', num:total,      color:'#6B7280', icon:'🏘️' },
+    { label:'Captadas',      num:captadas,   color:'#2563EB', icon:'🔷' },
+    { label:'Publicadas',    num:publicadas, color:'#D97706', icon:'🟢' },
+    { label:'Reservadas',    num:reservadas, color:'#DC2626', icon:'🔴' },
+    { label:'Cerradas',      num:cerradas,   color:'#059669', icon:'✅' },
+  ];
+  cont.innerHTML = `
+    <div style="background:var(--cream,#f8f9ff);border-radius:10px;border:1px solid var(--border);padding:14px 16px;margin-bottom:4px;">
+      <div style="font-size:0.72rem;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Embudo de Listing</div>
+      <div style="display:flex;gap:0;align-items:stretch;">
+        ${pasos.map((p,i) => `
+          <div style="flex:1;text-align:center;padding:8px 6px;${i<pasos.length-1?'border-right:1px solid var(--border);':''}">
+            <div style="font-size:1.1rem;margin-bottom:2px;">${p.icon}</div>
+            <div style="font-size:1.4rem;font-weight:700;color:${p.color};">${p.num}</div>
+            <div style="font-size:0.68rem;color:#888;margin-top:1px;">${p.label}</div>
+            ${i>0 && pasos[i-1].num>0 ? `<div style="font-size:0.65rem;color:${p.color};font-weight:600;margin-top:2px;">${Math.round(p.num/pasos[i-1].num*100)}%</div>` : ''}
+          </div>`).join('<div style="display:flex;align-items:center;color:#d1d5db;font-size:1rem;">›</div>')}
+      </div>
+    </div>`;
+}
 
 function filtrarEstadioEstado(est, btn) {
   _estadioFiltro = est;
-  document.querySelectorAll('#tabEstado .estadio-btn').forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
+  renderFiltrosBotonesEstado();
+  renderEstado();
+}
+
+function filtrarRespEstado(resp, btn) {
+  _respFiltro = resp;
+  renderFiltrosBotonesResp();
   renderEstado();
 }
 
 function filtrarEstado() { renderEstado(); }
 
 function renderEstado() {
+  renderFiltrosBotonesEstado();
+  renderFiltrosBotonesResp();
+  renderContadoresEstado();
+  renderEmbudoListing();
+
   const q = (document.getElementById('filtroEstadoBuscar')?.value || '').toLowerCase();
   const lista = NEG.propiedades.filter(p => {
-    const matchEst = _estadioFiltro === 'todos' || p.estado_tasacion === _estadioFiltro || p.estadio === _estadioFiltro;
-    const matchQ   = !q || (p.direccion||'').toLowerCase().includes(q) ||
-                          (p.nombre_propietario||'').toLowerCase().includes(q);
-    return matchEst && matchQ;
+    const est  = p.estado_tasacion || 'pendiente';
+    const resp = p.respuesta_listing || 'esperando_respuesta';
+    const matchEst  = _estadioFiltro === 'todos' || est === _estadioFiltro;
+    const matchResp = _respFiltro   === 'todos' || resp === _respFiltro;
+    const matchQ    = !q || (p.direccion||'').toLowerCase().includes(q) ||
+                           (p.nombre_propietario||'').toLowerCase().includes(q);
+    return matchEst && matchResp && matchQ;
   });
 
   const container = document.getElementById('estadoTable');
   if (!container) return;
   if (lista.length === 0) {
-    container.innerHTML = `<div class="empty-state">No hay propiedades en este estadio</div>`; return;
+    container.innerHTML = `<div class="empty-state">No hay propiedades con este filtro</div>`; return;
   }
 
   const hoy = new Date().toISOString().split('T')[0];
@@ -269,7 +369,8 @@ function renderEstado() {
     <table class="table">
       <thead><tr>
         <th>Dirección</th>
-        <th>Estadio</th>
+        <th>Estado tasación</th>
+        <th>Respuesta propietario</th>
         <th>Próximo contacto</th>
         <th>Último contacto</th>
         <th>Observaciones</th>
@@ -277,21 +378,30 @@ function renderEstado() {
       </tr></thead>
       <tbody>
         ${lista.map(p => {
-          const estadio = p.estado_tasacion || p.estadio || '';
-          const est = ESTADIO_MAP[estadio] || { label: estadio || '—', color: '#888', bg: '#f3f4f6' };
-          const proximo = p.proximo_contacto || '';
-          const vencido = proximo && proximo < hoy;
-          const hoyFlag  = proximo === hoy;
+          const estadoKey = p.estado_tasacion || 'pendiente';
+          const respKey   = p.respuesta_listing || 'esperando_respuesta';
+          const estInfo   = TODOS_ESTADOS.find(e => e.key === estadoKey) || { label: estadoKey, color:'#888', bg:'#f3f4f6' };
+          const respInfo  = TODOS_RESP.find(r => r.key === respKey)     || { label: respKey,   color:'#888', bg:'#f3f4f6' };
+          const proximo   = p.proximo_contacto || '';
+          const vencido   = proximo && proximo < hoy;
+          const hoyFlag   = proximo === hoy;
           return `<tr>
             <td>
               <div style="font-weight:600;">${escHtml(p.direccion || '—')}</div>
               ${p.nombre_propietario ? `<div style="font-size:0.75rem;color:#888;">${escHtml(p.nombre_propietario)}</div>` : ''}
             </td>
             <td>
-              <select class="estadio-inline-select" onchange="cambiarEstadio('${p.id}', this.value)"
-                style="font-size:0.78rem;padding:3px 8px;border-radius:20px;border:1px solid ${est.color}44;background:${est.bg};color:${est.color};font-weight:600;cursor:pointer;outline:none;">
-                <option value="pendiente" ${estadio==='pendiente'?'selected':''}>⏳ Pendiente</option>
-                <option value="esperando_respuesta" ${estadio==='esperando_respuesta'?'selected':''}>📋 Esperando respuesta</option>
+              <select class="estadio-inline-select" data-pid="${p.id}"
+                onchange="cambiarEstadioDesdeTabla(this.dataset.pid, this.value)"
+                style="font-size:0.75rem;padding:3px 8px;border-radius:12px;border:1px solid ${estInfo.color}44;background:${estInfo.bg};color:${estInfo.color};font-weight:600;cursor:pointer;outline:none;">
+                ${TODOS_ESTADOS.map(e => `<option value="${e.key}" ${estadoKey===e.key?'selected':''}>${e.label}</option>`).join('')}
+              </select>
+            </td>
+            <td>
+              <select class="estadio-inline-select" data-pid="${p.id}"
+                onchange="cambiarRespDesdeTabla(this.dataset.pid, this.value)"
+                style="font-size:0.75rem;padding:3px 8px;border-radius:12px;border:1px solid ${respInfo.color}44;background:${respInfo.bg};color:${respInfo.color};font-weight:600;cursor:pointer;outline:none;">
+                ${TODOS_RESP.map(r => `<option value="${r.key}" ${respKey===r.key?'selected':''}>${r.label}</option>`).join('')}
               </select>
             </td>
             <td>
@@ -302,9 +412,9 @@ function renderEstado() {
                 : '<span style="color:#ccc;">—</span>'}
             </td>
             <td style="font-size:0.82rem;color:#666;">${formatFecha(p.ultimo_contacto)}</td>
-            <td style="max-width:220px;">
+            <td style="max-width:180px;">
               ${p.observaciones
-                ? `<div style="font-size:0.78rem;color:#666;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px;" title="${escHtml(p.observaciones)}">${escHtml(p.observaciones)}</div>`
+                ? `<div style="font-size:0.78rem;color:#666;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:170px;" title="${escHtml(p.observaciones)}">${escHtml(p.observaciones)}</div>`
                 : '<span style="color:#ccc;">—</span>'}
             </td>
             <td style="text-align:right;white-space:nowrap;">
@@ -316,6 +426,28 @@ function renderEstado() {
         }).join('')}
       </tbody>
     </table>`;
+}
+
+async function cambiarEstadioDesdeTabla(pid, nuevoEstadio) {
+  const p = NEG.propiedades.find(x => x.id === pid);
+  if (!p) return;
+  try {
+    await apiPut(`/api/propiedades/${pid}`, { ...p, estado_tasacion: nuevoEstadio, estadio: nuevoEstadio });
+    p.estado_tasacion = nuevoEstadio; p.estadio = nuevoEstadio;
+    renderEstado(); actualizarStatsListing();
+    showToast('Estado actualizado ✓');
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+async function cambiarRespDesdeTabla(pid, nuevoResp) {
+  const p = NEG.propiedades.find(x => x.id === pid);
+  if (!p) return;
+  try {
+    await apiPut(`/api/propiedades/${pid}`, { ...p, respuesta_listing: nuevoResp });
+    p.respuesta_listing = nuevoResp;
+    renderEstado();
+    showToast('Respuesta actualizada ✓');
+  } catch(e) { showToast(e.message, 'error'); }
 }
 
 async function cambiarEstadio(id, nuevoEstadio) {
@@ -330,16 +462,15 @@ async function cambiarEstadio(id, nuevoEstadio) {
 
 // ══ MODAL PROPIEDAD ══
 function abrirNuevaPropiedad() {
-  const campos = ['propId','propDireccion','propLocalidad','propBarrio','propNombre',
+  const campos = ['propId','propDireccion','propLocalidad','propZona','propNombre',
     'propTelefono','propEmail','propReferido','propUrl','propUltimo','propProximo',
     'propPrelisting','propObservaciones'];
   campos.forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
-  const propZona = document.getElementById('propZona');
-  if (propZona) propZona.value = '';
   document.getElementById('propTipologia').value = '';
-  document.getElementById('propEstado').value    = 'pendiente';
+  document.getElementById('propEstado').value    = 'pendiente';   // default al crear
+  document.getElementById('propEstadio').value   = 'pendiente';   // default al crear
   const selResp = document.getElementById('propRespuesta');
-  if (selResp) selResp.value = 'esperando_respuesta';
+  if (selResp) selResp.value = 'esperando_respuesta';             // default al crear
   document.querySelector('#modalPropiedad .modal-footer .btn-primary').textContent = 'Crear propiedad';
   document.getElementById('modalPropTitulo').textContent = 'Nueva propiedad';
   abrirModal('modalPropiedad');
@@ -351,10 +482,7 @@ function editarPropiedad(id) {
   document.getElementById('propId').value            = p.id;
   document.getElementById('propDireccion').value     = p.direccion || '';
   document.getElementById('propLocalidad').value     = p.localidad || '';
-  const zonaEl = document.getElementById('propZona');
-  if (zonaEl) zonaEl.value = p.zona || '';
-  const barrioEl = document.getElementById('propBarrio');
-  if (barrioEl) barrioEl.value = p.barrio || '';
+  document.getElementById('propZona').value          = p.zona || '';
   document.getElementById('propTipologia').value     = p.tipologia || '';
   document.getElementById('propNombre').value        = p.nombre_propietario || '';
   document.getElementById('propTelefono').value      = p.telefono || '';
@@ -366,7 +494,7 @@ function editarPropiedad(id) {
   document.getElementById('propPrelisting').value    = p.fecha_prelisting || '';
   document.getElementById('propObservaciones').value = p.observaciones || '';
 
-  // Estado tasación: asignar valor real aunque no esté en el select
+  // Estado tasación: asignar valor real aunque no esté en el select (solo 2 opciones)
   const selEstado  = document.getElementById('propEstado');
   const valEstado  = p.estado_tasacion || 'pendiente';
   if (!Array.from(selEstado.options).find(o => o.value === valEstado)) {
@@ -375,6 +503,15 @@ function editarPropiedad(id) {
     selEstado.appendChild(opt);
   }
   selEstado.value = valEstado;
+
+  const selEstadio = document.getElementById('propEstadio');
+  const valEstadio = p.estadio || p.estado_tasacion || 'pendiente';
+  if (!Array.from(selEstadio.options).find(o => o.value === valEstadio)) {
+    const opt = document.createElement('option');
+    opt.value = valEstadio; opt.text = valEstadio; opt.hidden = true;
+    selEstadio.appendChild(opt);
+  }
+  selEstadio.value = valEstadio;
 
   // Respuesta propietario
   const selResp = document.getElementById('propRespuesta');
@@ -393,11 +530,10 @@ async function guardarPropiedad() {
   const body = {
     direccion:          dir,
     localidad:          document.getElementById('propLocalidad').value,
-    zona:               document.getElementById('propZona')?.value || '',
-    barrio:             document.getElementById('propBarrio')?.value || '',
+    zona:               document.getElementById('propZona').value,
     tipologia:          document.getElementById('propTipologia').value,
-    estado_tasacion:    document.getElementById('propEstado').value,
-    estadio:            document.getElementById('propEstado').value,
+    estado_tasacion:    document.getElementById('propEstado').value || document.getElementById('propEstadio').value,
+    estadio:            document.getElementById('propEstadio').value,
     nombre_propietario: document.getElementById('propNombre').value,
     telefono:           document.getElementById('propTelefono').value,
     email:              document.getElementById('propEmail').value,
@@ -419,7 +555,7 @@ async function guardarPropiedad() {
 
     // 📅 Ofrecer agendar si hay fecha de prelisting o próximo contacto
     const fechaAgendar = body.fecha_prelisting || body.proximo_contacto;
-    const estadio      = body.estado_tasacion || '';
+    const estadio      = body.estadio || body.estado_tasacion || '';
     if (fechaAgendar || ['en_tasacion','captado'].includes(estadio)) {
       const tipo = body.fecha_prelisting ? 'Prelisting' : ['en_tasacion','captado'].includes(estadio) ? (ESTADIO_MAP[estadio]?.label || estadio) : 'Seguimiento';
       setTimeout(() => {
@@ -436,10 +572,7 @@ async function guardarPropiedad() {
 }
 
 async function eliminarPropiedad(id) {
-  const p = NEG.propiedades.find(x => x.id === id);
-  const dir = p ? p.direccion : 'esta propiedad';
-  const confirmado = await mostrarConfirmacion(`¿Eliminar "${dir}"?`, 'Esta acción no se puede deshacer.');
-  if (!confirmado) return;
+  if (!confirmar('¿Eliminar esta propiedad? No se puede deshacer.')) return;
   try {
     await apiDelete(`/api/propiedades/${id}`);
     showToast('Propiedad eliminada');
@@ -568,11 +701,7 @@ function renderContactoRow(ct, TIPO_COLORS) {
     const dias = Math.ceil((proxCum - hoy) / 86400000);
     if (dias <= 30) cumpleBadge = `<span style="font-size:0.68rem;background:#FFF7ED;color:#F97316;border-radius:8px;padding:1px 6px;font-weight:600;">🎂 ${dias === 0 ? '¡Hoy!' : 'en ' + dias + 'd'}</span>`;
   }
-  const CAL_COLORS = { 'A+':'#059669', 'B':'#2563EB', 'C':'#D97706', 'D':'#6B7280' };
-  const calBadge = ct.calificacion_cliente
-    ? `<span style="font-size:0.68rem;padding:1px 7px;border-radius:10px;font-weight:700;background:#F3F4F6;color:${CAL_COLORS[ct.calificacion_cliente]||'#6B7280'};">⭐ ${ct.calificacion_cliente}</span>`
-    : '';
-  const ubicacion = [ct.barrio, ct.localidad, ct.zona].filter(Boolean).join(' · ');
+  // Use data-id attribute to avoid quote nesting issues
   return `
     <div class="card" style="padding:12px 16px;display:flex;align-items:center;gap:14px;margin-bottom:6px;cursor:pointer;"
       data-ctcid="${ct.id}" onclick="editarContacto(this.dataset.ctcid)" title="Click para editar">
@@ -583,17 +712,17 @@ function renderContactoRow(ct, TIPO_COLORS) {
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
           <span style="font-weight:600;font-size:0.9rem;color:var(--rx-blue);text-decoration:underline dotted;">${escHtml(ct.nombre)}</span>
           <span style="font-size:0.68rem;padding:1px 7px;border-radius:10px;font-weight:600;background:${tc.bg};color:${tc.color};">${ct.tipo||'otro'}</span>
-          ${calBadge}
           ${cumpleBadge}
         </div>
         <div style="display:flex;gap:14px;margin-top:3px;font-size:0.79rem;color:#666;flex-wrap:wrap;">
-          ${ct.profesion  ? `<span>💼 ${escHtml(ct.profesion)}</span>`  : ''}
-          ${ct.telefono   ? `<span>📞 ${escHtml(ct.telefono)}</span>`   : ''}
-          ${ct.email      ? `<span>✉️ ${escHtml(ct.email)}</span>`      : ''}
-          ${ubicacion     ? `<span>📍 ${escHtml(ubicacion)}</span>`     : ''}
+          ${ct.profesion ? `<span>💼 ${escHtml(ct.profesion)}</span>` : ''}
+          ${ct.telefono  ? `<span>📞 ${escHtml(ct.telefono)}</span>`  : ''}
+          ${ct.email     ? `<span>✉️ ${escHtml(ct.email)}</span>`     : ''}
+          ${ct.localidad ? `<span>📍 ${escHtml(ct.localidad)}</span>` : ''}
         </div>
-        ${ct.hobbies ? `<div style="font-size:0.75rem;color:#aaa;margin-top:2px;">🎯 ${escHtml(ct.hobbies)}</div>` : ''}
-        ${ct.notas   ? `<div style="font-size:0.74rem;color:#ccc;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:520px;">${escHtml(ct.notas)}</div>` : ''}
+        ${ct.hijos || ct.hobbies ? `<div style="font-size:0.75rem;color:#aaa;margin-top:2px;">${ct.hijos ? '👨‍👧‍👦 ' + escHtml(ct.hijos) : ''}${ct.hijos && ct.hobbies ? ' · ' : ''}${ct.hobbies ? '🎯 ' + escHtml(ct.hobbies) : ''}</div>` : ''}
+        ${ct.gustos ? `<div style="font-size:0.75rem;color:#aaa;">🏠 ${escHtml(ct.gustos)}</div>` : ''}
+        ${ct.notas  ? `<div style="font-size:0.74rem;color:#ccc;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:520px;">${escHtml(ct.notas)}</div>` : ''}
       </div>
       <div style="display:flex;gap:4px;flex-shrink:0;" onclick="event.stopPropagation()">
         ${ct.telefono ? `<button class="btn-icon-sm" data-tel="${escHtml(ct.telefono)}" onclick="event.stopPropagation();window.open(buildWhatsAppUrl(this.dataset.tel,''),'_blank')" title="WhatsApp">💬</button>` : ''}
@@ -605,13 +734,9 @@ function renderContactoRow(ct, TIPO_COLORS) {
 
 function abrirNuevoContacto() {
   ['ctcId','ctcNombre','ctcTelefono','ctcEmail','ctcLocalidad','ctcNotas',
-   'ctcCumpleanos','ctcProfesion','ctcHobbies','ctcReferido','ctcBarrio'].forEach(id => {
+   'ctcCumple','ctcProfesion','ctcHijos','ctcHobbies','ctcGustos'].forEach(id => {
     const e = document.getElementById(id); if (e) e.value = '';
   });
-  const zonaEl = document.getElementById('ctcZona');
-  if (zonaEl) zonaEl.value = '';
-  const calEl = document.getElementById('ctcCalificacion');
-  if (calEl) calEl.value = '';
   document.getElementById('ctcTipo').value = 'propietario';
   document.getElementById('modalCtcTitulo').textContent = 'Nuevo contacto';
   abrirModal('modalContacto');
@@ -627,20 +752,11 @@ function editarContacto(id) {
   document.getElementById('ctcEmail').value     = c.email     || '';
   document.getElementById('ctcLocalidad').value = c.localidad || '';
   document.getElementById('ctcNotas').value     = c.notas     || '';
-  const cumEl = document.getElementById('ctcCumpleanos');
-  if (cumEl) cumEl.value = c.cumpleanos || '';
-  const profEl = document.getElementById('ctcProfesion');
-  if (profEl) profEl.value = c.profesion || '';
-  const hobEl = document.getElementById('ctcHobbies');
-  if (hobEl) hobEl.value = c.hobbies || '';
-  const refEl = document.getElementById('ctcReferido');
-  if (refEl) refEl.value = c.referido || '';
-  const zonaEl = document.getElementById('ctcZona');
-  if (zonaEl) zonaEl.value = c.zona || '';
-  const barrioEl = document.getElementById('ctcBarrio');
-  if (barrioEl) barrioEl.value = c.barrio || '';
-  const calEl = document.getElementById('ctcCalificacion');
-  if (calEl) calEl.value = c.calificacion_cliente || '';
+  document.getElementById('ctcCumple').value    = c.cumpleanos || '';
+  document.getElementById('ctcProfesion').value = c.profesion  || '';
+  document.getElementById('ctcHijos').value     = c.hijos      || '';
+  document.getElementById('ctcHobbies').value   = c.hobbies    || '';
+  document.getElementById('ctcGustos').value    = c.gustos     || '';
   document.getElementById('modalCtcTitulo').textContent = 'Editar contacto';
   abrirModal('modalContacto');
 }
@@ -649,21 +765,19 @@ async function guardarContacto() {
   const id     = document.getElementById('ctcId').value;
   const nombre = document.getElementById('ctcNombre').value.trim();
   if (!nombre) { showToast('El nombre es requerido', 'error'); return; }
-  const cumple = document.getElementById('ctcCumpleanos')?.value || '';
+  const cumple = document.getElementById('ctcCumple').value;
   const body = {
     nombre,
-    tipo:                 document.getElementById('ctcTipo').value,
-    telefono:             document.getElementById('ctcTelefono').value,
-    email:                document.getElementById('ctcEmail').value,
-    localidad:            document.getElementById('ctcLocalidad').value,
-    zona:                 document.getElementById('ctcZona')?.value || '',
-    barrio:               document.getElementById('ctcBarrio')?.value || '',
-    notas:                document.getElementById('ctcNotas').value,
-    cumpleanos:           cumple,
-    profesion:            document.getElementById('ctcProfesion')?.value || '',
-    hobbies:              document.getElementById('ctcHobbies')?.value || '',
-    referido:             document.getElementById('ctcReferido')?.value || '',
-    calificacion_cliente: document.getElementById('ctcCalificacion')?.value || '',
+    tipo:       document.getElementById('ctcTipo').value,
+    telefono:   document.getElementById('ctcTelefono').value,
+    email:      document.getElementById('ctcEmail').value,
+    localidad:  document.getElementById('ctcLocalidad').value,
+    notas:      document.getElementById('ctcNotas').value,
+    cumpleanos: cumple,
+    profesion:  document.getElementById('ctcProfesion').value,
+    hijos:      document.getElementById('ctcHijos').value,
+    hobbies:    document.getElementById('ctcHobbies').value,
+    gustos:     document.getElementById('ctcGustos').value,
   };
   try {
     if (id) await apiPut(`/api/contactos/${id}`, body);
@@ -675,6 +789,7 @@ async function guardarContacto() {
     // 📅 Si tiene cumpleaños, ofrecer agendar recordatorio anual
     if (cumple) {
       setTimeout(() => {
+        // Armar la próxima fecha de cumpleaños
         const hoy = new Date();
         const cum = new Date(cumple);
         const proxAnio = hoy.getFullYear();
@@ -695,10 +810,7 @@ async function guardarContacto() {
 }
 
 async function eliminarContacto(id) {
-  const c = NEG.contactos.find(x => x.id === id);
-  const nom = c ? c.nombre : 'este contacto';
-  const confirmado = await mostrarConfirmacion(`¿Eliminar "${nom}"?`, 'Esta acción no se puede deshacer.');
-  if (!confirmado) return;
+  if (!confirmar('¿Eliminar este contacto?')) return;
   try {
     await apiDelete(`/api/contactos/${id}`);
     showToast('Contacto eliminado');
