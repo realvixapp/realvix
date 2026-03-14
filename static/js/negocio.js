@@ -75,12 +75,12 @@ function renderListing() {
   }
 
   const RESP_MAP = {
-    '':                   { label: '—',                    color:'#aaa',    bg:'#f3f4f6' },
-    'esperando_respuesta':{ label: '⏳ Esperando resp.',   color:'#D97706', bg:'#FFFBEB' },
-    'aceptado':           { label: '✅ Aceptado',          color:'#059669', bg:'#ECFDF5' },
-    'rechazado':          { label: '❌ Rechazado',         color:'#DC2626', bg:'#FEF2F2' },
-    'decide_esperar':     { label: '🕐 Decide esperar',    color:'#7C3AED', bg:'#F5F3FF' },
-    'vendio_con_otro':    { label: '🔄 Vendió con otro',   color:'#6B7280', bg:'#F3F4F6' },
+    '':                   { label: '—',                   color:'#aaa',    bg:'#f9fafb' },
+    'esperando_respuesta':{ label: '⏳ Esperando resp.',  color:'#D97706', bg:'#FFFBEB' },
+    'aceptado':           { label: '✅ Aceptado',         color:'#059669', bg:'#ECFDF5' },
+    'rechazado':          { label: '❌ Rechazado',        color:'#DC2626', bg:'#FEF2F2' },
+    'decide_esperar':     { label: '🕐 Decide esperar',   color:'#7C3AED', bg:'#F5F3FF' },
+    'vendio_con_otro':    { label: '🔄 Vendió con otro',  color:'#6B7280', bg:'#F3F4F6' },
   };
 
   container.innerHTML = `
@@ -120,12 +120,15 @@ function renderListing() {
               </select>
             </td>
             <td>
-              <select class="input-base" style="font-size:0.75rem;padding:3px 8px;height:auto;border-radius:12px;border-color:${rInfo.color}44;background:${rInfo.bg};color:${rInfo.color};font-weight:600;"
+              <select style="font-size:0.75rem;padding:3px 8px;height:auto;border-radius:12px;border:1.5px solid ${rInfo.color}55;background:${rInfo.bg};color:${rInfo.color};font-weight:600;cursor:pointer;outline:none;pointer-events:auto;appearance:auto;-webkit-appearance:auto;min-width:130px;"
                 data-pid="${p.id}"
                 onchange="cambiarRespuestaListing(this.dataset.pid, this.value)">
-                ${Object.entries(RESP_MAP).map(([k,v]) =>
-                  `<option value="${k}" ${resp===k?'selected':''}>${v.label}</option>`
-                ).join('')}
+                <option value="" ${resp===''?'selected':''}>—</option>
+                <option value="esperando_respuesta" ${resp==='esperando_respuesta'?'selected':''}>⏳ Esperando resp.</option>
+                <option value="aceptado"        ${resp==='aceptado'?'selected':''}>✅ Aceptado</option>
+                <option value="rechazado"       ${resp==='rechazado'?'selected':''}>❌ Rechazado</option>
+                <option value="decide_esperar"  ${resp==='decide_esperar'?'selected':''}>🕐 Decide esperar</option>
+                <option value="vendio_con_otro" ${resp==='vendio_con_otro'?'selected':''}>🔄 Vendió con otro</option>
               </select>
             </td>
             <td style="text-align:right;white-space:nowrap;">
@@ -237,21 +240,11 @@ function renderEstado() {
 
   const hoy = new Date().toISOString().split('T')[0];
 
-  const RESP_LABELS = {
-    '':                   { label: '—',                  color:'#aaa',    bg:'#f3f4f6' },
-    'esperando_respuesta':{ label: '⏳ Esperando',        color:'#D97706', bg:'#FFFBEB' },
-    'aceptado':           { label: '✅ Aceptado',         color:'#059669', bg:'#ECFDF5' },
-    'rechazado':          { label: '❌ Rechazado',        color:'#DC2626', bg:'#FEF2F2' },
-    'decide_esperar':     { label: '🕐 Espera',           color:'#7C3AED', bg:'#F5F3FF' },
-    'vendio_con_otro':    { label: '🔄 Vendió con otro',  color:'#6B7280', bg:'#F3F4F6' },
-  };
-
   container.innerHTML = `
     <table class="table">
       <thead><tr>
         <th>Dirección</th>
         <th>Estadio</th>
-        <th>Respuesta Propietario</th>
         <th>Próximo contacto</th>
         <th>Último contacto</th>
         <th>Observaciones</th>
@@ -264,8 +257,6 @@ function renderEstado() {
           const proximo = p.proximo_contacto || '';
           const vencido = proximo && proximo < hoy;
           const hoyFlag  = proximo === hoy;
-          const respKey = p.respuesta_listing || '';
-          const respInfo = RESP_LABELS[respKey] || RESP_LABELS[''];
           return `<tr>
             <td>
               <div style="font-weight:600;">${escHtml(p.direccion || '—')}</div>
@@ -279,9 +270,6 @@ function renderEstado() {
               </select>
             </td>
             <td>
-              <span style="font-size:0.75rem;padding:2px 8px;border-radius:10px;font-weight:600;background:${respInfo.bg};color:${respInfo.color};">${respInfo.label}</span>
-            </td>
-            <td>
               ${proximo
                 ? `<span style="font-size:0.82rem;font-weight:${vencido||hoyFlag?'700':'400'};color:${vencido?'var(--danger)':hoyFlag?'var(--rx-blue)':'inherit'};">
                     ${vencido ? '⚠️ ' : hoyFlag ? '📌 ' : ''}${formatFecha(proximo)}
@@ -289,9 +277,9 @@ function renderEstado() {
                 : '<span style="color:#ccc;">—</span>'}
             </td>
             <td style="font-size:0.82rem;color:#666;">${formatFecha(p.ultimo_contacto)}</td>
-            <td style="max-width:180px;">
+            <td style="max-width:220px;">
               ${p.observaciones
-                ? `<div style="font-size:0.78rem;color:#666;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px;" title="${escHtml(p.observaciones)}">${escHtml(p.observaciones)}</div>`
+                ? `<div style="font-size:0.78rem;color:#666;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px;" title="${escHtml(p.observaciones)}">${escHtml(p.observaciones)}</div>`
                 : '<span style="color:#ccc;">—</span>'}
             </td>
             <td style="text-align:right;white-space:nowrap;">
@@ -324,7 +312,7 @@ function abrirNuevaPropiedad() {
   document.getElementById('propTipologia').value = '';
   document.getElementById('propEstado').value    = 'pendiente';
   const selResp = document.getElementById('propRespuesta');
-  if (selResp) selResp.value = '';
+  if (selResp) selResp.value = 'esperando_respuesta';
   // Inicializar listas (#6 y #7)
   _propietariosList = [];
   _documentosList   = [];
@@ -353,9 +341,9 @@ function editarPropiedad(id) {
   document.getElementById('propPrelisting').value    = p.fecha_prelisting || '';
   document.getElementById('propObservaciones').value = p.observaciones || '';
 
-  // Estado tasación - cargar valor real
+  // Estado tasación
   const selEstado  = document.getElementById('propEstado');
-  const valEstado  = p.estado_tasacion || p.estadio || 'pendiente';
+  const valEstado  = p.estado_tasacion || 'pendiente';
   if (!Array.from(selEstado.options).find(o => o.value === valEstado)) {
     const opt = document.createElement('option');
     opt.value = valEstado; opt.text = valEstado; opt.hidden = true;
@@ -365,7 +353,7 @@ function editarPropiedad(id) {
 
   // Respuesta propietario
   const selResp = document.getElementById('propRespuesta');
-  if (selResp) selResp.value = p.respuesta_listing || '';
+  if (selResp) selResp.value = p.respuesta_listing || 'esperando_respuesta';
 
   // Cargar propietarios existentes (#6)
   _propietariosList = [];
@@ -581,10 +569,7 @@ function renderContactoRow(ct, TIPO_COLORS) {
     const dias = Math.ceil((proxCum - hoy) / 86400000);
     if (dias <= 30) cumpleBadge = `<span style="font-size:0.68rem;background:#FFF7ED;color:#F97316;border-radius:8px;padding:1px 6px;font-weight:600;">🎂 ${dias === 0 ? '¡Hoy!' : 'en ' + dias + 'd'}</span>`;
   }
-  const calColors = { 'A+':'#059669', 'B':'#2563EB', 'C':'#D97706', 'D':'#DC2626' };
-  const calBadge = ct.calificacion
-    ? `<span style="font-size:0.68rem;padding:1px 7px;border-radius:8px;font-weight:700;background:${calColors[ct.calificacion]||'#888'}22;color:${calColors[ct.calificacion]||'#888'};border:1px solid ${calColors[ct.calificacion]||'#888'}44;">★ ${ct.calificacion}</span>`
-    : '';
+  // Use data-id attribute to avoid quote nesting issues
   return `
     <div class="card" style="padding:12px 16px;display:flex;align-items:center;gap:14px;margin-bottom:6px;cursor:pointer;"
       data-ctcid="${ct.id}" onclick="editarContacto(this.dataset.ctcid)" title="Click para editar">
@@ -595,20 +580,17 @@ function renderContactoRow(ct, TIPO_COLORS) {
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
           <span style="font-weight:600;font-size:0.9rem;color:var(--rx-blue);text-decoration:underline dotted;">${escHtml(ct.nombre)}</span>
           <span style="font-size:0.68rem;padding:1px 7px;border-radius:10px;font-weight:600;background:${tc.bg};color:${tc.color};">${ct.tipo||'otro'}</span>
-          ${calBadge}
           ${cumpleBadge}
         </div>
-        <div style="display:flex;gap:12px;margin-top:3px;font-size:0.79rem;color:#666;flex-wrap:wrap;">
-          ${ct.profesion  ? `<span>💼 ${escHtml(ct.profesion)}</span>`  : ''}
-          ${ct.telefono   ? `<span>📞 ${escHtml(ct.telefono)}</span>`   : ''}
-          ${ct.email      ? `<span>✉️ ${escHtml(ct.email)}</span>`      : ''}
-          ${ct.localidad  ? `<span>📍 ${escHtml(ct.localidad)}</span>`  : ''}
-          ${ct.zona       ? `<span>🗺️ ${escHtml(ct.zona)}</span>`       : ''}
-          ${ct.barrio     ? `<span>🏘️ ${escHtml(ct.barrio)}</span>`     : ''}
-          ${ct.referido   ? `<span>🔗 Ref: ${escHtml(ct.referido)}</span>` : ''}
+        <div style="display:flex;gap:14px;margin-top:3px;font-size:0.79rem;color:#666;flex-wrap:wrap;">
+          ${ct.profesion ? `<span>💼 ${escHtml(ct.profesion)}</span>` : ''}
+          ${ct.telefono  ? `<span>📞 ${escHtml(ct.telefono)}</span>`  : ''}
+          ${ct.email     ? `<span>✉️ ${escHtml(ct.email)}</span>`     : ''}
+          ${ct.localidad ? `<span>📍 ${escHtml(ct.localidad)}</span>` : ''}
         </div>
-        ${ct.hobbies ? `<div style="font-size:0.75rem;color:#aaa;margin-top:2px;">🎯 ${escHtml(ct.hobbies)}</div>` : ''}
-        ${ct.notas   ? `<div style="font-size:0.74rem;color:#ccc;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:520px;">${escHtml(ct.notas)}</div>` : ''}
+        ${ct.hijos || ct.hobbies ? `<div style="font-size:0.75rem;color:#aaa;margin-top:2px;">${ct.hijos ? '👨‍👧‍👦 ' + escHtml(ct.hijos) : ''}${ct.hijos && ct.hobbies ? ' · ' : ''}${ct.hobbies ? '🎯 ' + escHtml(ct.hobbies) : ''}</div>` : ''}
+        ${ct.gustos ? `<div style="font-size:0.75rem;color:#aaa;">🏠 ${escHtml(ct.gustos)}</div>` : ''}
+        ${ct.notas  ? `<div style="font-size:0.74rem;color:#ccc;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:520px;">${escHtml(ct.notas)}</div>` : ''}
       </div>
       <div style="display:flex;gap:4px;flex-shrink:0;" onclick="event.stopPropagation()">
         ${ct.telefono ? `<button class="btn-icon-sm" data-tel="${escHtml(ct.telefono)}" onclick="event.stopPropagation();window.open(buildWhatsAppUrl(this.dataset.tel,''),'_blank')" title="WhatsApp">💬</button>` : ''}
@@ -620,11 +602,9 @@ function renderContactoRow(ct, TIPO_COLORS) {
 
 function abrirNuevoContacto() {
   ['ctcId','ctcNombre','ctcTelefono','ctcEmail','ctcLocalidad','ctcNotas',
-   'ctcCumple','ctcProfesion','ctcHobbies','ctcGustos','ctcBarrio','ctcReferido'].forEach(id => {
+   'ctcCumple','ctcProfesion','ctcHijos','ctcHobbies','ctcGustos'].forEach(id => {
     const e = document.getElementById(id); if (e) e.value = '';
   });
-  const z = document.getElementById('ctcZona'); if (z) z.value = '';
-  const cal = document.getElementById('ctcCalificacion'); if (cal) cal.value = '';
   document.getElementById('ctcTipo').value = 'propietario';
   document.getElementById('modalCtcTitulo').textContent = 'Nuevo contacto';
   abrirModal('modalContacto');
@@ -642,12 +622,9 @@ function editarContacto(id) {
   document.getElementById('ctcNotas').value     = c.notas     || '';
   document.getElementById('ctcCumple').value    = c.cumpleanos || '';
   document.getElementById('ctcProfesion').value = c.profesion  || '';
+  document.getElementById('ctcHijos').value     = c.hijos      || '';
   document.getElementById('ctcHobbies').value   = c.hobbies    || '';
-  const gEl = document.getElementById('ctcGustos');     if (gEl) gEl.value = c.gustos    || '';
-  const bEl = document.getElementById('ctcBarrio');     if (bEl) bEl.value = c.barrio    || '';
-  const rEl = document.getElementById('ctcReferido');   if (rEl) rEl.value = c.referido  || '';
-  const zEl = document.getElementById('ctcZona');       if (zEl) zEl.value = c.zona      || '';
-  const cEl = document.getElementById('ctcCalificacion'); if (cEl) cEl.value = c.calificacion || '';
+  document.getElementById('ctcGustos').value    = c.gustos     || '';
   document.getElementById('modalCtcTitulo').textContent = 'Editar contacto';
   abrirModal('modalContacto');
 }
@@ -659,19 +636,16 @@ async function guardarContacto() {
   const cumple = document.getElementById('ctcCumple').value;
   const body = {
     nombre,
-    tipo:          document.getElementById('ctcTipo').value,
-    telefono:      document.getElementById('ctcTelefono').value,
-    email:         document.getElementById('ctcEmail').value,
-    localidad:     document.getElementById('ctcLocalidad').value,
-    notas:         document.getElementById('ctcNotas').value,
-    cumpleanos:    cumple,
-    profesion:     document.getElementById('ctcProfesion').value,
-    hobbies:       document.getElementById('ctcHobbies').value,
-    gustos:        document.getElementById('ctcGustos')?.value || '',
-    barrio:        document.getElementById('ctcBarrio')?.value || '',
-    referido:      document.getElementById('ctcReferido')?.value || '',
-    zona:          document.getElementById('ctcZona')?.value || '',
-    calificacion:  document.getElementById('ctcCalificacion')?.value || '',
+    tipo:       document.getElementById('ctcTipo').value,
+    telefono:   document.getElementById('ctcTelefono').value,
+    email:      document.getElementById('ctcEmail').value,
+    localidad:  document.getElementById('ctcLocalidad').value,
+    notas:      document.getElementById('ctcNotas').value,
+    cumpleanos: cumple,
+    profesion:  document.getElementById('ctcProfesion').value,
+    hijos:      document.getElementById('ctcHijos').value,
+    hobbies:    document.getElementById('ctcHobbies').value,
+    gustos:     document.getElementById('ctcGustos').value,
   };
   try {
     if (id) await apiPut(`/api/contactos/${id}`, body);
@@ -869,7 +843,7 @@ function renderActividad() {
                     </div>
                     <!-- Acciones rápidas -->
                     <div style="display:flex;gap:4px;flex-shrink:0;">
-                      ${c.telefono ? `<button class="btn-icon-sm" data-cid="${c.id}" data-propid="${p.id}" onclick="abrirWAModalNeg(this.dataset.cid)" style="background:#25D366;color:white;border:none;border-radius:8px;" title="WhatsApp">💬</button>` : ''}
+                      ${c.telefono ? `<button class="btn-icon-sm" onclick="abrirWALead('${escHtml(c.telefono)}','${escHtml(c.nombre||'')}','${escHtml(p.direccion||'')}')">💬</button>` : ''}
                       <select class="input-base" style="font-size:0.72rem;padding:3px 6px;height:auto;width:130px;"
                         onchange="cambiarEstadioActividad('${c.id}', this.value, this)">
                         ${Object.entries(ESTADIO_LABELS).map(([k,v]) =>
@@ -1059,41 +1033,41 @@ function renderDocumentosLista() {
     document.getElementById('propDocumentosJSON').value = '[]';
     return;
   }
-  cont.innerHTML = `<div style="display:flex;flex-direction:column;gap:6px;">
-    ${_documentosList.map((d, i) => `
-      <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#f8f9fa;border-radius:8px;border:1px solid #e5e7eb;">
-        <span style="font-size:1rem;flex-shrink:0;">${(d.tipo||'').includes('pdf') ? '📄' : (d.tipo||'').includes('word')||d.nombre?.match(/\.docx?$/i) ? '📝' : '📎'}</span>
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:0.82rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(d.nombre||'Documento')}</div>
-          ${d.notas ? `<div style="font-size:0.72rem;color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(d.notas)}</div>` : ''}
-        </div>
-        <div style="display:flex;gap:4px;flex-shrink:0;">
-          ${d.dataUrl ? `<button onclick="verDocumento(${i})" style="padding:3px 8px;border-radius:6px;border:1px solid #e5e7eb;background:white;cursor:pointer;font-size:0.75rem;" title="Ver">👁️</button>` : ''}
-          ${d.dataUrl ? `<button onclick="descargarDocumento(${i})" style="padding:3px 8px;border-radius:6px;border:1px solid #e5e7eb;background:white;cursor:pointer;font-size:0.75rem;" title="Descargar">⬇️</button>` : ''}
-          <input type="text" value="${escHtml(d.notas||'')}" placeholder="Notas..."
-            onchange="_documentosList[${i}].notas=this.value;syncDocJSON()"
-            style="border:1px solid #e5e7eb;border-radius:6px;padding:3px 7px;font-size:0.75rem;width:100px;outline:none;">
-          <button onclick="quitarDocumento(${i})"
-            style="background:none;border:none;cursor:pointer;color:#DC2626;font-size:0.9rem;padding:2px 4px;">✕</button>
-        </div>
-      </div>`).join('')}
-  </div>`;
+  const ESTADOS_DOC = ['Pendiente','En trámite','Recibido','Observado'];
+  cont.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
+    <thead><tr style="background:#f3f4f6;">
+      <th style="padding:6px 8px;text-align:left;font-weight:600;color:#374151;">Documento</th>
+      <th style="padding:6px 8px;text-align:left;font-weight:600;color:#374151;">Estado</th>
+      <th style="padding:6px 8px;text-align:left;font-weight:600;color:#374151;">Notas</th>
+      <th style="padding:6px 4px;"></th>
+    </tr></thead>
+    <tbody>
+      ${_documentosList.map((d, i) => `
+        <tr style="border-bottom:1px solid #f3f4f6;">
+          <td style="padding:6px 8px;">
+            <input type="text" value="${escHtml(d.nombre||'')}" placeholder="Nombre doc."
+              onchange="_documentosList[${i}].nombre=this.value;syncDocJSON()"
+              style="border:none;background:transparent;width:100%;font-size:0.8rem;outline:none;color:var(--text-primary);">
+          </td>
+          <td style="padding:6px 8px;">
+            <select onchange="_documentosList[${i}].estado=this.value;syncDocJSON()"
+              style="border:none;background:transparent;font-size:0.78rem;cursor:pointer;color:#2563EB;font-weight:600;">
+              ${ESTADOS_DOC.map(s=>`<option ${d.estado===s?'selected':''}>${s}</option>`).join('')}
+            </select>
+          </td>
+          <td style="padding:6px 8px;">
+            <input type="text" value="${escHtml(d.notas||'')}" placeholder="Notas..."
+              onchange="_documentosList[${i}].notas=this.value;syncDocJSON()"
+              style="border:none;background:transparent;width:100%;font-size:0.78rem;outline:none;color:#888;">
+          </td>
+          <td style="padding:4px;">
+            <button onclick="quitarDocumento(${i})"
+              style="background:none;border:none;cursor:pointer;color:#DC2626;font-size:0.9rem;">✕</button>
+          </td>
+        </tr>`).join('')}
+    </tbody>
+  </table>`;
   syncDocJSON();
-}
-
-function verDocumento(idx) {
-  const d = _documentosList[idx];
-  if (!d || !d.dataUrl) return;
-  window.open(d.dataUrl, '_blank');
-}
-
-function descargarDocumento(idx) {
-  const d = _documentosList[idx];
-  if (!d || !d.dataUrl) return;
-  const a = document.createElement('a');
-  a.href = d.dataUrl;
-  a.download = d.nombre || 'documento';
-  a.click();
 }
 
 function syncDocJSON() {
@@ -1102,183 +1076,11 @@ function syncDocJSON() {
 }
 
 function agregarDocumento() {
-  // Crear input file invisible y abrirlo
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = '.pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.txt';
-  input.multiple = true;
-  input.onchange = function() {
-    const archivos = Array.from(this.files);
-    archivos.forEach(archivo => {
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        _documentosList.push({
-          nombre:  archivo.name,
-          tipo:    archivo.type,
-          notas:   '',
-          dataUrl: e.target.result,
-        });
-        syncDocJSON();
-        renderDocumentosLista();
-      };
-      reader.readAsDataURL(archivo);
-    });
-  };
-  input.click();
+  _documentosList.push({ nombre: '', estado: 'Pendiente', notas: '' });
+  renderDocumentosLista();
 }
 
 function quitarDocumento(idx) {
   _documentosList.splice(idx, 1);
   renderDocumentosLista();
-}
-
-// ══════════════════════════════════════════════════════════
-// ── WHATSAPP MODAL COMPLETO DESDE ACTIVIDAD/NEGOCIO ──
-// ══════════════════════════════════════════════════════════
-
-let _negTextosWA = [];
-
-async function abrirWAModalNeg(consultaId) {
-  // Buscar la consulta en ACT
-  const c = ACT.consultas.find(x => x.id === consultaId);
-  if (!c || !c.telefono) return;
-
-  // Cargar textos si no están en caché
-  if (_negTextosWA.length === 0) {
-    try {
-      const data = await apiGet('/api/textos');
-      _negTextosWA = (data.textos || []).filter(t => t.tipo === 'whatsapp');
-    } catch(e) { console.error('No se pudieron cargar textos', e); }
-  }
-
-  const CAT_LABELS = {
-    'bienvenida_lead':          'Bienvenida Lead',
-    'seguimiento_lead':         'Seguimiento Lead',
-    'visita_lead':              'Visita Lead',
-    'seguimiento_propietario':  'Seguimiento Propietario',
-  };
-
-  const atributos = [
-    { key: '{nombre}',             valor: c.nombre || '' },
-    { key: '{propiedad}',          valor: c.propiedad_nombre || '' },
-    { key: '{nombre_propietario}', valor: '' },
-  ];
-
-  let overlay = document.getElementById('_waOverlayNeg');
-  if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.id = '_waOverlayNeg';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9500;display:flex;align-items:center;justify-content:center;padding:16px;';
-    document.body.appendChild(overlay);
-  }
-
-  const textos = _negTextosWA;
-  overlay.innerHTML = `
-    <div style="background:var(--bg-card,white);border-radius:14px;max-width:640px;width:100%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,0.25);">
-      <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;">
-        <div style="width:36px;height:36px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">💬</div>
-        <div style="flex:1;">
-          <div style="font-weight:700;font-size:0.95rem;">Enviar WhatsApp</div>
-          <div style="font-size:0.75rem;color:#888;">📞 ${escHtml(c.telefono)} · ${escHtml(c.nombre||'Lead')}</div>
-        </div>
-        <button onclick="document.getElementById('_waOverlayNeg').style.display='none'"
-          style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#888;">✕</button>
-      </div>
-      <div style="display:flex;flex:1;overflow:hidden;min-height:0;">
-        <div style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;">
-          <div>
-            <div style="font-size:0.7rem;color:#888;font-weight:600;text-transform:uppercase;margin-bottom:6px;">Categoría</div>
-            <select id="waNegCatSel" class="input-base" style="font-size:0.82rem;" onchange="filtrarTextosWANeg(this.value,'${consultaId}')">
-              <option value="">— Todas —</option>
-              ${Object.entries(CAT_LABELS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}
-            </select>
-          </div>
-          <div>
-            <div style="font-size:0.7rem;color:#888;font-weight:600;text-transform:uppercase;margin-bottom:6px;">Textos predeterminados</div>
-            <div id="waNegTextosGrid" style="display:flex;flex-direction:column;gap:5px;max-height:200px;overflow-y:auto;">
-              ${textos.length > 0
-                ? textos.map(t=>`
-                  <div onclick="usarTextoWANeg('${t.id}','${consultaId}')"
-                    style="padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;cursor:pointer;font-size:0.8rem;background:white;"
-                    onmouseover="this.style.borderColor='#25D366'" onmouseout="this.style.borderColor='#e5e7eb'">
-                    <div style="font-weight:600;margin-bottom:2px;">${escHtml(t.titulo)}</div>
-                    <div style="color:#888;font-size:0.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml((t.contenido||'').substring(0,80))}…</div>
-                  </div>`).join('')
-                : '<div style="font-size:0.8rem;color:#aaa;">No hay textos guardados. Podés escribir directamente.</div>'}
-            </div>
-          </div>
-          <div>
-            <div style="font-size:0.7rem;color:#888;font-weight:600;text-transform:uppercase;margin-bottom:6px;">Mensaje a enviar</div>
-            <textarea id="waNegMensaje" rows="5"
-              style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:10px;font-size:0.85rem;resize:vertical;font-family:inherit;box-sizing:border-box;"
-              placeholder="Escribí o seleccioná un texto predeterminado..."></textarea>
-          </div>
-        </div>
-        <div style="width:160px;flex-shrink:0;border-left:1px solid var(--border);padding:14px 12px;background:#f8f9fa;overflow-y:auto;">
-          <div style="font-size:0.68rem;color:#888;font-weight:600;text-transform:uppercase;margin-bottom:8px;">Atributos</div>
-          <div style="font-size:0.7rem;color:#aaa;margin-bottom:10px;">Click para insertar</div>
-          ${atributos.map(a=>`
-            <button onclick="insertarAtributoWANeg('${a.key}')"
-              style="display:block;width:100%;text-align:left;padding:6px 8px;border-radius:6px;border:1px solid #e5e7eb;background:white;cursor:pointer;margin-bottom:5px;font-size:0.75rem;">
-              <div style="font-weight:600;color:#2563EB;">${a.key}</div>
-              <div style="color:#888;font-size:0.68rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(a.valor||'(vacío)')}</div>
-            </button>`).join('')}
-        </div>
-      </div>
-      <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;align-items:center;">
-        <div style="flex:1;font-size:0.75rem;color:#888;">El mensaje se abrirá en WhatsApp Web</div>
-        <button onclick="document.getElementById('_waOverlayNeg').style.display='none'"
-          style="padding:8px 16px;border-radius:8px;border:1px solid #e5e7eb;background:white;cursor:pointer;font-size:0.84rem;">Cancelar</button>
-        <button onclick="enviarWANeg('${escHtml(c.telefono)}')"
-          style="padding:8px 20px;border-radius:8px;border:none;background:#25D366;color:white;cursor:pointer;font-size:0.84rem;font-weight:700;">
-          💬 Abrir WhatsApp
-        </button>
-      </div>
-    </div>`;
-  overlay.style.display = 'flex';
-  overlay.onclick = e => { if (e.target === overlay) overlay.style.display = 'none'; };
-}
-
-function filtrarTextosWANeg(cat, cid) {
-  const filtrados = cat ? _negTextosWA.filter(t => t.categoria === cat) : _negTextosWA;
-  const grid = document.getElementById('waNegTextosGrid');
-  if (!grid) return;
-  grid.innerHTML = filtrados.length > 0
-    ? filtrados.map(t=>`
-        <div onclick="usarTextoWANeg('${t.id}','${cid}')"
-          style="padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;cursor:pointer;font-size:0.8rem;background:white;"
-          onmouseover="this.style.borderColor='#25D366'" onmouseout="this.style.borderColor='#e5e7eb'">
-          <div style="font-weight:600;margin-bottom:2px;">${escHtml(t.titulo)}</div>
-          <div style="color:#888;font-size:0.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml((t.contenido||'').substring(0,80))}…</div>
-        </div>`).join('')
-    : '<div style="font-size:0.8rem;color:#aaa;padding:8px;">No hay textos en esta categoría.</div>';
-}
-
-function usarTextoWANeg(textoId, consultaId) {
-  const t = _negTextosWA.find(x => x.id === textoId);
-  const c = ACT.consultas.find(x => x.id === consultaId);
-  if (!t || !c) return;
-  let msg = t.contenido || '';
-  msg = msg
-    .replace(/\{nombre\}/gi,             c.nombre || '')
-    .replace(/\{propiedad\}/gi,          c.propiedad_nombre || '')
-    .replace(/\{nombre_propietario\}/gi, '');
-  const ta = document.getElementById('waNegMensaje');
-  if (ta) ta.value = msg;
-}
-
-function insertarAtributoWANeg(attr) {
-  const ta = document.getElementById('waNegMensaje');
-  if (!ta) return;
-  const s = ta.selectionStart, e = ta.selectionEnd;
-  ta.value = ta.value.substring(0,s) + attr + ta.value.substring(e);
-  ta.selectionStart = ta.selectionEnd = s + attr.length;
-  ta.focus();
-}
-
-function enviarWANeg(telefono) {
-  const msg = document.getElementById('waNegMensaje')?.value || '';
-  window.open(buildWhatsAppUrl(telefono, msg), '_blank');
-  const ov = document.getElementById('_waOverlayNeg');
-  if (ov) ov.style.display = 'none';
 }
