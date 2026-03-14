@@ -140,7 +140,10 @@ function renderLeads() {
                   `<option value="${k}" ${c.estado===k?'selected':''}>${v.label}</option>`
                 ).join('')}
               </select>
-              ${c.telefono ? `<button class="btn-icon-sm" data-lid="${c.id}" onclick="abrirWAConMensajes(this.dataset.lid)" title="WhatsApp" style="background:#25D366;color:white;border:none;border-radius:8px;">💬</button>` : ''}
+              ${c.telefono ? `<button class="btn-icon-sm" data-lid="${c.id}" onclick="abrirWAConMensajes(this.dataset.lid)" title="WhatsApp"
+                style="background:#25D366;color:white;border:none;border-radius:8px;width:30px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="14" height="14"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.556 4.121 1.526 5.851L.057 23.868c-.11.415.271.802.687.702l6.225-1.634A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.027-1.384l-.36-.214-3.714.975.992-3.621-.235-.372A9.818 9.818 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>
+                </button>` : ''}
               <button class="btn-icon-sm" data-cid="${c.id}" onclick="abrirFichaLead(this.dataset.cid)" title="Ver ficha">👁️</button>
               <button class="btn-icon-sm" data-cid="${c.id}" onclick="editarConsulta(this.dataset.cid)" title="Editar">✏️</button>
               <button class="btn-icon-sm danger" data-cid="${c.id}" onclick="eliminarConsulta(this.dataset.cid)" title="Eliminar">🗑️</button>
@@ -246,7 +249,8 @@ function abrirFichaLead(id) {
         ${c.telefono ? `
           <button onclick="abrirWAConMensajes('${escHtml(c.id)}')"
             style="display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:10px;border:none;background:#25D366;color:white;cursor:pointer;font-size:0.84rem;font-weight:600;">
-            💬 WhatsApp
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="15" height="15"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.556 4.121 1.526 5.851L.057 23.868c-.11.415.271.802.687.702l6.225-1.634A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.027-1.384l-.36-.214-3.714.975.992-3.621-.235-.372A9.818 9.818 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>
+            WhatsApp
           </button>` : ''}
         <button onclick="cerrarFichaAbrirEditar('${escHtml(c.id)}')"
           style="padding:8px 14px;border-radius:10px;border:1px solid #e5e7eb;background:white;cursor:pointer;font-size:0.84rem;font-weight:600;color:#374151;">
@@ -286,8 +290,12 @@ async function cambiarEstadioDesdeficha(id, nuevoEstado) {
 // ══════════════════════════════════════════════════════════
 
 function abrirWAConMensajes(leadId) {
-  const c = LEADS.consultas.find(x => x.id === leadId);
+  // Try LEADS first, then LACT
+  let c = LEADS.consultas.find(x => x.id === leadId);
+  if (!c && typeof LACT !== 'undefined') c = LACT.consultas.find(x => x.id === leadId);
   if (!c || !c.telefono) return;
+  // Ensure the consulta is in LEADS for overlay to work
+  if (!LEADS.consultas.find(x => x.id === leadId)) LEADS.consultas.push(c);
   if (LEADS_TEXTOS_WA.length === 0) {
     cargarTextosWA().then(() => _abrirWAOverlay(leadId));
     return;
@@ -299,14 +307,16 @@ function _buildPropTexto(c) {
   // {propiedad} = nombre + localidad + zona
   // {ficha_propiedad} = URL
   const partes = [c.propiedad_nombre || ''];
-  // Si tenemos NEG cargado, buscar localidad y zona
-  if (typeof NEG !== 'undefined' && NEG.propiedades) {
-    const p = NEG.propiedades.find(x => x.direccion === c.propiedad_nombre);
-    if (p) {
-      if (p.localidad) partes.push(p.localidad);
-      if (p.zona)      partes.push(p.zona);
-      return { propTexto: partes.filter(Boolean).join(', '), fichaUrl: p.url || '', propietarioNombre: p.nombre_propietario || '' };
-    }
+  // Buscar en NEG, LACT, o LEADS propiedades
+  const allProps = [
+    ...(typeof NEG !== 'undefined' && NEG.propiedades ? NEG.propiedades : []),
+    ...(typeof LACT !== 'undefined' && LACT.propiedades ? LACT.propiedades : []),
+  ];
+  const p = allProps.find(x => x.direccion === c.propiedad_nombre);
+  if (p) {
+    if (p.localidad) partes.push(p.localidad);
+    if (p.zona)      partes.push(p.zona);
+    return { propTexto: partes.filter(Boolean).join(', '), fichaUrl: p.url || '', propietarioNombre: p.nombre_propietario || '' };
   }
   return { propTexto: partes.filter(Boolean).join(', '), fichaUrl: '', propietarioNombre: '' };
 }
@@ -347,7 +357,9 @@ function _abrirWAOverlay(leadId) {
   overlay.innerHTML = `
     <div style="background:var(--bg-card,white);border-radius:14px;max-width:660px;width:100%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,0.25);">
       <div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;">
-        <div style="width:36px;height:36px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">💬</div>
+        <div style="width:36px;height:36px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="20" height="20"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.556 4.121 1.526 5.851L.057 23.868c-.11.415.271.802.687.702l6.225-1.634A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.027-1.384l-.36-.214-3.714.975.992-3.621-.235-.372A9.818 9.818 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>
+        </div>
         <div style="flex:1;">
           <div style="font-weight:700;font-size:0.95rem;">Enviar WhatsApp</div>
           <div style="font-size:0.75rem;color:#888;">📞 ${escHtml(c.telefono)} · ${escHtml(c.nombre||'Lead')}${c.propiedad_nombre ? ' · 🏠 '+escHtml(c.propiedad_nombre) : ''}</div>
@@ -356,24 +368,22 @@ function _abrirWAOverlay(leadId) {
           style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#888;padding:4px;">✕</button>
       </div>
       <div style="display:flex;flex:1;overflow:hidden;min-height:0;">
-        <div style="flex:1;padding:14px 16px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;">
-          <!-- Filtro por título -->
-          <div style="display:flex;align-items:center;gap:8px;">
-            <input id="waTituloFiltro" type="text" placeholder="Buscar por título..." class="input-base"
-              style="font-size:0.82rem;padding:6px 10px;"
-              oninput="filtrarTextosWATitulo(this.value,'${leadId}')">
-          </div>
-          <!-- Lista textos -->
+        <div style="flex:1;padding:14px 16px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;">
+          <!-- Dropdown textos predeterminados -->
           <div>
             <div style="font-size:0.7rem;font-weight:600;color:#888;text-transform:uppercase;margin-bottom:6px;">Textos predeterminados</div>
-            <div id="waTextosGrid" style="max-height:190px;overflow-y:auto;">
-              ${textosHTML(todosTextos)}
-            </div>
+            <select id="waTextosSelect"
+              onchange="seleccionarTextoWADropdown(this.value,'${leadId}')"
+              style="width:100%;padding:8px 10px;border-radius:8px;border:1.5px solid #e5e7eb;font-size:0.84rem;cursor:pointer;outline:none;background:white;">
+              <option value="">— Elegir texto predeterminado —</option>
+              ${todosTextos.map(t => `<option value="${escHtml(t.id)}">${escHtml(t.titulo)}</option>`).join('')}
+              ${todosTextos.length === 0 ? '<option value="" disabled style="color:#aaa;">No hay textos guardados</option>' : ''}
+            </select>
           </div>
           <!-- Textarea -->
           <div style="flex:1;display:flex;flex-direction:column;">
             <div style="font-size:0.7rem;font-weight:600;color:#888;text-transform:uppercase;margin-bottom:5px;">Mensaje a enviar</div>
-            <textarea id="waMensajeTexto" rows="5"
+            <textarea id="waMensajeTexto" rows="6"
               style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:10px;font-size:0.85rem;resize:vertical;font-family:inherit;box-sizing:border-box;outline:none;"
               placeholder="Seleccioná un texto arriba o escribí directamente..."></textarea>
           </div>
@@ -396,8 +406,9 @@ function _abrirWAOverlay(leadId) {
         <button onclick="document.getElementById('_waOverlay').style.display='none'"
           style="padding:8px 16px;border-radius:8px;border:1px solid #e5e7eb;background:white;cursor:pointer;font-size:0.84rem;">Cancelar</button>
         <button onclick="enviarMensajeWA('${escHtml(c.telefono)}')"
-          style="padding:8px 22px;border-radius:8px;border:none;background:#25D366;color:white;cursor:pointer;font-size:0.84rem;font-weight:700;">
-          💬 Abrir WhatsApp
+          style="padding:8px 22px;border-radius:8px;border:none;background:#25D366;color:white;cursor:pointer;font-size:0.84rem;font-weight:700;display:flex;align-items:center;gap:7px;">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="16" height="16"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.556 4.121 1.526 5.851L.057 23.868c-.11.415.271.802.687.702l6.225-1.634A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.027-1.384l-.36-.214-3.714.975.992-3.621-.235-.372A9.818 9.818 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>
+          Abrir WhatsApp
         </button>
       </div>
     </div>`;
@@ -406,20 +417,16 @@ function _abrirWAOverlay(leadId) {
   overlay.onclick = e => { if (e.target === overlay) overlay.style.display = 'none'; };
 }
 
+function seleccionarTextoWADropdown(textoId, leadId) {
+  if (!textoId) return;
+  usarTextoWA(textoId, leadId);
+  // Reset select after selection
+  const sel = document.getElementById('waTextosSelect');
+  if (sel) setTimeout(() => sel.value = '', 100);
+}
+
 function filtrarTextosWATitulo(q, leadId) {
-  const term = q.toLowerCase();
-  const filtrados = term ? LEADS_TEXTOS_WA.filter(t => (t.titulo||'').toLowerCase().includes(term)) : LEADS_TEXTOS_WA;
-  const grid = document.getElementById('waTextosGrid');
-  if (!grid) return;
-  grid.innerHTML = filtrados.length > 0
-    ? filtrados.map(t=>`
-        <div onclick="usarTextoWA('${t.id}','${leadId}')"
-          style="padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;cursor:pointer;font-size:0.8rem;background:white;margin-bottom:4px;"
-          onmouseover="this.style.borderColor='#25D366';this.style.background='#f0fff4'" onmouseout="this.style.borderColor='#e5e7eb';this.style.background='white'">
-          <div style="font-weight:600;color:#374151;margin-bottom:2px;">${escHtml(t.titulo)}</div>
-          <div style="color:#888;font-size:0.72rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml((t.contenido||'').substring(0,90))}…</div>
-        </div>`).join('')
-    : '<div style="font-size:0.8rem;color:#aaa;padding:4px 0;">No hay textos con ese título.</div>';
+  // Kept for compatibility - now using dropdown, this is a no-op
 }
 
 function usarTextoWA(textoId, leadId) {
@@ -707,8 +714,11 @@ function renderActividadLeads() {
                 </div>
               </div>
               <div style="display:flex;gap:4px;flex-shrink:0;">
-                ${c.telefono?`<button class="btn-icon-sm" data-tel="${escHtml(c.telefono)}" data-nom="${escHtml(c.nombre||'')}"
-                  onclick="window.open(buildWhatsAppUrl(this.dataset.tel,'Hola '+this.dataset.nom),'_blank')">💬</button>`:''}
+                ${c.telefono?`<button class="btn-icon-sm" data-cid="${c.id}"
+                  onclick="abrirWAConMensajes(this.dataset.cid)" title="WhatsApp"
+                  style="background:#25D366;color:white;border:none;border-radius:8px;width:28px;height:28px;font-size:0.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="14" height="14"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.556 4.121 1.526 5.851L.057 23.868c-.11.415.271.802.687.702l6.225-1.634A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.027-1.384l-.36-.214-3.714.975.992-3.621-.235-.372A9.818 9.818 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>
+                  </button>`:''}
                 <select class="input-base" style="font-size:0.72rem;padding:3px 6px;height:auto;width:128px;"
                   data-cid="${c.id}" onchange="cambiarEstadioActLeads(this.dataset.cid,this.value,this)">
                   ${Object.entries(ESTADIO_LABELS).map(([k,v])=>`<option value="${k}" ${c.estado===k?'selected':''}>${v.label}</option>`).join('')}
