@@ -19,10 +19,8 @@ function filtrarTextos() { renderTextos(); }
 
 function renderTextos() {
   const q = (document.getElementById('filtroTextos')?.value || '').toLowerCase();
-  const cat = document.getElementById('filtroCategoria')?.value || '';
   const lista = CONT.textos.filter(t =>
-    (!q || (t.titulo || '').toLowerCase().includes(q) || (t.contenido || '').toLowerCase().includes(q)) &&
-    (!cat || t.categoria === cat)
+    !q || (t.titulo || '').toLowerCase().includes(q) || (t.contenido || '').toLowerCase().includes(q)
   );
   const container = document.getElementById('textosGrid');
   if (!container) return;
@@ -60,7 +58,7 @@ function copiarTexto(id) {
 function abrirNuevoTexto() {
   ['txtId','txtTitulo','txtContenido'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
   document.getElementById('txtTipo').value = 'whatsapp';
-  document.getElementById('txtCategoria').value = 'bienvenida_lead';
+  document.getElementById('txtCategoria').value = 'general';
   document.getElementById('modalTxtTitulo').textContent = 'Nuevo texto';
   abrirModal('modalTexto');
 }
