@@ -141,8 +141,7 @@ def _generar_pdf_firmado(doc):
     """
     try:
         import fitz
-        from reportlab.pdfgen import canvas as rl_canvas
-        from reportlab.lib.pagesizes import A4
+
     except ImportError as e:
         print(f'[PDF] Import error: {e}')
         return None
@@ -191,92 +190,97 @@ def _generar_pdf_firmado(doc):
         except Exception as e:
             print(f'[PDF] Firma {f.get("email")}: {e}')
 
-    # ── Certificado de auditoría ──
+    # ── Certificado de auditoría (100% PyMuPDF) ──
     try:
-        buf = BytesIO()
-        c   = rl_canvas.Canvas(buf, pagesize=A4)
-        W, H = A4
+        cert_doc  = fitz.open()
+        cert_page = cert_doc.new_page(width=595, height=842)
+        W, H      = 595, 842
+        BLUE  = (0.106, 0.247, 0.894)
+        WHITE = (1.0, 1.0, 1.0)
+        DARK  = (0.1,  0.1,  0.1)
+        GRAY  = (0.4,  0.4,  0.4)
+        LGRAY = (0.85, 0.85, 0.85)
+        GREEN = (0.22, 0.72, 0.42)
+        CREAM = (0.98, 0.98, 0.96)
 
-        # Header azul
-        c.setFillColorRGB(0.106, 0.247, 0.894)
-        c.rect(0, H - 72, W, 72, fill=1, stroke=0)
-        c.setFillColorRGB(1, 1, 1)
-        c.setFont('Helvetica-Bold', 16)
-        c.drawString(40, H - 38, 'Certificado de Auditoría de Firma')
-        c.setFont('Helvetica', 9)
-        c.drawString(40, H - 56, 'Realvix Firma Electrónica')
+        def _txt(page, x, y, text, size=10, color=DARK, bold=False):
+            safe = str(text).encode('latin-1', errors='replace').decode('latin-1')
+            page.insert_text(fitz.Point(x, y), safe,
+                             fontname='hebo' if bold else 'helv',
+                             fontsize=size, color=color)
 
-        # Datos del documento
-        y = H - 100
-        c.setFillColorRGB(0.1, 0.1, 0.1)
-        c.setFont('Helvetica-Bold', 11)
-        c.drawString(40, y, 'Documento')
-        y -= 16
-        c.setFont('Helvetica', 10)
-        c.drawString(40, y, doc.get('title', ''))
-        y -= 14
-        c.drawString(40, y, f"Organizado por: {doc.get('organizer_name', '')}")
-        y -= 14
+        def _rect(page, x0, y0, x1, y1, fill):
+            s = page.new_shape()
+            s.draw_rect(fitz.Rect(x0, y0, x1, y1))
+            s.finish(fill=fill, color=None, width=0)
+            s.commit()
+
+        def _stroke(page, x0, y0, x1, y1, color=LGRAY, width=0.5):
+            s = page.new_shape()
+            s.draw_rect(fitz.Rect(x0, y0, x1, y1))
+            s.finish(fill=None, color=color, width=width)
+            s.commit()
+
+        def _line(page, x0, y0, x1, y1, color=LGRAY):
+            s = page.new_shape()
+            s.draw_line(fitz.Point(x0, y0), fitz.Point(x1, y1))
+            s.finish(color=color, width=0.5)
+            s.commit()
+
+        def _circle(page, cx, cy, r, fill):
+            s = page.new_shape()
+            s.draw_circle(fitz.Point(cx, cy), r)
+            s.finish(fill=fill, color=None, width=0)
+            s.commit()
+
+        # Fondo crema + header azul
+        _rect(cert_page, 0, 0, W, H, CREAM)
+        _rect(cert_page, 0, 0, W, 70, BLUE)
+        _txt(cert_page, 40, 28, 'Certificado de Auditoria de Firma', size=16, color=WHITE, bold=True)
+        _txt(cert_page, 40, 52, 'Realvix Firma Electronica', size=9, color=WHITE)
+
+        # Info del documento
+        y = 98
+        _txt(cert_page, 40, y, 'Documento', size=11, bold=True);            y += 18
+        _txt(cert_page, 40, y, doc.get('title', ''), size=10);              y += 16
+        _txt(cert_page, 40, y, f"Organizado por: {doc.get('organizer_name','')}", size=10); y += 16
         completed_at = doc.get('completed_at', '')[:16].replace('T', ' ')
-        c.drawString(40, y, f"Completado el: {completed_at}")
-        y -= 22
-        c.setStrokeColorRGB(0.85, 0.85, 0.85)
-        c.line(40, y, W - 40, y)
-        y -= 20
-
-        # Firmantes
-        c.setFont('Helvetica-Bold', 11)
-        c.drawString(40, y, 'Registro de Firmas')
-        y -= 22
+        _txt(cert_page, 40, y, f'Completado el: {completed_at}', size=10); y += 22
+        _line(cert_page, 40, y, W - 40, y);                                 y += 20
+        _txt(cert_page, 40, y, 'Registro de Firmas', size=11, bold=True);   y += 22
 
         for f in firmantes:
-            if y < 90:
-                c.showPage()
-                c.setFillColorRGB(0.1, 0.1, 0.1)
-                y = H - 50
+            if y + 72 > H - 40:
+                cert_doc.insert_page(-1, width=595, height=842)
+                cert_page = cert_doc[-1]
+                _rect(cert_page, 0, 0, W, H, CREAM)
+                y = 40
 
-            # Tarjeta
-            c.setFillColorRGB(0.98, 0.98, 0.96)
-            c.roundRect(38, y - 54, W - 76, 60, 6, fill=1, stroke=0)
-            c.setStrokeColorRGB(0.85, 0.85, 0.85)
-            c.roundRect(38, y - 54, W - 76, 60, 6, fill=0, stroke=1)
+            _rect(cert_page,   38, y,      W - 38, y + 64, CREAM)
+            _stroke(cert_page, 38, y,      W - 38, y + 64, LGRAY)
+            _circle(cert_page, 64, y + 32, 14, BLUE)
 
-            # Avatar
-            c.setFillColorRGB(0.106, 0.247, 0.894)
-            c.circle(66, y - 22, 13, fill=1, stroke=0)
-            c.setFillColorRGB(1, 1, 1)
-            c.setFont('Helvetica-Bold', 11)
-            c.drawCentredString(66, y - 26, (f.get('name') or f.get('email', '?'))[0].upper())
+            inicial = (f.get('name') or f.get('email') or '?')[0].upper()
+            _txt(cert_page, 58, y + 37, inicial, size=12, color=WHITE, bold=True)
 
-            # Datos
-            c.setFillColorRGB(0.1, 0.1, 0.1)
-            c.setFont('Helvetica-Bold', 10)
-            c.drawString(90, y - 14, f.get('name') or f.get('email', ''))
-            c.setFont('Helvetica', 9)
-            c.setFillColorRGB(0.4, 0.4, 0.4)
-            c.drawString(90, y - 27, f.get('email', ''))
-            signed_at = (f.get('signed_at', '')[:16] or '').replace('T', ' ')
-            c.drawString(90, y - 40, f'Firmado el: {signed_at}')
+            _txt(cert_page, 90, y + 18, f.get('name') or f.get('email',''), size=10, bold=True)
+            _txt(cert_page, 90, y + 33, f.get('email',''),                  size=9,  color=GRAY)
+            sat = (f.get('signed_at','')[:16] or '').replace('T',' ')
+            _txt(cert_page, 90, y + 48, f'Firmado el: {sat}',              size=9,  color=GRAY)
 
-            # Badge
-            c.setFillColorRGB(0.22, 0.72, 0.42)
-            c.roundRect(W - 118, y - 32, 70, 18, 4, fill=1, stroke=0)
-            c.setFillColorRGB(1, 1, 1)
-            c.setFont('Helvetica-Bold', 8)
-            c.drawCentredString(W - 83, y - 20, 'FIRMADO')
-            y -= 72
+            _rect(cert_page,  W-122, y+23, W-46, y+43, GREEN)
+            _txt(cert_page,   W-115, y+36, 'FIRMADO', size=8, color=WHITE, bold=True)
 
-        # Pie
-        c.setFillColorRGB(0.6, 0.6, 0.6)
-        c.setFont('Helvetica', 7)
-        c.drawCentredString(W / 2, 28,
-            'Certificado generado automáticamente por Realvix Firma. '
-            'Las firmas tienen validez como evidencia de consentimiento.')
-        c.save()
+            y += 76
 
-        cert_doc = fitz.open(stream=buf.getvalue(), filetype='pdf')
+        _line(cert_page, 40, H - 38, W - 40, H - 38)
+        _txt(cert_page, 40, H - 24,
+             'Certificado generado por Realvix Firma. Las firmas son evidencia de consentimiento.',
+             size=7, color=GRAY)
+
         pdf_doc.insert_pdf(cert_doc)
         cert_doc.close()
+        print('[PDF] Certificado OK')
     except Exception as e:
         print(f'[PDF] Error certificado: {e}')
 
