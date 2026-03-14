@@ -318,8 +318,14 @@ from blueprints.contenido import bp as bp_contenido
 from blueprints.admin     import bp as bp_admin
 from blueprints.metricas  import bp as bp_metricas
 
-app.register_blueprint(bp_negocio)
-app.register_blueprint(bp_leads)
+try:
+    app.register_blueprint(bp_negocio)
+except ValueError:
+    pass  # blueprint already registered (duplicate file), skip
+try:
+    app.register_blueprint(bp_leads)
+except ValueError:
+    pass  # blueprint already registered, skip
 app.register_blueprint(bp_cierres)
 app.register_blueprint(bp_agenda)
 app.register_blueprint(bp_firma)
