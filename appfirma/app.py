@@ -324,37 +324,273 @@ def _dibujar_pagina_certificado(page, doc_data):
 
 
 def _generar_certificado_simple(doc_data):
+    """Genera el certificado de auditoría con diseño profesional usando ReportLab."""
     try:
         from reportlab.lib.pagesizes import A4
-        from reportlab.pdfgen import canvas as rl_canvas
+        from reportlab.lib import colors
+        from reportlab.lib.units import mm
+        from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
+                                        Table, TableStyle, HRFlowable, Image)
+        from reportlab.lib.styles import ParagraphStyle
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
         import io
+
         buf = io.BytesIO()
-        c   = rl_canvas.Canvas(buf, pagesize=A4)
-        W, H = A4
-        c.setFont("Helvetica-Bold", 20)
-        c.drawCentredString(W/2, H - 80, "CERTIFICADO DE FIRMA ELECTRONICA")
-        c.setFont("Helvetica", 11)
-        c.drawCentredString(W/2, H - 105, "Realvix CRM")
-        y = H - 145
-        for label, value in [("Documento:", doc_data.get('title', '')),
-                              ("Organizador:", doc_data.get('organizer_name', '')),
-                              ("Fecha:", doc_data.get('created_at', '')[:10])]:
-            c.setFont("Helvetica-Bold", 11); c.drawString(60, y, label)
-            c.setFont("Helvetica", 11);      c.drawString(170, y, value)
-            y -= 20
-        y -= 20
-        c.setFont("Helvetica-Bold", 13); c.drawString(60, y, "Firmantes:"); y -= 25
-        for f in doc_data.get('firmantes', []):
-            c.setFont("Helvetica-Bold", 10); c.drawString(60, y, f.get('name') or f.get('email', ''))
-            c.setFont("Helvetica", 10);      c.drawString(60, y - 14, f.get('email', ''))
-            c.drawString(60, y - 28, f"Estado: {'Firmado' if f.get('signed') else 'Pendiente'}")
-            if f.get('signed') and f.get('signed_at'):
-                c.drawString(60, y - 42, f"Fecha: {f['signed_at'][:19]}"); y -= 20
-            y -= 60
-        c.save()
+        doc = SimpleDocTemplate(buf, pagesize=A4,
+                                leftMargin=20*mm, rightMargin=20*mm,
+                                topMargin=18*mm, bottomMargin=18*mm)
+
+        # ── Colores ──
+        AZUL    = colors.HexColor('#1a3a6b')
+        AZUL_L  = colors.HexColor('#e8eef7')
+        GRIS    = colors.HexColor('#666666')
+        GRIS_L  = colors.HexColor('#f5f5f5')
+        VERDE   = colors.HexColor('#2d7a4f')
+        VERDE_L = colors.HexColor('#e6f4ec')
+        NEGRO   = colors.HexColor('#111111')
+        BORDE   = colors.HexColor('#cccccc')
+
+        # ── Estilos ──
+        def style(name, **kw):
+            return ParagraphStyle(name, **kw)
+
+        s_titulo  = style('tit',  fontSize=18, fontName='Helvetica-Bold',
+                          textColor=NEGRO, alignment=TA_CENTER, spaceAfter=4)
+        s_sub     = style('sub',  fontSize=13, fontName='Helvetica-Bold',
+                          textColor=NEGRO, alignment=TA_CENTER, spaceAfter=2)
+        s_ref     = style('ref',  fontSize=9,  fontName='Helvetica-Bold',
+                          textColor=NEGRO, spaceAfter=1)
+        s_fecha   = style('fec',  fontSize=8,  fontName='Helvetica',
+                          textColor=GRIS, spaceAfter=12)
+        s_normal  = style('nor',  fontSize=8,  fontName='Helvetica',
+                          textColor=NEGRO)
+        s_bold    = style('bol',  fontSize=8,  fontName='Helvetica-Bold',
+                          textColor=NEGRO)
+        s_gris    = style('gri',  fontSize=7.5,fontName='Helvetica',
+                          textColor=GRIS)
+        s_legal   = style('leg',  fontSize=7,  fontName='Helvetica',
+                          textColor=GRIS, leading=10)
+        s_footer  = style('foo',  fontSize=7,  fontName='Helvetica',
+                          textColor=GRIS, alignment=TA_CENTER)
+        s_verde_b = style('veb',  fontSize=8,  fontName='Helvetica-Bold',
+                          textColor=VERDE)
+        s_header_lbl = style('hlbl', fontSize=7, fontName='Helvetica-Bold',
+                             textColor=AZUL)
+
+        story = []
+
+        # ── Cabecera: Logo + CRM ──
+        logo_row = Table(
+            [[Paragraph('<b><font color="#1a3a6b" size="14">▶ Realvix</font></b>', style('lr', fontSize=14, fontName='Helvetica-Bold', textColor=AZUL)),
+              Paragraph('<font color="#888888" size="8">CRM</font>', style('lc', fontSize=8, fontName='Helvetica', textColor=GRIS, alignment=TA_RIGHT))]],
+            colWidths=['*', 40*mm]
+        )
+        logo_row.setStyle(TableStyle([
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+        ]))
+        story.append(logo_row)
+        story.append(HRFlowable(width='100%', thickness=1, color=BORDE, spaceAfter=12))
+
+        # ── Título ──
+        story.append(Paragraph('Certificado de Auditoria', s_titulo))
+        story.append(Paragraph('de Firma Electronica', s_sub))
+        story.append(Spacer(1, 10))
+        story.append(HRFlowable(width='100%', thickness=0.5, color=BORDE, spaceAfter=10))
+
+        # ── Ref + Fecha ──
+        doc_id    = doc_data.get('doc_id', str(uuid.uuid4()).upper())
+        created   = doc_data.get('created_at', '')[:19].replace('T', ' ')
+        try:
+            dt_obj  = datetime.fromisoformat(doc_data.get('created_at', '')[:19])
+            fecha_f = dt_obj.strftime('%d/%m/%Y a las %H:%M:%S')
+        except:
+            fecha_f = created
+
+        story.append(Paragraph(f'<b>Ref: {doc_id.upper()}</b>', s_ref))
+        story.append(Paragraph(f'Emitido el: {fecha_f}', s_fecha))
+
+        # ── Tabla info documento ──
+        firmantes  = doc_data.get('firmantes', [])
+        firmados   = sum(1 for f in firmantes if f.get('signed'))
+        estado_txt = 'Completado' if firmados == len(firmantes) else 'Pendiente'
+
+        info_data = [
+            [Paragraph('DOCUMENTO', s_header_lbl), Paragraph(doc_data.get('title', ''), s_normal)],
+            [Paragraph('ESTADO',    s_header_lbl), Paragraph(estado_txt, s_normal)],
+            [Paragraph('FIRMANTES', s_header_lbl), Paragraph(str(len(firmantes)), s_normal)],
+        ]
+        info_table = Table(info_data, colWidths=[45*mm, '*'])
+        info_table.setStyle(TableStyle([
+            ('BACKGROUND',   (0,0), (0,-1), AZUL_L),
+            ('BACKGROUND',   (1,0), (1,-1), colors.white),
+            ('BOX',          (0,0), (-1,-1), 0.5, BORDE),
+            ('INNERGRID',    (0,0), (-1,-1), 0.5, BORDE),
+            ('VALIGN',       (0,0), (-1,-1), 'MIDDLE'),
+            ('TOPPADDING',   (0,0), (-1,-1), 6),
+            ('BOTTOMPADDING',(0,0), (-1,-1), 6),
+            ('LEFTPADDING',  (0,0), (-1,-1), 8),
+        ]))
+        story.append(info_table)
+        story.append(Spacer(1, 14))
+
+        # ── Registro de firmas ──
+        story.append(Table(
+            [[Paragraph('REGISTRO DE FIRMAS', style('rft', fontSize=8, fontName='Helvetica-Bold', textColor=AZUL))]],
+            colWidths=['*'],
+            style=TableStyle([
+                ('BACKGROUND',   (0,0), (-1,-1), AZUL_L),
+                ('BOX',          (0,0), (-1,-1), 0.5, BORDE),
+                ('TOPPADDING',   (0,0), (-1,-1), 6),
+                ('BOTTOMPADDING',(0,0), (-1,-1), 6),
+                ('LEFTPADDING',  (0,0), (-1,-1), 8),
+            ])
+        ))
+
+        for f in firmantes:
+            signed    = f.get('signed', False)
+            name      = f.get('name') or '(sin nombre)'
+            email     = f.get('email', '')
+            signed_at = f.get('signed_at', '')
+            ip        = f.get('ip', '')
+
+            try:
+                dt_f    = datetime.fromisoformat(signed_at[:19])
+                meses   = ['enero','febrero','marzo','abril','mayo','junio',
+                           'julio','agosto','septiembre','octubre','noviembre','diciembre']
+                fecha_s = f"Firmado el {dt_f.day} de {meses[dt_f.month-1]} de {dt_f.year} a las {dt_f.strftime('%H:%M:%S')}"
+            except:
+                fecha_s = signed_at[:19] if signed_at else ''
+
+            # Imagen de firma
+            sig_img = None
+            if signed and f.get('signature'):
+                try:
+                    sig_data = f['signature']
+                    if sig_data.startswith('data:'):
+                        sig_data = sig_data.split(',', 1)[1]
+                    sig_bytes = base64.b64decode(sig_data)
+                    sig_buf   = io.BytesIO(sig_bytes)
+                    sig_img   = Image(sig_buf, width=35*mm, height=15*mm)
+                    sig_img.hAlign = 'RIGHT'
+                except:
+                    sig_img = None
+
+            # Badge FIRMADO / PENDIENTE
+            if signed:
+                badge = Table(
+                    [[Paragraph('FIRMADO', style('bdg', fontSize=7, fontName='Helvetica-Bold',
+                                                  textColor=colors.white, alignment=TA_CENTER))]],
+                    colWidths=[22*mm],
+                    style=TableStyle([
+                        ('BACKGROUND',    (0,0), (-1,-1), VERDE),
+                        ('ROUNDEDCORNERS',(0,0), (-1,-1), 3),
+                        ('TOPPADDING',    (0,0), (-1,-1), 3),
+                        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+                    ])
+                )
+            else:
+                badge = Table(
+                    [[Paragraph('PENDIENTE', style('bdgp', fontSize=7, fontName='Helvetica-Bold',
+                                                    textColor=AZUL, alignment=TA_CENTER))]],
+                    colWidths=[26*mm],
+                    style=TableStyle([
+                        ('BACKGROUND',    (0,0), (-1,-1), AZUL_L),
+                        ('TOPPADDING',    (0,0), (-1,-1), 3),
+                        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+                    ])
+                )
+
+            # Contenido izquierdo
+            left_content = [
+                Paragraph(f'<b>{name}</b>', s_bold),
+                Paragraph(email, s_gris),
+            ]
+            if signed:
+                left_content.append(Paragraph(fecha_s, s_gris))
+                if ip:
+                    left_content.append(Paragraph(f'IP: {ip}', s_gris))
+
+            right_content = [badge]
+            if sig_img:
+                right_content.append(sig_img)
+
+            # Tabla de cada firmante
+            from reportlab.platypus import KeepTogether
+            right_table = Table(
+                [[item] for item in right_content],
+                colWidths=['*'],
+                style=TableStyle([
+                    ('ALIGN',  (0,0), (-1,-1), 'RIGHT'),
+                    ('VALIGN', (0,0), (-1,-1), 'TOP'),
+                    ('TOPPADDING',    (0,0), (-1,-1), 0),
+                    ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+                ])
+            )
+
+            left_para  = Table([[p] for p in left_content],
+                               colWidths=['*'],
+                               style=TableStyle([
+                                   ('TOPPADDING',    (0,0), (-1,-1), 1),
+                                   ('BOTTOMPADDING', (0,0), (-1,-1), 1),
+                               ]))
+
+            row_table = Table(
+                [[left_para, right_table]],
+                colWidths=['*', 45*mm],
+                style=TableStyle([
+                    ('VALIGN',        (0,0), (-1,-1), 'TOP'),
+                    ('BOX',           (0,0), (-1,-1), 0.5, BORDE),
+                    ('TOPPADDING',    (0,0), (-1,-1), 8),
+                    ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+                    ('LEFTPADDING',   (0,0), (0,-1),  8),
+                    ('RIGHTPADDING',  (1,0), (1,-1),  8),
+                ])
+            )
+            story.append(row_table)
+
+        story.append(Spacer(1, 16))
+
+        # ── Texto legal ──
+        legal = (
+            "Por medio del presente instrumento digital, los firmantes declaran bajo juramento "
+            "ser autores del documento suscripto, reconociendo la plena validez juridica de la "
+            "firma electronica incorporada. Este certificado valida la firma del documento "
+            "especificado mediante los mecanismos de autenticacion y cifrado utilizados "
+            "conforme a la Ley N 25.506 y sus Decretos Reglamentarios de la Republica Argentina."
+        )
+        story.append(Paragraph(legal, s_legal))
+        story.append(Spacer(1, 16))
+
+        # ── Ref ID box ──
+        doc_id_val = doc_data.get('doc_id', doc_id)
+        ref_box = Table(
+            [[Paragraph('<b>Repor rf Id:</b>', style('rid', fontSize=7, fontName='Helvetica-Bold', textColor=AZUL)),
+              Paragraph(f'#:{doc_id_val.upper()}', style('ridv', fontSize=7, fontName='Helvetica', textColor=NEGRO))]],
+            colWidths=[28*mm, '*'],
+            style=TableStyle([
+                ('BOX',           (0,0), (-1,-1), 0.5, BORDE),
+                ('TOPPADDING',    (0,0), (-1,-1), 6),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+                ('LEFTPADDING',   (0,0), (-1,-1), 8),
+                ('ALIGN',         (0,0), (-1,-1), 'LEFT'),
+            ])
+        )
+        # Alinear a la derecha
+        ref_wrapper = Table([[ref_box]], colWidths=['*'],
+                            style=TableStyle([('ALIGN', (0,0), (-1,-1), 'RIGHT')]))
+        story.append(ref_wrapper)
+
+        story.append(Spacer(1, 20))
+        story.append(HRFlowable(width='100%', thickness=0.5, color=BORDE, spaceAfter=6))
+        story.append(Paragraph('www.realvix.com', s_footer))
+
+        doc.build(story)
         return buf.getvalue()
+
     except Exception as e:
-        print(f"[FIRMA][CERT] Error certificado simple: {e}")
+        print(f"[FIRMA][CERT] Error certificado diseño: {e}")
+        traceback.print_exc()
         return None
 
 
@@ -398,6 +634,7 @@ def crear_documento():
         f['sign_url']  = f"{_base_url()}/firmar/{doc_id}/{f['token']}"
 
     doc_data = {
+        'doc_id':          doc_id,
         'title':           title,
         'organizer_name':  organizer_name,
         'organizer_email': organizer_email,
@@ -533,6 +770,7 @@ def guardar_firma(doc_id, token):
     firmantes[idx]['signed']    = True
     firmantes[idx]['signed_at'] = datetime.utcnow().isoformat()
     firmantes[idx]['signature'] = signature
+    firmantes[idx]['ip']        = request.headers.get('X-Forwarded-For', request.remote_addr or '')
     d['firmantes'] = firmantes
 
     total    = len(firmantes)
