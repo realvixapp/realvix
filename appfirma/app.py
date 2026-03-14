@@ -17,8 +17,11 @@ from psycopg2.extras import RealDictCursor
 from flask import (Blueprint, request, jsonify, render_template,
                    redirect, url_for, Response)
 
-# template_folder apunta a la carpeta templates/ de la RAÍZ del proyecto
-bp = Blueprint('firma', __name__, template_folder='../templates')
+# ── template_folder apunta a appfirma/templates/ ──
+bp = Blueprint('firma', __name__,
+               template_folder='templates',
+               static_folder='static/js',
+               static_url_path='/static/firma')
 
 # ══════════════════════════════════════════
 #  DB helpers
@@ -47,7 +50,7 @@ def _exec(sql, params=None):
         conn.close()
         return True
     except Exception as e:
-        print(f"[FIRMA][DB] exec error: {e} — sql: {sql[:80]}")
+        print(f"[FIRMA][DB] exec error: {e}")
         try:
             conn.rollback()
             conn.close()
@@ -115,14 +118,13 @@ def login_required(f):
 def _send_email(to_email, subject, html_body, attachments=None):
     api_key = os.environ.get('BREVO_API_KEY', '')
     if not api_key:
-        print("[FIRMA][EMAIL] ⚠️  BREVO_API_KEY no configurada.")
+        print("[FIRMA][EMAIL] BREVO_API_KEY no configurada.")
         return False
 
     from_email = os.environ.get('SMTP_FROM', 'no-reply@realvix.com')
-    from_name  = 'Realvix CRM'
 
     payload = {
-        "sender":      {"name": from_name, "email": from_email},
+        "sender":      {"name": "Realvix CRM", "email": from_email},
         "to":          [{"email": to_email}],
         "subject":     subject,
         "htmlContent": html_body,
@@ -130,10 +132,7 @@ def _send_email(to_email, subject, html_body, attachments=None):
 
     if attachments:
         payload["attachment"] = [
-            {
-                "name":    att["filename"],
-                "content": base64.b64encode(att["data"]).decode("utf-8"),
-            }
+            {"name": att["filename"], "content": base64.b64encode(att["data"]).decode("utf-8")}
             for att in attachments
         ]
 
@@ -154,10 +153,10 @@ def _send_email(to_email, subject, html_body, attachments=None):
             print(f"[FIRMA][EMAIL] ✓ Enviado a {to_email} (status {resp.status})")
             return True
     except urllib.error.HTTPError as e:
-        print(f"[FIRMA][EMAIL] ✗ HTTP {e.code} enviando a {to_email}: {e.read().decode()}")
+        print(f"[FIRMA][EMAIL] ✗ HTTP {e.code} a {to_email}: {e.read().decode()}")
         return False
     except Exception as e:
-        print(f"[FIRMA][EMAIL] ✗ Error enviando a {to_email}: {e}")
+        print(f"[FIRMA][EMAIL] ✗ Error a {to_email}: {e}")
         return False
 
 
@@ -170,120 +169,70 @@ def _base_url():
 # ══════════════════════════════════════════
 
 def _email_invitacion(doc_title, organizer_name, firmante_name, sign_url):
-    return f"""
-<!DOCTYPE html>
+    return f"""<!DOCTYPE html>
 <html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body {{ font-family: 'Helvetica Neue', Arial, sans-serif; background: #f5f5f0; margin: 0; padding: 0; }}
-    .wrap {{ max-width: 560px; margin: 32px auto; background: #fff; border-radius: 12px;
-             box-shadow: 0 2px 16px rgba(0,0,0,.08); overflow: hidden; }}
-    .header {{ background: #0f0f0f; color: #fff; padding: 28px 32px; }}
-    .logo {{ font-size: 1.5rem; font-weight: 700; letter-spacing: -0.5px; }}
-    .logo span {{ color: #c9a84c; }}
-    .body {{ padding: 32px; color: #333; line-height: 1.6; }}
-    .body h2 {{ font-size: 1.15rem; color: #111; margin-bottom: 12px; }}
-    .doc-box {{ background: #f8f6f1; border: 1px solid #e0dbd0; border-radius: 8px;
-                padding: 16px 18px; margin: 20px 0; }}
-    .doc-box strong {{ font-size: 1rem; color: #111; }}
-    .doc-box p {{ font-size: 0.82rem; color: #666; margin: 4px 0 0; }}
-    .btn-wrap {{ text-align: center; margin: 28px 0 16px; }}
-    .btn {{ display: inline-block; background: #1B3FE4; color: #fff !important;
-            text-decoration: none !important; padding: 14px 36px; border-radius: 8px;
-            font-size: 0.95rem; font-weight: 700; letter-spacing: 0.2px; }}
-    .note {{ font-size: 0.78rem; color: #999; margin-top: 20px; line-height: 1.5; }}
-    .url-fallback {{ word-break: break-all; font-size: 0.75rem; color: #1B3FE4; margin-top: 8px; }}
-    .footer {{ background: #f8f6f1; border-top: 1px solid #e8e4dc;
-               padding: 16px 32px; font-size: 0.74rem; color: #aaa; text-align: center; }}
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <div class="header">
-      <div class="logo">Firma<span>Doc</span></div>
-    </div>
-    <div class="body">
-      <h2>Hola{(' ' + firmante_name) if firmante_name else ''} 👋</h2>
-      <p><strong>{organizer_name or 'Un organizador'}</strong> te solicita que firmes el siguiente documento:</p>
-      <div class="doc-box">
-        <strong>📄 {doc_title}</strong>
-        <p>Podés revisar el contenido antes de firmar desde el link.</p>
-      </div>
-      <p>Hacé clic en el botón para acceder a la página de firma segura:</p>
-      <div class="btn-wrap">
-        <a href="{sign_url}" class="btn">✍️ Firmar documento</a>
-      </div>
-      <div class="note">
-        Si el botón no funciona, copiá y pegá este link en tu navegador:<br>
-        <span class="url-fallback">{sign_url}</span>
-      </div>
-      <div class="note">
-        Este link es personal e intransferible. Solo vos podés usar este link para firmar.<br>
-        Si no esperabas este email, podés ignorarlo.
-      </div>
-    </div>
-    <div class="footer">Realvix CRM · Firma Electrónica</div>
-  </div>
-</body>
-</html>
-"""
+<head><meta charset="UTF-8">
+<style>
+body{{font-family:'Helvetica Neue',Arial,sans-serif;background:#f5f5f0;margin:0;padding:0;}}
+.wrap{{max-width:560px;margin:32px auto;background:#fff;border-radius:12px;box-shadow:0 2px 16px rgba(0,0,0,.08);overflow:hidden;}}
+.header{{background:#0f0f0f;color:#fff;padding:28px 32px;}}
+.logo{{font-size:1.5rem;font-weight:700;}}.logo span{{color:#c9a84c;}}
+.body{{padding:32px;color:#333;line-height:1.6;}}
+.doc-box{{background:#f8f6f1;border:1px solid #e0dbd0;border-radius:8px;padding:16px 18px;margin:20px 0;}}
+.btn-wrap{{text-align:center;margin:28px 0 16px;}}
+.btn{{display:inline-block;background:#1B3FE4;color:#fff!important;text-decoration:none!important;padding:14px 36px;border-radius:8px;font-size:0.95rem;font-weight:700;}}
+.note{{font-size:0.78rem;color:#999;margin-top:20px;line-height:1.5;}}
+.url{{word-break:break-all;font-size:0.75rem;color:#1B3FE4;margin-top:8px;}}
+.footer{{background:#f8f6f1;border-top:1px solid #e8e4dc;padding:16px 32px;font-size:0.74rem;color:#aaa;text-align:center;}}
+</style></head>
+<body><div class="wrap">
+<div class="header"><div class="logo">Firma<span>Doc</span></div></div>
+<div class="body">
+<h2 style="font-size:1.15rem;color:#111;margin-bottom:12px;">Hola{(' ' + firmante_name) if firmante_name else ''} 👋</h2>
+<p><strong>{organizer_name or 'Un organizador'}</strong> te solicita que firmes el siguiente documento:</p>
+<div class="doc-box"><strong>📄 {doc_title}</strong><p style="font-size:0.82rem;color:#666;margin:4px 0 0;">Podés revisar el contenido antes de firmar desde el link.</p></div>
+<p>Hacé clic en el botón para acceder a la página de firma segura:</p>
+<div class="btn-wrap"><a href="{sign_url}" class="btn">✍️ Firmar documento</a></div>
+<div class="note">Si el botón no funciona, copiá y pegá este link:<br><span class="url">{sign_url}</span></div>
+<div class="note">Este link es personal e intransferible. Si no esperabas este email, ignoralo.</div>
+</div>
+<div class="footer">Realvix CRM · Firma Electrónica</div>
+</div></body></html>"""
 
 
 def _email_certificado(doc_title, destinatario_name, all_signers):
     firmantes_html = ''.join(
-        f'<li style="padding:4px 0;"><strong>{s.get("name") or s.get("email","")}</strong>'
-        f' — {s.get("email","")}'
-        f' <span style="color:#2d6a4f;">✅ Firmado</span></li>'
+        f'<li style="padding:4px 0;"><strong>{s.get("name") or s.get("email","")}</strong> — {s.get("email","")} <span style="color:#2d6a4f;">✅ Firmado</span></li>'
         for s in all_signers
     )
-    return f"""
-<!DOCTYPE html>
+    return f"""<!DOCTYPE html>
 <html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body {{ font-family: 'Helvetica Neue', Arial, sans-serif; background: #f5f5f0; margin: 0; padding: 0; }}
-    .wrap {{ max-width: 560px; margin: 32px auto; background: #fff; border-radius: 12px;
-             box-shadow: 0 2px 16px rgba(0,0,0,.08); overflow: hidden; }}
-    .header {{ background: #0f0f0f; color: #fff; padding: 28px 32px; }}
-    .logo {{ font-size: 1.5rem; font-weight: 700; }}
-    .logo span {{ color: #c9a84c; }}
-    .body {{ padding: 32px; color: #333; line-height: 1.6; }}
-    .success {{ background: #f0faf4; border: 1px solid #a7f3d0; border-radius: 8px;
-                padding: 18px 20px; margin: 20px 0; text-align: center; }}
-    .success .icon {{ font-size: 2.5rem; }}
-    .success h2 {{ color: #065F46; font-size: 1.1rem; margin: 8px 0 4px; }}
-    ul {{ padding-left: 16px; font-size: 0.86rem; color: #555; }}
-    .note {{ font-size: 0.78rem; color: #999; margin-top: 20px; }}
-    .footer {{ background: #f8f6f1; border-top: 1px solid #e8e4dc;
-               padding: 16px 32px; font-size: 0.74rem; color: #aaa; text-align: center; }}
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <div class="header">
-      <div class="logo">Firma<span>Doc</span></div>
-    </div>
-    <div class="body">
-      <p>Hola{(' ' + destinatario_name) if destinatario_name else ''} 👋</p>
-      <div class="success">
-        <div class="icon">🎉</div>
-        <h2>¡El documento fue firmado por todos!</h2>
-        <p style="font-size:0.88rem;color:#065F46;">"{doc_title}"</p>
-      </div>
-      <p>Adjunto encontrás el <strong>certificado PDF</strong> con todas las firmas registradas.</p>
-      <p style="font-size:0.88rem;color:#555;margin-top:16px;">Firmantes:</p>
-      <ul>{firmantes_html}</ul>
-      <div class="note">El certificado contiene la evidencia de cada firma y el timestamp de registro.</div>
-    </div>
-    <div class="footer">Realvix CRM · Firma Electrónica</div>
-  </div>
-</body>
-</html>
-"""
+<head><meta charset="UTF-8">
+<style>
+body{{font-family:'Helvetica Neue',Arial,sans-serif;background:#f5f5f0;margin:0;padding:0;}}
+.wrap{{max-width:560px;margin:32px auto;background:#fff;border-radius:12px;box-shadow:0 2px 16px rgba(0,0,0,.08);overflow:hidden;}}
+.header{{background:#0f0f0f;color:#fff;padding:28px 32px;}}
+.logo{{font-size:1.5rem;font-weight:700;}}.logo span{{color:#c9a84c;}}
+.body{{padding:32px;color:#333;line-height:1.6;}}
+.success{{background:#f0faf4;border:1px solid #a7f3d0;border-radius:8px;padding:18px 20px;margin:20px 0;text-align:center;}}
+.success h2{{color:#065F46;font-size:1.1rem;margin:8px 0 4px;}}
+ul{{padding-left:16px;font-size:0.86rem;color:#555;}}
+.footer{{background:#f8f6f1;border-top:1px solid #e8e4dc;padding:16px 32px;font-size:0.74rem;color:#aaa;text-align:center;}}
+</style></head>
+<body><div class="wrap">
+<div class="header"><div class="logo">Firma<span>Doc</span></div></div>
+<div class="body">
+<p>Hola{(' ' + destinatario_name) if destinatario_name else ''} 👋</p>
+<div class="success">
+<div style="font-size:2.5rem;">🎉</div>
+<h2>¡El documento fue firmado por todos!</h2>
+<p style="font-size:0.88rem;color:#065F46;">"{doc_title}"</p>
+</div>
+<p>Adjunto encontrás el <strong>certificado PDF</strong> con todas las firmas registradas.</p>
+<ul>{firmantes_html}</ul>
+</div>
+<div class="footer">Realvix CRM · Firma Electrónica</div>
+</div></body></html>"""
 
 
 # ══════════════════════════════════════════
@@ -307,11 +256,11 @@ def _generar_certificado(doc_data):
             page_num = int(zona.get('page', 1)) - 1
             if page_num < 0 or page_num >= len(pdf):
                 page_num = 0
-            page    = pdf[page_num]
-            pw, ph  = page.rect.width, page.rect.height
-            cw      = zona.get('canvasW', pw) or pw
-            ch      = zona.get('canvasH', ph) or ph
-            sx, sy  = pw / cw, ph / ch
+            page   = pdf[page_num]
+            pw, ph = page.rect.width, page.rect.height
+            cw     = zona.get('canvasW', pw) or pw
+            ch     = zona.get('canvasH', ph) or ph
+            sx, sy = pw / cw, ph / ch
             x0 = zona.get('x', 0) * sx
             y0 = zona.get('y', 0) * sy
             x1 = x0 + zona.get('w', 100) * sx
@@ -330,9 +279,8 @@ def _generar_certificado(doc_data):
         result = pdf.tobytes(deflate=True)
         pdf.close()
         return result
-
     except Exception as e:
-        print(f"[FIRMA][CERT] Error con PyMuPDF: {e}")
+        print(f"[FIRMA][CERT] Error PyMuPDF: {e}")
         traceback.print_exc()
         return _generar_certificado_simple(doc_data)
 
@@ -340,12 +288,11 @@ def _generar_certificado(doc_data):
 def _dibujar_pagina_certificado(page, doc_data):
     try:
         import fitz
-        W, H      = page.rect.width, page.rect.height
-        firmantes = doc_data.get('firmantes', [])
+        W, H = page.rect.width, page.rect.height
         page.draw_rect(fitz.Rect(0, 0, W, H), color=None, fill=(0.98, 0.97, 0.95))
         page.draw_rect(fitz.Rect(20, 20, W-20, H-20), color=(0.79, 0.66, 0.30), width=2)
         page.insert_text(fitz.Point(W/2 - 120, 70), "CERTIFICADO DE FIRMA", fontsize=20, color=(0.06, 0.06, 0.06))
-        page.insert_text(fitz.Point(W/2 - 80, 98), "Firma Electronica — Realvix CRM", fontsize=9, color=(0.5, 0.5, 0.5))
+        page.insert_text(fitz.Point(W/2 - 80, 98), "Firma Electronica - Realvix CRM", fontsize=9, color=(0.5, 0.5, 0.5))
         page.draw_line(fitz.Point(40, 110), fitz.Point(W-40, 110), color=(0.79, 0.66, 0.30), width=1)
         y = 135
         for label, value in [("Documento:", doc_data.get('title', '')),
@@ -359,7 +306,7 @@ def _dibujar_pagina_certificado(page, doc_data):
         y += 18
         page.insert_text(fitz.Point(40, y), "FIRMANTES", fontsize=10, color=(0.06, 0.06, 0.06))
         y += 20
-        for f in firmantes:
+        for f in doc_data.get('firmantes', []):
             if y > H - 80:
                 break
             signed = f.get('signed', False)
@@ -419,14 +366,16 @@ def _generar_certificado_simple(doc_data):
 @login_required
 def crear_documento():
     _ensure_table()
-    user = _get_current_user()
+    user            = _get_current_user()
     title           = (request.form.get('title') or '').strip()
     organizer_name  = (request.form.get('organizer_name') or '').strip()
     organizer_email = (request.form.get('organizer_email') or user.get('email', '')).strip()
+
     try:
         firmantes = json.loads(request.form.get('firmantes', '[]'))
     except Exception:
         return jsonify({'error': 'firmantes JSON invalido'}), 400
+
     if not title:
         return jsonify({'error': 'El titulo es requerido'}), 400
     if not firmantes:
@@ -466,9 +415,8 @@ def crear_documento():
 
     emails_ok, emails_err = [], []
     for f in firmantes:
-        subject = f"✍️ Te pidieron que firmes: {title}"
-        html    = _email_invitacion(title, organizer_name, f.get('name', ''), f['sign_url'])
-        if _send_email(f['email'], subject, html):
+        html = _email_invitacion(title, organizer_name, f.get('name', ''), f['sign_url'])
+        if _send_email(f['email'], f"✍️ Te pidieron que firmes: {title}", html):
             emails_ok.append(f['email'])
         else:
             emails_err.append(f['email'])
@@ -560,6 +508,7 @@ def guardar_firma(doc_id, token):
     row = _query("SELECT id, data FROM documents WHERE id=%s", (doc_id,), one=True)
     if not row:
         return jsonify({'error': 'Documento no encontrado'}), 404
+
     d         = dict(row['data'])
     firmantes = list(d.get('firmantes', []))
     idx       = next((i for i, f in enumerate(firmantes) if f.get('token') == token), None)
@@ -567,10 +516,19 @@ def guardar_firma(doc_id, token):
         return jsonify({'error': 'Token de firma invalido'}), 404
     if firmantes[idx].get('signed'):
         return jsonify({'error': 'Ya firmaste este documento'}), 400
-    body      = request.get_json(silent=True) or {}
-    signature = body.get('signature', '')
+
+    body = request.get_json(silent=True) or {}
+
+    # El frontend manda 'signature_dataurl' — aceptamos ambos nombres
+    signature = body.get('signature_dataurl') or body.get('signature', '')
     if not signature:
         return jsonify({'error': 'Falta la firma'}), 400
+
+    # Validar email confirmado si viene
+    email_confirmado = body.get('email_confirmado', '').strip().lower()
+    firmante_email   = firmantes[idx].get('email', '').strip().lower()
+    if email_confirmado and email_confirmado != firmante_email:
+        return jsonify({'error': 'El email no coincide con el firmante registrado'}), 400
 
     firmantes[idx]['signed']    = True
     firmantes[idx]['signed_at'] = datetime.utcnow().isoformat()
@@ -580,6 +538,7 @@ def guardar_firma(doc_id, token):
     total    = len(firmantes)
     firmados = sum(1 for f in firmantes if f.get('signed'))
     all_done = firmados == total
+
     if all_done:
         d['status']       = 'completado'
         d['completed_at'] = datetime.utcnow().isoformat()
@@ -587,15 +546,17 @@ def guardar_firma(doc_id, token):
     ok = _exec("UPDATE documents SET data=%s WHERE id=%s", (json.dumps(d), doc_id))
     if not ok:
         return jsonify({'error': 'Error al guardar la firma'}), 500
+
     if all_done:
         _enviar_certificado_final(doc_id, d)
+
     return jsonify({'ok': True, 'all_signed': all_done, 'signed_count': firmados, 'total': total})
 
 
 def _enviar_certificado_final(doc_id, doc_data):
     try:
-        pdf_bytes = _generar_certificado(doc_data)
-        filename  = f"certificado_{doc_id[:8]}.pdf"
+        pdf_bytes     = _generar_certificado(doc_data)
+        filename      = f"certificado_{doc_id[:8]}.pdf"
         destinatarios = [{'email': f['email'], 'name': f.get('name', '')}
                          for f in doc_data.get('firmantes', []) if f.get('email')]
         org_email = doc_data.get('organizer_email', '')
