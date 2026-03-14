@@ -393,6 +393,11 @@ def guiones_page():
 def ideas_page():
     return render_template('ideas.html')
 
+@app.route('/firma')
+@login_required
+def firma_page():
+    return render_template('firma.html')
+
 
 # ══════════════════════════
 #  AUTH ROUTES
