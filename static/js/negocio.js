@@ -115,9 +115,8 @@ function renderListing() {
               <select class="estadio-inline-select" data-pid="${p.id}"
                 onchange="cambiarEstadioListing(this.dataset.pid, this.value)"
                 style="font-size:0.75rem;padding:3px 8px;border-radius:12px;border:1px solid ${est.color}44;background:${est.bg};color:${est.color};font-weight:600;cursor:pointer;outline:none;">
-                ${Object.entries(ESTADIO_MAP).map(([k,v]) =>
-                  `<option value="${k}" ${(p.estado_tasacion||'')=== k?'selected':''}>${v.label}</option>`
-                ).join('')}
+                <option value="pendiente"           ${(p.estado_tasacion||'')==='pendiente'          ?'selected':''}>⏳ Pendiente</option>
+                <option value="esperando_respuesta" ${(p.estado_tasacion||'')==='esperando_respuesta'?'selected':''}>📋 Esperando resp.</option>
               </select>
             </td>
             <td>
@@ -204,9 +203,8 @@ function actualizarStatsListing() {
 
 function actualizarContadoresEstado() {
   const s = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
-  s('cntPublicadas', NEG.propiedades.filter(p => p.estado_tasacion === 'publicado').length);
-  s('cntReservadas', NEG.propiedades.filter(p => p.estado_tasacion === 'reservado').length);
-  s('cntCerradas',   NEG.propiedades.filter(p => p.estado_tasacion === 'cerrado').length);
+  s('cntPendientes',  NEG.propiedades.filter(p => (p.estado_tasacion||'pendiente') === 'pendiente').length);
+  s('cntEsperando',   NEG.propiedades.filter(p => p.estado_tasacion === 'esperando_respuesta').length);
 }
 
 // ══ ESTADO DE PROPIEDADES ══
@@ -311,6 +309,8 @@ function abrirNuevaPropiedad() {
   document.getElementById('propTipologia').value = '';
   document.getElementById('propEstado').value    = 'pendiente';   // default al crear
   document.getElementById('propEstadio').value   = 'pendiente';   // default al crear
+  const selResp = document.getElementById('propRespuesta');
+  if (selResp) selResp.value = 'esperando_respuesta';             // default al crear
   document.querySelector('#modalPropiedad .modal-footer .btn-primary').textContent = 'Crear propiedad';
   document.getElementById('modalPropTitulo').textContent = 'Nueva propiedad';
   abrirModal('modalPropiedad');
@@ -324,8 +324,6 @@ function editarPropiedad(id) {
   document.getElementById('propLocalidad').value     = p.localidad || '';
   document.getElementById('propZona').value          = p.zona || '';
   document.getElementById('propTipologia').value     = p.tipologia || '';
-  document.getElementById('propEstado').value        = p.estado_tasacion || '';
-  document.getElementById('propEstadio').value       = p.estadio || p.estado_tasacion || '';
   document.getElementById('propNombre').value        = p.nombre_propietario || '';
   document.getElementById('propTelefono').value      = p.telefono || '';
   document.getElementById('propEmail').value         = p.email || '';
@@ -335,6 +333,30 @@ function editarPropiedad(id) {
   document.getElementById('propProximo').value       = p.proximo_contacto || '';
   document.getElementById('propPrelisting').value    = p.fecha_prelisting || '';
   document.getElementById('propObservaciones').value = p.observaciones || '';
+
+  // Estado tasación: asignar valor real aunque no esté en el select (solo 2 opciones)
+  const selEstado  = document.getElementById('propEstado');
+  const valEstado  = p.estado_tasacion || 'pendiente';
+  if (!Array.from(selEstado.options).find(o => o.value === valEstado)) {
+    const opt = document.createElement('option');
+    opt.value = valEstado; opt.text = valEstado; opt.hidden = true;
+    selEstado.appendChild(opt);
+  }
+  selEstado.value = valEstado;
+
+  const selEstadio = document.getElementById('propEstadio');
+  const valEstadio = p.estadio || p.estado_tasacion || 'pendiente';
+  if (!Array.from(selEstadio.options).find(o => o.value === valEstadio)) {
+    const opt = document.createElement('option');
+    opt.value = valEstadio; opt.text = valEstadio; opt.hidden = true;
+    selEstadio.appendChild(opt);
+  }
+  selEstadio.value = valEstadio;
+
+  // Respuesta propietario
+  const selResp = document.getElementById('propRespuesta');
+  if (selResp) selResp.value = p.respuesta_listing || 'esperando_respuesta';
+
   document.querySelector('#modalPropiedad .modal-footer .btn-primary').textContent = 'Guardar cambios';
   document.getElementById('modalPropTitulo').textContent = 'Editar propiedad';
   abrirModal('modalPropiedad');
@@ -361,7 +383,7 @@ async function guardarPropiedad() {
     proximo_contacto:   document.getElementById('propProximo').value,
     fecha_prelisting:   document.getElementById('propPrelisting').value,
     observaciones:      document.getElementById('propObservaciones').value,
-    respuesta_listing:  id ? (NEG.propiedades.find(x=>x.id===id)?.respuesta_listing||'esperando_respuesta') : 'esperando_respuesta',
+    respuesta_listing:  document.getElementById('propRespuesta')?.value || 'esperando_respuesta',
   };
 
   try {
