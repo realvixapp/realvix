@@ -306,6 +306,26 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated
 
+def section_required(section_key):
+    """Decorator que verifica que el usuario tenga permiso para acceder a una sección.
+    Los admins siempre tienen acceso. Los members solo si tienen el permiso habilitado."""
+    def decorator(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            user = get_current_user()
+            if not user:
+                return redirect(url_for('login_page', next=request.path))
+            # Admin siempre tiene acceso total
+            if user.get('role') == 'admin':
+                return f(*args, **kwargs)
+            # Para members: verificar permisos
+            permisos = user.get('permisos') or {}
+            if not permisos.get(section_key):
+                abort(403)
+            return f(*args, **kwargs)
+        return decorated
+    return decorator
+
 
 # ── Registrar blueprints ──
 from blueprints.negocio   import bp as bp_negocio
@@ -337,66 +357,87 @@ def index():
     return render_template('index.html')
 
 @app.route('/negocio')
-@login_required
+@section_required('negocio')
 def negocio_page():
     return render_template('negocio.html')
 
 @app.route('/propiedades')
-@login_required
+@section_required('negocio')
 def propiedades_page():
     return render_template('propiedades.html')
 
 
 @app.route('/leads')
-@login_required
+@section_required('leads')
 def leads_page():
     return render_template('leads.html')
 
 @app.route('/metricas')
-@login_required
+@section_required('metricas')
 def metricas_page():
     return render_template('metricas.html')
 
 @app.route('/cierres')
-@login_required
+@section_required('cierres')
 def cierres_page():
     return render_template('cierres.html')
 
 @app.route('/agenda')
-@login_required
+@section_required('agenda')
 def agenda_page():
     return render_template('agenda.html')
 
 
 @app.route('/asistente')
-@login_required
+@section_required('asistente')
 def asistente_page():
     return render_template('asistente.html')
 
 @app.route('/admin')
-@login_required
+@admin_required
 def admin_page():
     return render_template('admin.html')
 
 @app.route('/contenido')
-@login_required
+@section_required('contenido')
 def contenido_page():
     return render_template('contenido.html')
 
 @app.route('/guiones')
-@login_required
+@section_required('guiones')
 def guiones_page():
     return render_template('guiones.html')
 
 @app.route('/ideas')
-@login_required
+@section_required('ideas')
 def ideas_page():
     return render_template('ideas.html')
 
 @app.route('/firma')
-@login_required
+@section_required('firma')
 def firma_page():
     return render_template('firma.html')
+
+
+@app.errorhandler(403)
+def forbidden(e):
+    return render_template_string("""<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Sin acceso — Realvix</title>
+<style>body{font-family:'Inter',sans-serif;display:flex;align-items:center;justify-content:center;
+min-height:100vh;background:#f7f5f0;margin:0;}
+.box{background:white;border-radius:16px;padding:48px 40px;max-width:420px;width:90%;
+box-shadow:0 4px 24px rgba(0,0,0,0.08);text-align:center;}
+.icon{font-size:3rem;margin-bottom:16px;}
+h2{font-size:1.4rem;margin:0 0 8px;}
+p{color:#888;font-size:0.9rem;margin:0 0 24px;}
+a{display:inline-block;padding:10px 24px;background:#1B3FE4;color:white;
+border-radius:8px;text-decoration:none;font-weight:600;font-size:0.9rem;}</style></head>
+<body><div class="box">
+<div class="icon">🔒</div>
+<h2>Sin acceso</h2>
+<p>No tenés permiso para ver esta sección.<br>Consultá con el administrador.</p>
+<a href="/">← Volver al inicio</a>
+</div></body></html>"""), 403
 
 
 # ══════════════════════════
