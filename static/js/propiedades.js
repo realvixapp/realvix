@@ -321,7 +321,8 @@ function renderActividadProp() {
       <div style="padding:14px 18px;background:linear-gradient(135deg,#f8f9ff,#f0f4ff);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
         <div style="flex:1;min-width:0;">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
-            <span style="font-weight:700;font-size:0.95rem;">${escHtml(p.direccion||'—')}</span>
+            <span style="font-weight:700;font-size:0.95rem;color:var(--rx-blue);cursor:pointer;text-decoration:underline dotted;"
+              data-pid="${p.id}" onclick="abrirModalInfoPropActividad(this.dataset.pid)">${escHtml(p.direccion||'—')}</span>
             <span style="font-size:0.7rem;padding:2px 9px;border-radius:12px;font-weight:700;background:${badgeBg};color:${badgeColor};">${badgeLabel}</span>
             ${p.tipologia ? `<span style="font-size:0.72rem;color:#888;background:#f3f4f6;padding:2px 7px;border-radius:8px;">${escHtml(p.tipologia)}</span>` : ''}
           </div>
@@ -361,7 +362,8 @@ function renderActividadProp() {
                   <div style="display:flex;align-items:flex-start;gap:10px;padding:8px 12px;border-radius:8px;background:${estadio.bg}22;border:1px solid ${estadio.color}22;flex-wrap:wrap;">
                     <div style="flex:1;min-width:0;">
                       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                        <span style="font-weight:600;font-size:0.85rem;">${escHtml(c.nombre||'Sin nombre')}</span>
+                        <span style="font-weight:600;font-size:0.85rem;color:var(--rx-blue);cursor:pointer;text-decoration:underline dotted;"
+                          data-cid="${c.id}" onclick="abrirFichaLeadDesdeProp(this.dataset.cid)">${escHtml(c.nombre||'Sin nombre')}</span>
                         <span style="font-size:0.68rem;padding:1px 7px;border-radius:10px;font-weight:600;background:${estadio.bg};color:${estadio.color};">${estadio.label}</span>
                         ${c.fecha_visita ? `<span style="font-size:0.68rem;background:#EDE9FE;color:#7C3AED;border-radius:8px;padding:1px 6px;">📅 ${formatFecha(c.fecha_visita)}</span>` : ''}
                       </div>
@@ -370,13 +372,15 @@ function renderActividadProp() {
                         ${c.operacion ? `<span>🔑 ${escHtml(c.operacion)}</span>` : ''}
                         <span style="color:#ccc;">${formatFecha(c.created_at)}</span>
                       </div>
-                      ${(c.notas||c.mensaje) ? `<div style="font-size:0.76rem;color:#555;margin-top:4px;background:#f8f9fa;padding:5px 8px;border-radius:6px;border-left:3px solid ${estadio.color}44;">💬 ${escHtml(c.notas||c.mensaje)}</div>` : ''}
+                      ${(c.notas||c.mensaje) ? `<div style="font-size:0.76rem;color:#555;margin-top:5px;background:#f8f9fa;padding:6px 9px;border-radius:6px;border-left:3px solid #d1d5db;white-space:pre-line;">${escHtml(c.notas||c.mensaje)}</div>` : ''}
                     </div>
                     <div style="display:flex;gap:4px;flex-shrink:0;align-items:center;">
                       ${c.telefono ? `<button
                         data-cid="${c.id}"
                         onclick="abrirWADesdeActividad(this.dataset.cid)"
-                        style="width:30px;height:30px;border-radius:50%;border:none;background:#25D366;color:white;cursor:pointer;font-size:0.95rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;" title="WhatsApp">💬</button>` : ''}
+                        style="width:30px;height:30px;border-radius:50%;border:none;background:#25D366;color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;" title="WhatsApp">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="14" height="14"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.556 4.121 1.526 5.851L.057 23.868c-.11.415.271.802.687.702l6.225-1.634A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.027-1.384l-.36-.214-3.714.975.992-3.621-.235-.372A9.818 9.818 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>
+                        </button>` : ''}
                       <select class="input-base" style="font-size:0.72rem;padding:3px 6px;height:auto;width:130px;"
                         data-cid="${c.id}"
                         onchange="cambiarEstadioActProp(this.dataset.cid, this.value, this)">
@@ -465,21 +469,13 @@ async function abrirWADesdeActividad(consultaId) {
   }
 
   const todos = _propActTextosWA;
-  const rowsHTML = (arr) => arr.length > 0
-    ? arr.map(t=>`
-        <div onclick="usarTextoWAPropAct('${t.id}','${consultaId}')"
-          style="padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;cursor:pointer;font-size:0.8rem;background:white;margin-bottom:4px;"
-          onmouseover="this.style.borderColor='#25D366';this.style.background='#f0fff4'"
-          onmouseout="this.style.borderColor='#e5e7eb';this.style.background='white'">
-          <div style="font-weight:600;color:#374151;margin-bottom:2px;">${escHtml(t.titulo)}</div>
-          <div style="color:#888;font-size:0.72rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml((t.contenido||'').substring(0,90))}…</div>
-        </div>`).join('')
-    : '<div style="font-size:0.8rem;color:#aaa;padding:4px 0;">No hay textos guardados.</div>';
 
   ov.innerHTML = `
     <div style="background:white;border-radius:14px;max-width:660px;width:100%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,0.25);">
       <div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;">
-        <div style="width:36px;height:36px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;font-size:1.1rem;">💬</div>
+        <div style="width:36px;height:36px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="20" height="20"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.556 4.121 1.526 5.851L.057 23.868c-.11.415.271.802.687.702l6.225-1.634A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.027-1.384l-.36-.214-3.714.975.992-3.621-.235-.372A9.818 9.818 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>
+        </div>
         <div style="flex:1;">
           <div style="font-weight:700;font-size:0.95rem;">Enviar WhatsApp</div>
           <div style="font-size:0.75rem;color:#888;">📞 ${escHtml(c.telefono)} · ${escHtml(c.nombre||'Lead')}${c.propiedad_nombre?' · 🏠 '+escHtml(c.propiedad_nombre):''}</div>
@@ -488,17 +484,20 @@ async function abrirWADesdeActividad(consultaId) {
           style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#888;">✕</button>
       </div>
       <div style="display:flex;flex:1;overflow:hidden;min-height:0;">
-        <div style="flex:1;padding:14px 16px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;">
-          <input id="waPropActFiltro" type="text" placeholder="Buscar por título..."
-            style="font-size:0.82rem;padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;outline:none;width:100%;box-sizing:border-box;"
-            oninput="filtrarWAPropActTitulo(this.value,'${consultaId}')">
+        <div style="flex:1;padding:14px 16px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;">
           <div>
             <div style="font-size:0.7rem;font-weight:600;color:#888;text-transform:uppercase;margin-bottom:6px;">Textos predeterminados</div>
-            <div id="waPropActGrid" style="max-height:190px;overflow-y:auto;">${rowsHTML(todos)}</div>
+            <select id="waPropActDropdown"
+              onchange="seleccionarTextoWAPropAct(this.value,'${consultaId}')"
+              style="width:100%;padding:8px 10px;border-radius:8px;border:1.5px solid #e5e7eb;font-size:0.84rem;cursor:pointer;outline:none;background:white;">
+              <option value="">— Elegir texto predeterminado —</option>
+              ${todos.map(t => `<option value="${escHtml(t.id)}">${escHtml(t.titulo)}</option>`).join('')}
+              ${todos.length === 0 ? '<option value="" disabled style="color:#aaa;">No hay textos guardados</option>' : ''}
+            </select>
           </div>
           <div style="flex:1;display:flex;flex-direction:column;">
             <div style="font-size:0.7rem;font-weight:600;color:#888;text-transform:uppercase;margin-bottom:5px;">Mensaje a enviar</div>
-            <textarea id="waPropActMsg" rows="5"
+            <textarea id="waPropActMsg" rows="6"
               style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:10px;font-size:0.85rem;resize:vertical;font-family:inherit;box-sizing:border-box;outline:none;"
               placeholder="Seleccioná un texto o escribí directamente..."></textarea>
           </div>
@@ -520,8 +519,9 @@ async function abrirWADesdeActividad(consultaId) {
         <button onclick="document.getElementById('_waPropActOv').style.display='none'"
           style="padding:8px 16px;border-radius:8px;border:1px solid #e5e7eb;background:white;cursor:pointer;font-size:0.84rem;">Cancelar</button>
         <button onclick="enviarWAPropAct('${escHtml(c.telefono)}')"
-          style="padding:8px 22px;border-radius:8px;border:none;background:#25D366;color:white;cursor:pointer;font-size:0.84rem;font-weight:700;">
-          💬 Abrir WhatsApp
+          style="padding:8px 22px;border-radius:8px;border:none;background:#25D366;color:white;cursor:pointer;font-size:0.84rem;font-weight:700;display:flex;align-items:center;gap:7px;">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="16" height="16"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.556 4.121 1.526 5.851L.057 23.868c-.11.415.271.802.687.702l6.225-1.634A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.027-1.384l-.36-.214-3.714.975.992-3.621-.235-.372A9.818 9.818 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>
+          Abrir WhatsApp
         </button>
       </div>
     </div>`;
@@ -529,21 +529,108 @@ async function abrirWADesdeActividad(consultaId) {
   ov.onclick = e => { if (e.target === ov) ov.style.display = 'none'; };
 }
 
+function seleccionarTextoWAPropAct(textoId, cid) {
+  if (!textoId) return;
+  usarTextoWAPropAct(textoId, cid);
+  const sel = document.getElementById('waPropActDropdown');
+  if (sel) setTimeout(() => sel.value = '', 100);
+}
+
 function filtrarWAPropActTitulo(q, cid) {
-  const t = q.toLowerCase();
-  const f = t ? _propActTextosWA.filter(x => (x.titulo||'').toLowerCase().includes(t)) : _propActTextosWA;
-  const g = document.getElementById('waPropActGrid');
-  if (!g) return;
-  g.innerHTML = f.length > 0
-    ? f.map(x=>`
-        <div onclick="usarTextoWAPropAct('${x.id}','${cid}')"
-          style="padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;cursor:pointer;font-size:0.8rem;background:white;margin-bottom:4px;"
-          onmouseover="this.style.borderColor='#25D366';this.style.background='#f0fff4'"
-          onmouseout="this.style.borderColor='#e5e7eb';this.style.background='white'">
-          <div style="font-weight:600;color:#374151;margin-bottom:2px;">${escHtml(x.titulo)}</div>
-          <div style="color:#888;font-size:0.72rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml((x.contenido||'').substring(0,90))}…</div>
-        </div>`).join('')
-    : '<div style="font-size:0.8rem;color:#aaa;padding:4px 0;">Sin resultados.</div>';
+  // Kept for compatibility — now using dropdown
+}
+
+function abrirModalInfoPropActividad(pid) {
+  const p = PROPS.propiedades.find(x => x.id === pid);
+  if (!p) return;
+  const RESP_LABELS = {
+    '':'—','esperando_respuesta':'⏳ Esperando respuesta','aceptado':'✅ Aceptado',
+    'rechazado':'❌ Rechazado','decide_esperar':'🕐 Decide esperar','vendio_con_otro':'🔄 Vendió con otro',
+  };
+  let ov = document.getElementById('_propInfoActOv');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = '_propInfoActOv';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9100;display:flex;align-items:center;justify-content:center;padding:16px;';
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML = `
+    <div style="background:white;border-radius:14px;max-width:480px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,0.22);">
+      <div style="padding:18px 20px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;">
+        <div style="font-weight:700;font-size:1rem;">📋 ${escHtml(p.direccion||'Propiedad')}</div>
+        <button onclick="document.getElementById('_propInfoActOv').style.display='none'"
+          style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#888;">✕</button>
+      </div>
+      <div style="padding:16px 20px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        ${p.localidad    ? `<div><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Localidad</div><div style="font-size:0.84rem;">📍 ${escHtml(p.localidad)}${p.zona?' · '+escHtml(p.zona):''}</div></div>` : ''}
+        ${p.tipologia    ? `<div><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Tipología</div><div style="font-size:0.84rem;">${escHtml(p.tipologia)}</div></div>` : ''}
+        ${p.nombre_propietario ? `<div><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Propietario</div><div style="font-size:0.84rem;">👤 ${escHtml(p.nombre_propietario)}</div></div>` : ''}
+        ${p.telefono     ? `<div><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Teléfono</div><div style="font-size:0.84rem;">📞 ${escHtml(p.telefono)}</div></div>` : ''}
+        ${p.estado_tasacion ? `<div><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Estado</div><div style="font-size:0.84rem;">${escHtml(p.estado_tasacion)}</div></div>` : ''}
+        ${p.url          ? `<div style="grid-column:span 2;"><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Ficha/Portal</div><a href="${escHtml(p.url)}" target="_blank" style="font-size:0.84rem;color:var(--rx-blue);">🔗 Ver ficha</a></div>` : ''}
+        ${p.observaciones? `<div style="grid-column:span 2;"><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:4px;">Observaciones</div><div style="font-size:0.82rem;background:#f8f9fa;padding:8px;border-radius:6px;border-left:3px solid #d1d5db;white-space:pre-line;">${escHtml(p.observaciones)}</div></div>` : ''}
+      </div>
+      <div style="padding:12px 20px;border-top:1px solid #e5e7eb;display:flex;gap:8px;justify-content:flex-end;">
+        <button onclick="document.getElementById('_propInfoActOv').style.display='none';abrirEditarPropModal('${p.id}')"
+          style="padding:7px 16px;border-radius:8px;border:1px solid #e5e7eb;background:white;cursor:pointer;font-size:0.84rem;font-weight:600;">✏️ Editar</button>
+        <button onclick="document.getElementById('_propInfoActOv').style.display='none'"
+          style="padding:7px 16px;border-radius:8px;border:none;background:var(--rx-blue);color:white;cursor:pointer;font-size:0.84rem;font-weight:600;">Cerrar</button>
+      </div>
+    </div>`;
+  ov.style.display = 'flex';
+  ov.onclick = e => { if (e.target === ov) ov.style.display = 'none'; };
+}
+
+function abrirFichaLeadDesdeProp(cid) {
+  const c = PROPS.consultas.find(x => x.id === cid);
+  if (!c) return;
+  const ESTADIO_LABELS = {
+    'nuevo':{ label:'Nuevo',color:'#6B7280',bg:'#F3F4F6' },
+    'pendiente_visita':{ label:'Pendiente Visita',color:'#7C3AED',bg:'#F5F3FF' },
+    'contesto':{ label:'Contestó',color:'#D97706',bg:'#FFFBEB' },
+    'seguimiento':{ label:'Seguimiento',color:'#2563EB',bg:'#EFF6FF' },
+    'visito':{ label:'Visitó ✓',color:'#059669',bg:'#ECFDF5' },
+  };
+  const est = ESTADIO_LABELS[c.estado] || { label:c.estado, color:'#888', bg:'#f3f4f6' };
+  let ov = document.getElementById('_leadFichaActOv');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = '_leadFichaActOv';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9100;display:flex;align-items:center;justify-content:center;padding:16px;';
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML = `
+    <div style="background:white;border-radius:14px;max-width:460px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,0.22);">
+      <div style="padding:18px 20px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div style="font-weight:700;font-size:1rem;">👤 ${escHtml(c.nombre||'Lead')}</div>
+          <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap;">
+            <span style="font-size:0.72rem;padding:2px 9px;border-radius:12px;font-weight:600;background:${est.bg};color:${est.color};">${est.label}</span>
+            ${c.propiedad_nombre ? `<span style="font-size:0.72px;padding:2px 9px;border-radius:12px;background:#EFF6FF;color:#2563EB;font-weight:600;">🏠 ${escHtml(c.propiedad_nombre)}</span>` : ''}
+          </div>
+        </div>
+        <button onclick="document.getElementById('_leadFichaActOv').style.display='none'"
+          style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#888;">✕</button>
+      </div>
+      <div style="padding:16px 20px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        ${c.telefono    ? `<div><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Teléfono</div><div style="font-size:0.84rem;">📞 ${escHtml(c.telefono)}</div></div>` : ''}
+        ${c.operacion   ? `<div><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Operación</div><div style="font-size:0.84rem;">${escHtml(c.operacion)}</div></div>` : ''}
+        ${c.presupuesto ? `<div><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Presupuesto</div><div style="font-size:0.84rem;">💰 ${escHtml(c.presupuesto)}</div></div>` : ''}
+        ${c.zona_interes? `<div><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Zona</div><div style="font-size:0.84rem;">📍 ${escHtml(c.zona_interes)}</div></div>` : ''}
+        ${c.fecha_visita? `<div style="grid-column:span 2;"><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Fecha visita</div><div style="font-size:0.84rem;color:#7C3AED;font-weight:600;">📅 ${formatFecha(c.fecha_visita)}</div></div>` : ''}
+        ${c.notas||c.mensaje ? `<div style="grid-column:span 2;"><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:4px;">Notas / Observaciones</div><div style="font-size:0.82rem;background:#f8f9fa;padding:8px;border-radius:6px;border-left:3px solid #d1d5db;white-space:pre-line;">${escHtml(c.notas||c.mensaje)}</div></div>` : ''}
+      </div>
+      <div style="padding:12px 20px;border-top:1px solid #e5e7eb;display:flex;gap:8px;justify-content:flex-end;">
+        ${c.telefono ? `<button onclick="document.getElementById('_leadFichaActOv').style.display='none';abrirWADesdeActividad('${c.id}')"
+          style="padding:7px 16px;border-radius:8px;border:none;background:#25D366;color:white;cursor:pointer;font-size:0.84rem;font-weight:600;display:flex;align-items:center;gap:6px;">
+          <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white' width='13' height='13'><path d='M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z'/><path d='M12 0C5.373 0 0 5.373 0 12c0 2.127.556 4.121 1.526 5.851L.057 23.868c-.11.415.271.802.687.702l6.225-1.634A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.027-1.384l-.36-.214-3.714.975.992-3.621-.235-.372A9.818 9.818 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z'/></svg>
+          WhatsApp</button>` : ''}
+        <button onclick="document.getElementById('_leadFichaActOv').style.display='none'"
+          style="padding:7px 16px;border-radius:8px;border:none;background:var(--rx-blue);color:white;cursor:pointer;font-size:0.84rem;font-weight:600;">Cerrar</button>
+      </div>
+    </div>`;
+  ov.style.display = 'flex';
+  ov.onclick = e => { if (e.target === ov) ov.style.display = 'none'; };
 }
 
 function usarTextoWAPropAct(textoId, cid) {
