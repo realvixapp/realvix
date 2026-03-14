@@ -24,7 +24,7 @@
 
 <!-- Modal -->
 <div class="modal-bg" id="modalTexto">
-  <div class="modal" style="max-width:500px;">
+  <div class="modal" style="max-width:640px;">
     <div class="modal-header">
       <h3 id="modalTxtTitulo">Nuevo texto</h3>
       <button class="modal-close" onclick="cerrarModal('modalTexto')">✕</button>
@@ -55,9 +55,43 @@
           </select>
         </div>
       </div>
-      <div class="field">
-        <label class="field-label">Contenido <span style="color:#aaa;font-weight:400;">({nombre}, {propiedad}, etc.)</span></label>
-        <textarea id="txtContenido" class="input-base" rows="6" style="resize:vertical;font-size:0.85rem;"></textarea>
+      <!-- Contenido + panel atributos lado a lado -->
+      <div style="display:flex;gap:10px;align-items:flex-start;">
+        <div class="field" style="flex:1;">
+          <label class="field-label">Contenido</label>
+          <textarea id="txtContenido" class="input-base" rows="7"
+            style="resize:vertical;font-size:0.85rem;width:100%;"
+            placeholder="Escribí el mensaje. Usá los atributos de la derecha para personalizar..."></textarea>
+        </div>
+        <!-- Panel atributos (#19) -->
+        <div style="width:150px;flex-shrink:0;padding:10px;background:#f8f9fa;border-radius:8px;border:1px solid #e5e7eb;">
+          <div style="font-size:0.65rem;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Atributos</div>
+          <div style="font-size:0.68rem;color:#aaa;margin-bottom:8px;">Click para insertar en el mensaje</div>
+          <button onclick="insertarAtributoCont('{nombre}')"
+            style="display:block;width:100%;text-align:left;padding:6px 8px;border-radius:6px;border:1px solid #e5e7eb;background:white;cursor:pointer;margin-bottom:5px;font-size:0.75rem;"
+            onmouseover="this.style.borderColor='#2563EB'" onmouseout="this.style.borderColor='#e5e7eb'">
+            <div style="font-weight:600;color:#2563EB;">{nombre}</div>
+            <div style="color:#888;font-size:0.68rem;">Nombre del lead</div>
+          </button>
+          <button onclick="insertarAtributoCont('{propiedad}')"
+            style="display:block;width:100%;text-align:left;padding:6px 8px;border-radius:6px;border:1px solid #e5e7eb;background:white;cursor:pointer;margin-bottom:5px;font-size:0.75rem;"
+            onmouseover="this.style.borderColor='#2563EB'" onmouseout="this.style.borderColor='#e5e7eb'">
+            <div style="font-weight:600;color:#2563EB;">{propiedad}</div>
+            <div style="color:#888;font-size:0.68rem;">Ficha propiedad</div>
+          </button>
+          <button onclick="insertarAtributoCont('{telefono}')"
+            style="display:block;width:100%;text-align:left;padding:6px 8px;border-radius:6px;border:1px solid #e5e7eb;background:white;cursor:pointer;margin-bottom:5px;font-size:0.75rem;"
+            onmouseover="this.style.borderColor='#2563EB'" onmouseout="this.style.borderColor='#e5e7eb'">
+            <div style="font-weight:600;color:#2563EB;">{telefono}</div>
+            <div style="color:#888;font-size:0.68rem;">Teléfono</div>
+          </button>
+          <button onclick="insertarAtributoCont('{presupuesto}')"
+            style="display:block;width:100%;text-align:left;padding:6px 8px;border-radius:6px;border:1px solid #e5e7eb;background:white;cursor:pointer;font-size:0.75rem;"
+            onmouseover="this.style.borderColor='#2563EB'" onmouseout="this.style.borderColor='#e5e7eb'">
+            <div style="font-weight:600;color:#2563EB;">{presupuesto}</div>
+            <div style="color:#888;font-size:0.68rem;">Presupuesto</div>
+          </button>
+        </div>
       </div>
     </div>
     <div class="modal-footer">
