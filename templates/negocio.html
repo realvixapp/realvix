@@ -10,6 +10,7 @@
   <button class="tab-btn active" id="tab-listing" onclick="switchTab('listing',this)">🏢 Listing</button>
   <button class="tab-btn" id="tab-estado" onclick="switchTab('estado',this)">📋 Actividad Listing</button>
   <button class="tab-btn" id="tab-contactos" onclick="switchTab('contactos',this)">👥 Contactos</button>
+  <button class="tab-btn" id="tab-aceptadas" onclick="switchTab('aceptadas',this)">✅ Aceptadas</button>
 </div>
 
 <!-- ══ LISTING ══ -->
@@ -52,29 +53,25 @@
     </div>
   </div>
 
-  <!-- Filtros por estado tasación -->
-  <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
-    <button class="estadio-btn active" onclick="filtrarEstadioEstado('todos',this)" style="border-radius:20px;padding:6px 16px;font-size:0.82rem;font-weight:600;background:var(--rx-blue);color:white;border:none;cursor:pointer;">Todos</button>
-    <button class="estadio-btn" onclick="filtrarEstadioEstado('pendiente',this)" style="border-radius:20px;padding:6px 14px;font-size:0.82rem;font-weight:600;background:white;border:1px solid #e5e7eb;cursor:pointer;display:flex;align-items:center;gap:5px;">⏳ Pendiente</button>
-    <button class="estadio-btn" onclick="filtrarEstadioEstado('esperando_respuesta',this)" style="border-radius:20px;padding:6px 14px;font-size:0.82rem;font-weight:600;background:white;border:1px solid #e5e7eb;cursor:pointer;display:flex;align-items:center;gap:5px;">📋 Esperando respuesta</button>
-  </div>
-
-  <!-- Filtros por Respuesta Propietario -->
-  <div style="margin-bottom:12px;">
-    <div style="font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Filtrar por respuesta propietario</div>
-    <div id="respFiltroEstadoBtns" style="display:flex;gap:6px;flex-wrap:wrap;">
+  <!-- Filtros unificados en una sola línea -->
+  <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;align-items:center;">
+    <button class="estadio-btn active" onclick="filtrarEstadioEstado('todos',this)" style="border-radius:20px;padding:5px 14px;font-size:0.8rem;font-weight:600;background:var(--rx-blue);color:white;border:none;cursor:pointer;">Todos</button>
+    <button class="estadio-btn" onclick="filtrarEstadioEstado('pendiente',this)" style="border-radius:20px;padding:5px 12px;font-size:0.8rem;font-weight:600;background:white;border:1px solid #e5e7eb;cursor:pointer;">⏳ Pendiente</button>
+    <button class="estadio-btn" onclick="filtrarEstadioEstado('esperando_respuesta',this)" style="border-radius:20px;padding:5px 12px;font-size:0.8rem;font-weight:600;background:white;border:1px solid #e5e7eb;cursor:pointer;">📋 Esperando</button>
+    <div style="width:1px;height:20px;background:#e5e7eb;margin:0 4px;"></div>
+    <div id="respFiltroEstadoBtns" style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
       <button class="resp-btn-est" data-val="" onclick="filtrarRespuestaEstado('')"
-        style="padding:4px 12px;border-radius:20px;border:1.5px solid var(--rx-blue);background:var(--rx-blue);color:white;font-size:0.78rem;font-weight:600;cursor:pointer;">Todas</button>
+        style="padding:5px 12px;border-radius:20px;border:1.5px solid var(--rx-blue);background:var(--rx-blue);color:white;font-size:0.78rem;font-weight:600;cursor:pointer;">Todas resp.</button>
       <button class="resp-btn-est" data-val="esperando_respuesta" onclick="filtrarRespuestaEstado('esperando_respuesta')"
-        style="padding:4px 12px;border-radius:20px;border:1.5px solid #D97706;background:white;color:#D97706;font-size:0.78rem;font-weight:600;cursor:pointer;">⏳ Esperando resp.</button>
+        style="padding:5px 10px;border-radius:20px;border:1.5px solid #D97706;background:white;color:#D97706;font-size:0.78rem;font-weight:600;cursor:pointer;">⏳ Esp.</button>
       <button class="resp-btn-est" data-val="aceptado" onclick="filtrarRespuestaEstado('aceptado')"
-        style="padding:4px 12px;border-radius:20px;border:1.5px solid #059669;background:white;color:#059669;font-size:0.78rem;font-weight:600;cursor:pointer;">✅ Aceptado</button>
+        style="padding:5px 10px;border-radius:20px;border:1.5px solid #059669;background:white;color:#059669;font-size:0.78rem;font-weight:600;cursor:pointer;">✅ Acept.</button>
       <button class="resp-btn-est" data-val="rechazado" onclick="filtrarRespuestaEstado('rechazado')"
-        style="padding:4px 12px;border-radius:20px;border:1.5px solid #DC2626;background:white;color:#DC2626;font-size:0.78rem;font-weight:600;cursor:pointer;">❌ Rechazado</button>
+        style="padding:5px 10px;border-radius:20px;border:1.5px solid #DC2626;background:white;color:#DC2626;font-size:0.78rem;font-weight:600;cursor:pointer;">❌ Rech.</button>
       <button class="resp-btn-est" data-val="decide_esperar" onclick="filtrarRespuestaEstado('decide_esperar')"
-        style="padding:4px 12px;border-radius:20px;border:1.5px solid #7C3AED;background:white;color:#7C3AED;font-size:0.78rem;font-weight:600;cursor:pointer;">🕐 Decide esperar</button>
+        style="padding:5px 10px;border-radius:20px;border:1.5px solid #7C3AED;background:white;color:#7C3AED;font-size:0.78rem;font-weight:600;cursor:pointer;">🕐 Espera</button>
       <button class="resp-btn-est" data-val="vendio_con_otro" onclick="filtrarRespuestaEstado('vendio_con_otro')"
-        style="padding:4px 12px;border-radius:20px;border:1.5px solid #6B7280;background:white;color:#6B7280;font-size:0.78rem;font-weight:600;cursor:pointer;">🔄 Vendió con otro</button>
+        style="padding:5px 10px;border-radius:20px;border:1.5px solid #6B7280;background:white;color:#6B7280;font-size:0.78rem;font-weight:600;cursor:pointer;">🔄 Otro</button>
     </div>
   </div>
 
@@ -123,7 +120,18 @@
 
 
 
-<!-- ══ ACTIVIDAD DE PROPIEDADES ══ -->
+<!-- ══ ACEPTADAS ══ -->
+<div id="tabAceptadas" style="display:none">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+    <div>
+      <div style="font-size:1rem;font-weight:700;">✅ Propiedades Aceptadas</div>
+      <div style="font-size:0.78rem;color:var(--text-secondary);">Propietarios que aceptaron la tasación — pasadas automáticamente a Propiedades</div>
+    </div>
+  </div>
+  <div id="aceptadasTable"><div class="loading-state">Cargando...</div></div>
+</div>
+
+
 <div id="tabActividad" style="display:none">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
     <div>
