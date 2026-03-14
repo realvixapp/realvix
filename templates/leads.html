@@ -3,12 +3,11 @@
 
 {% block content %}
 <div class="page-title">Leads</div>
-<div class="page-sub">Consultas entrantes y muestras</div>
+<div class="page-sub">Consultas entrantes y actividad</div>
 
 <!-- Tabs -->
 <div style="display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border);">
   <button class="tab-btn active" onclick="switchLeadsTab('consultas',this)">🔍 Consultas</button>
-  <button class="tab-btn" onclick="switchLeadsTab('muestras',this)">🏠 Muestras</button>
   <button class="tab-btn" onclick="switchLeadsTab('actividad',this)">📊 Actividad</button>
 </div>
 
@@ -27,14 +26,6 @@
     <button class="btn-primary" onclick="abrirNuevaConsulta()">+ Nueva consulta</button>
   </div>
   <div id="leadsGrid"><div class="loading-state">Cargando...</div></div>
-</div>
-
-<!-- ── MUESTRAS ── -->
-<div id="tabMuestras" style="display:none">
-  <p style="color:var(--text-secondary);font-size:0.84rem;margin-bottom:16px;">
-    Leads que llegaron al estadio <strong>Visitó</strong> — post-visita.
-  </p>
-  <div id="muestrasGrid"><div class="loading-state">Cargando...</div></div>
 </div>
 
 <!-- ── MODAL CONSULTA ── -->
