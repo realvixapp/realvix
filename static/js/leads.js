@@ -121,7 +121,8 @@ function renderLeads() {
           <div class="card" style="padding:14px;display:flex;align-items:center;gap:14px;">
             <div style="flex:1;">
               <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap;">
-                <strong style="font-size:0.9rem;">${escHtml(c.nombre || 'Sin nombre')}</strong>
+                <strong style="font-size:0.9rem;color:var(--rx-blue);cursor:pointer;text-decoration:underline dotted;"
+                  data-lid="${c.id}" onclick="abrirFichaLead(this.dataset.lid)">${escHtml(c.nombre || 'Sin nombre')}</strong>
                 <span style="font-size:0.72rem;padding:2px 8px;border-radius:12px;font-weight:600;background:${est.bg};color:${est.color};">${est.label}</span>
                 ${tieneVisita ? `<span style="font-size:0.72rem;background:#EDE9FE;color:#7C3AED;border-radius:12px;padding:2px 8px;font-weight:600;">📅 ${formatFecha(c.fecha_visita)}</span>` : ''}
               </div>
@@ -134,14 +135,15 @@ function renderLeads() {
             </div>
             <div style="display:flex;gap:6px;align-items:center;">
               <select class="input-base" style="font-size:0.78rem;padding:4px 8px;height:auto;width:150px;"
-                onchange="cambiarEstadio('${c.id}', this.value)">
+                data-cid="${c.id}" onchange="cambiarEstadio(this.dataset.cid, this.value)">
                 ${Object.entries(ESTADIO_LABELS).map(([k,v]) =>
                   `<option value="${k}" ${c.estado===k?'selected':''}>${v.label}</option>`
                 ).join('')}
               </select>
-              ${c.telefono ? `<button class="btn-icon-sm" onclick="window.open('${buildWhatsAppUrl(c.telefono,'')}','_blank')" title="WhatsApp">💬</button>` : ''}
-              <button class="btn-icon-sm" onclick="editarConsulta('${c.id}')" title="Editar">✏️</button>
-              <button class="btn-icon-sm danger" onclick="eliminarConsulta('${c.id}')" title="Eliminar">🗑️</button>
+              ${c.telefono ? `<button class="btn-icon-sm" data-lid="${c.id}" onclick="abrirWAConMensajes(this.dataset.lid)" title="WhatsApp" style="background:#25D366;color:white;border:none;border-radius:8px;">💬</button>` : ''}
+              <button class="btn-icon-sm" data-cid="${c.id}" onclick="abrirFichaLead(this.dataset.cid)" title="Ver ficha">👁️</button>
+              <button class="btn-icon-sm" data-cid="${c.id}" onclick="editarConsulta(this.dataset.cid)" title="Editar">✏️</button>
+              <button class="btn-icon-sm danger" data-cid="${c.id}" onclick="eliminarConsulta(this.dataset.cid)" title="Eliminar">🗑️</button>
             </div>
           </div>`;
       }).join('')}
@@ -171,6 +173,233 @@ async function cambiarEstadio(id, nuevoEstado) {
   } catch (e) { showToast(e.message, 'error'); }
 }
 
+// ══════════════════════════════════════════════════════════
+// ── FICHA LEAD EN MODAL (#16) ──
+// ══════════════════════════════════════════════════════════
+
+const LEADS_TEXTOS_WA = [];  // caché de textos de Contenido
+
+async function cargarTextosWA() {
+  if (LEADS_TEXTOS_WA.length > 0) return;
+  try {
+    const data = await apiGet('/api/textos');
+    const textos = (data.textos || []).filter(t => t.tipo === 'whatsapp');
+    LEADS_TEXTOS_WA.push(...textos);
+  } catch(e) { console.error('No se pudieron cargar textos WA', e); }
+}
+
+function abrirFichaLead(id) {
+  const c = LEADS.consultas.find(x => x.id === id);
+  if (!c) return;
+  cargarTextosWA();
+
+  const ESTADIO_LABELS = {
+    'nuevo':            { label:'Nuevo',           color:'#6B7280', bg:'#F3F4F6' },
+    'pendiente_visita': { label:'Pendiente Visita', color:'#7C3AED', bg:'#F5F3FF' },
+    'contesto':         { label:'Contestó',         color:'#D97706', bg:'#FFFBEB' },
+    'seguimiento':      { label:'Seguimiento',      color:'#2563EB', bg:'#EFF6FF' },
+    'visito':           { label:'Visitó ✓',         color:'#059669', bg:'#ECFDF5' },
+  };
+  const est = ESTADIO_LABELS[c.estado] || { label: c.estado, color:'#888', bg:'#f3f4f6' };
+
+  let overlay = document.getElementById('_fichaLeadOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = '_fichaLeadOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px;';
+    document.body.appendChild(overlay);
+  }
+
+  overlay.innerHTML = `
+    <div style="background:var(--bg-card,white);border-radius:14px;max-width:520px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,0.2);">
+      <!-- Header -->
+      <div style="padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div style="font-weight:700;font-size:1rem;">${escHtml(c.nombre || 'Sin nombre')}</div>
+          <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap;">
+            <span style="font-size:0.72rem;padding:2px 9px;border-radius:12px;font-weight:600;background:${est.bg};color:${est.color};">${est.label}</span>
+            ${c.propiedad_nombre ? `<span style="font-size:0.72rem;padding:2px 9px;border-radius:12px;background:#EFF6FF;color:#2563EB;font-weight:600;">🏠 ${escHtml(c.propiedad_nombre)}</span>` : ''}
+          </div>
+        </div>
+        <button onclick="document.getElementById('_fichaLeadOverlay').style.display='none'"
+          style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#888;padding:4px;">✕</button>
+      </div>
+      <!-- Datos -->
+      <div style="padding:16px 20px;display:grid;grid-template-columns:1fr 1fr;gap:10px;border-bottom:1px solid var(--border);">
+        ${c.telefono    ? `<div><div style="font-size:0.68rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Teléfono</div><div style="font-size:0.85rem;">📞 ${escHtml(c.telefono)}</div></div>` : ''}
+        ${c.email       ? `<div><div style="font-size:0.68rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Email</div><div style="font-size:0.85rem;">✉️ ${escHtml(c.email)}</div></div>` : ''}
+        ${c.presupuesto ? `<div><div style="font-size:0.68rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Presupuesto</div><div style="font-size:0.85rem;">💰 ${escHtml(c.presupuesto)}</div></div>` : ''}
+        ${c.zona_interes? `<div><div style="font-size:0.68rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Zona interés</div><div style="font-size:0.85rem;">📍 ${escHtml(c.zona_interes)}</div></div>` : ''}
+        ${c.operacion   ? `<div><div style="font-size:0.68rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Operación</div><div style="font-size:0.85rem;">${escHtml(c.operacion)}</div></div>` : ''}
+        ${c.canal       ? `<div><div style="font-size:0.68rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Canal</div><div style="font-size:0.85rem;">${escHtml(c.canal)}</div></div>` : ''}
+        ${c.fecha_visita? `<div><div style="font-size:0.68rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Fecha visita</div><div style="font-size:0.85rem;color:#7C3AED;font-weight:600;">📅 ${formatFecha(c.fecha_visita)}</div></div>` : ''}
+        <div><div style="font-size:0.68rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Ingresó</div><div style="font-size:0.85rem;">${formatFecha(c.created_at)}</div></div>
+      </div>
+      ${c.notas ? `
+      <div style="padding:14px 20px;border-bottom:1px solid var(--border);">
+        <div style="font-size:0.68rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:6px;">Notas</div>
+        <div style="font-size:0.84rem;color:#444;white-space:pre-line;background:#f8f9fa;padding:10px;border-radius:8px;">${escHtml(c.notas)}</div>
+      </div>` : ''}
+      <!-- Acciones rápidas -->
+      <div style="padding:14px 20px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+        <div style="font-size:0.72rem;color:#888;font-weight:600;text-transform:uppercase;width:100%;margin-bottom:4px;">Acciones rápidas</div>
+        ${c.telefono ? `
+          <button onclick="abrirWAConMensajes('${escHtml(c.id)}')"
+            style="display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:10px;border:none;background:#25D366;color:white;cursor:pointer;font-size:0.84rem;font-weight:600;">
+            💬 WhatsApp
+          </button>` : ''}
+        <button onclick="cerrarFichaAbrirEditar('${escHtml(c.id)}')"
+          style="padding:8px 14px;border-radius:10px;border:1px solid #e5e7eb;background:white;cursor:pointer;font-size:0.84rem;font-weight:600;color:#374151;">
+          ✏️ Editar lead
+        </button>
+        <div style="flex:1;"></div>
+        <select style="font-size:0.8rem;padding:6px 10px;border-radius:10px;border:1px solid #e5e7eb;cursor:pointer;background:white;"
+          onchange="cambiarEstadioDesdeficha('${escHtml(c.id)}',this.value)">
+          ${Object.entries(ESTADIO_LABELS).map(([k,v])=>`<option value="${k}" ${c.estado===k?'selected':''}>${v.label}</option>`).join('')}
+        </select>
+      </div>
+    </div>`;
+
+  overlay.style.display = 'flex';
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.style.display = 'none'; };
+}
+
+function cerrarFichaAbrirEditar(id) {
+  document.getElementById('_fichaLeadOverlay').style.display = 'none';
+  editarConsulta(id);
+}
+
+async function cambiarEstadioDesdeficha(id, nuevoEstado) {
+  const c = LEADS.consultas.find(x => x.id === id);
+  if (!c) return;
+  try {
+    await apiPut(`/api/consultas/${id}`, { ...c, estado: nuevoEstado });
+    c.estado = nuevoEstado;
+    renderLeads();
+    abrirFichaLead(id); // refrescar ficha
+    showToast('Estado actualizado ✓');
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+// ══════════════════════════════════════════════════════════
+// ── WHATSAPP CON MENSAJES PREDETERMINADOS (#17) ──
+// ══════════════════════════════════════════════════════════
+
+function abrirWAConMensajes(leadId) {
+  const c = LEADS.consultas.find(x => x.id === leadId);
+  if (!c || !c.telefono) return;
+
+  let overlay = document.getElementById('_waOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = '_waOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9500;display:flex;align-items:center;justify-content:center;padding:16px;';
+    document.body.appendChild(overlay);
+  }
+
+  const textos = LEADS_TEXTOS_WA.length > 0 ? LEADS_TEXTOS_WA : [];
+  const atributos = [
+    { key: '{nombre}',    label: 'Nombre del lead',   valor: c.nombre || '' },
+    { key: '{propiedad}', label: 'Ficha propiedad',   valor: c.propiedad_nombre || '' },
+    { key: '{telefono}',  label: 'Teléfono',           valor: c.telefono || '' },
+    { key: '{presupuesto}', label: 'Presupuesto',      valor: c.presupuesto || '' },
+  ];
+
+  overlay.innerHTML = `
+    <div style="background:var(--bg-card,white);border-radius:14px;max-width:620px;width:100%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,0.25);">
+      <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;">
+        <div style="width:36px;height:36px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">💬</div>
+        <div style="flex:1;">
+          <div style="font-weight:700;font-size:0.95rem;">Enviar WhatsApp</div>
+          <div style="font-size:0.75rem;color:#888;">📞 ${escHtml(c.telefono)} · ${escHtml(c.nombre || 'Lead')}</div>
+        </div>
+        <button onclick="document.getElementById('_waOverlay').style.display='none'"
+          style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#888;">✕</button>
+      </div>
+      <div style="display:flex;flex:1;overflow:hidden;min-height:0;">
+        <!-- Panel mensaje -->
+        <div style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;">
+          ${textos.length > 0 ? `
+          <div>
+            <div style="font-size:0.7rem;color:#888;font-weight:600;text-transform:uppercase;margin-bottom:6px;">Seleccionar texto predeterminado</div>
+            <div style="display:flex;flex-direction:column;gap:5px;max-height:160px;overflow-y:auto;">
+              ${textos.map(t => `
+                <div onclick="usarTextoWA('${t.id}','${leadId}')"
+                  style="padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;cursor:pointer;font-size:0.8rem;background:white;"
+                  onmouseover="this.style.borderColor='#25D366'" onmouseout="this.style.borderColor='#e5e7eb'">
+                  <div style="font-weight:600;margin-bottom:2px;">${escHtml(t.titulo)}</div>
+                  <div style="color:#888;font-size:0.75rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml((t.contenido||'').substring(0,80))}...</div>
+                </div>`).join('')}
+            </div>
+          </div>` : '<div style="font-size:0.8rem;color:#aaa;">No hay textos de WhatsApp guardados. Podés escribir uno directamente.</div>'}
+          <div>
+            <div style="font-size:0.7rem;color:#888;font-weight:600;text-transform:uppercase;margin-bottom:6px;">Mensaje a enviar</div>
+            <textarea id="waMensajeTexto" rows="6"
+              style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:10px;font-size:0.85rem;resize:vertical;font-family:inherit;box-sizing:border-box;"
+              placeholder="Escribí o seleccioná un texto predeterminado arriba..."></textarea>
+          </div>
+        </div>
+        <!-- Panel atributos -->
+        <div style="width:160px;flex-shrink:0;border-left:1px solid var(--border);padding:14px 12px;background:#f8f9fa;overflow-y:auto;">
+          <div style="font-size:0.68rem;color:#888;font-weight:600;text-transform:uppercase;margin-bottom:8px;">Atributos</div>
+          <div style="font-size:0.7rem;color:#aaa;margin-bottom:10px;">Hacé click para insertar</div>
+          ${atributos.map(a => `
+            <button onclick="insertarAtributoWA('${a.key}')"
+              style="display:block;width:100%;text-align:left;padding:6px 8px;border-radius:6px;border:1px solid #e5e7eb;background:white;cursor:pointer;margin-bottom:5px;font-size:0.75rem;"
+              title="Valor: ${escHtml(a.valor)}">
+              <div style="font-weight:600;color:#2563EB;">${a.key}</div>
+              <div style="color:#888;font-size:0.68rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(a.valor || '(vacío)')}</div>
+            </button>`).join('')}
+        </div>
+      </div>
+      <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;align-items:center;">
+        <div style="flex:1;font-size:0.75rem;color:#888;">El mensaje se abrirá en WhatsApp Web</div>
+        <button onclick="document.getElementById('_waOverlay').style.display='none'"
+          style="padding:8px 16px;border-radius:8px;border:1px solid #e5e7eb;background:white;cursor:pointer;font-size:0.84rem;">Cancelar</button>
+        <button onclick="enviarMensajeWA('${escHtml(c.telefono)}')"
+          style="padding:8px 20px;border-radius:8px;border:none;background:#25D366;color:white;cursor:pointer;font-size:0.84rem;font-weight:700;">
+          💬 Abrir WhatsApp
+        </button>
+      </div>
+    </div>`;
+
+  overlay.style.display = 'flex';
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.style.display = 'none'; };
+}
+
+function usarTextoWA(textoId, leadId) {
+  const t = LEADS_TEXTOS_WA.find(x => x.id === textoId);
+  const c = LEADS.consultas.find(x => x.id === leadId);
+  if (!t || !c) return;
+  let msg = t.contenido || '';
+  // Reemplazar atributos
+  msg = msg.replace(/\{nombre\}/gi,    c.nombre || '')
+           .replace(/\{propiedad\}/gi, c.propiedad_nombre || '')
+           .replace(/\{telefono\}/gi,  c.telefono || '')
+           .replace(/\{presupuesto\}/gi, c.presupuesto || '');
+  const textarea = document.getElementById('waMensajeTexto');
+  if (textarea) textarea.value = msg;
+}
+
+function insertarAtributoWA(atributo) {
+  const textarea = document.getElementById('waMensajeTexto');
+  if (!textarea) return;
+  const start = textarea.selectionStart;
+  const end   = textarea.selectionEnd;
+  const val   = textarea.value;
+  textarea.value = val.substring(0, start) + atributo + val.substring(end);
+  textarea.selectionStart = textarea.selectionEnd = start + atributo.length;
+  textarea.focus();
+}
+
+function enviarMensajeWA(telefono) {
+  const msg = document.getElementById('waMensajeTexto')?.value || '';
+  const url = buildWhatsAppUrl(telefono, msg);
+  window.open(url, '_blank');
+  document.getElementById('_waOverlay').style.display = 'none';
+}
+
+
 function renderMuestras() {
   const muestras = LEADS.consultas.filter(c =>
     ['visito','visitó','Visitó','Visito'].includes(c.estado));
@@ -184,7 +413,12 @@ function renderMuestras() {
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;">
       ${muestras.map(c => `
         <div class="card" style="padding:14px;">
-          <div style="font-weight:600;font-size:0.9rem;margin-bottom:6px;">${escHtml(c.nombre || 'Sin nombre')}</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <div style="font-weight:600;font-size:0.9rem;color:var(--rx-blue);cursor:pointer;text-decoration:underline dotted;"
+              data-lid="${c.id}" onclick="abrirFichaLead(this.dataset.lid)">${escHtml(c.nombre || 'Sin nombre')}</div>
+            ${c.telefono ? `<button data-lid="${c.id}" onclick="abrirWAConMensajes(this.dataset.lid)"
+              style="padding:4px 10px;border-radius:8px;border:none;background:#25D366;color:white;cursor:pointer;font-size:0.75rem;font-weight:600;">💬 WA</button>` : ''}
+          </div>
           ${c.telefono         ? `<div style="font-size:0.82rem;color:#555;">📞 ${escHtml(c.telefono)}</div>` : ''}
           ${c.propiedad_nombre ? `<div style="font-size:0.82rem;color:#555;">🏠 ${escHtml(c.propiedad_nombre)}</div>` : ''}
           ${c.presupuesto      ? `<div style="font-size:0.82rem;color:#555;">💰 ${escHtml(c.presupuesto)}</div>` : ''}
@@ -310,81 +544,34 @@ async function cargarActividadLeads() {
   } catch(e) { showToast('Error al cargar actividad', 'error'); }
 }
 
-function _filtrarPorPeriodo(consultas) {
-  const periodo = document.getElementById('filtroPeriodoLead')?.value || 'todos';
-  const rango = document.getElementById('rangoPersonalizadoLead');
-  if (rango) rango.style.display = periodo === 'personalizado' ? 'flex' : 'none';
-
-  if (periodo === 'todos') return consultas;
-  const hoy = new Date();
-  let desde, hasta;
-  if (periodo === 'trimestre') {
-    const mes = hoy.getMonth();
-    const inicioTrimestre = new Date(hoy.getFullYear(), Math.floor(mes/3)*3, 1);
-    desde = inicioTrimestre; hasta = hoy;
-  } else if (periodo === 'cuatrimestre') {
-    const mes = hoy.getMonth();
-    const inicioCuat = new Date(hoy.getFullYear(), Math.floor(mes/4)*4, 1);
-    desde = inicioCuat; hasta = hoy;
-  } else if (periodo === 'anual') {
-    desde = new Date(hoy.getFullYear(), 0, 1); hasta = hoy;
-  } else if (periodo === 'personalizado') {
-    const d = document.getElementById('fechaDesde')?.value;
-    const h = document.getElementById('fechaHasta')?.value;
-    if (!d && !h) return consultas;
-    desde = d ? new Date(d) : null;
-    hasta = h ? new Date(h) : hoy;
-  }
-  return consultas.filter(c => {
-    const f = new Date(c.created_at || c.fecha_visita || '2000-01-01');
-    return (!desde || f >= desde) && (!hasta || f <= hasta);
-  });
-}
-
 function renderActividadLeads() {
   const s = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
 
-  const ESTADIO_LABELS = {
-    'nuevo':            { label:'Nuevo',           color:'#6B7280', bg:'#F3F4F6' },
-    'pendiente_visita': { label:'Pend. visita',     color:'#7C3AED', bg:'#F5F3FF' },
-    'contesto':         { label:'Contestó',         color:'#D97706', bg:'#FFFBEB' },
-    'seguimiento':      { label:'Seguimiento',      color:'#2563EB', bg:'#EFF6FF' },
-    'visito':           { label:'Visitó ✓',         color:'#059669', bg:'#ECFDF5' },
-  };
+  // Stats respuesta propietario
+  s('lActRespAcept', LACT.propiedades.filter(p => p.respuesta_listing === 'aceptado').length);
+  s('lActRespRech',  LACT.propiedades.filter(p => p.respuesta_listing === 'rechazado').length);
+  s('lActRespEsp',   LACT.propiedades.filter(p => (p.respuesta_listing||'esperando_respuesta') === 'esperando_respuesta').length);
 
-  const consultasFiltradas = _filtrarPorPeriodo(LACT.consultas);
-
-  // Stats por estadio de LEAD (etiquetas correctas)
-  const statsEl = document.getElementById('lActStatsEstadios');
-  if (statsEl) {
-    statsEl.innerHTML = Object.entries(ESTADIO_LABELS).map(([k, v]) => {
-      const cnt = consultasFiltradas.filter(c => c.estado === k).length;
-      return `<div class="stat-mini" style="border-left:3px solid ${v.color};min-width:110px;">
-        <div class="stat-mini-label" style="color:${v.color};font-weight:600;font-size:0.7rem;text-transform:uppercase;">${v.label}</div>
-        <div class="stat-mini-num" style="color:${v.color};">${cnt}</div>
-      </div>`;
-    }).join('');
-  }
-
-  const totalVisitas = consultasFiltradas.filter(c => ['visito','visitó'].includes((c.estado||'').toLowerCase())).length;
-  const pendVisita   = consultasFiltradas.filter(c => c.estado === 'pendiente_visita').length;
-  const seguimiento  = consultasFiltradas.filter(c => c.estado === 'seguimiento').length;
-  s('lActTotalLeads',   consultasFiltradas.length);
-  s('lActTotalVisitas', totalVisitas);
-  s('lActPendVisita',   pendVisita);
-  s('lActSeguimiento',  seguimiento);
-
-  // Solo publicadas/reservadas para el detalle por propiedad
+  // Solo publicadas/reservadas para actividad
   const props = LACT.propiedades.filter(p => {
     const est = (p.estado_tasacion || p.estadio || '').toLowerCase().trim();
     return ['publicado','reservado','publicada','reservada'].includes(est);
   });
 
-  const conPorProp = (p) => consultasFiltradas.filter(c =>
+  const conPorProp = (p) => LACT.consultas.filter(c =>
     c.propiedad_nombre && p.direccion &&
     c.propiedad_nombre.trim().toLowerCase() === p.direccion.trim().toLowerCase()
   );
 
+  const todosLeads   = props.flatMap(p => conPorProp(p));
+  const totalVisitas = todosLeads.filter(c => ['visito','visitó'].includes((c.estado||'').toLowerCase())).length;
+  const pendVisita   = todosLeads.filter(c => c.estado === 'pendiente_visita').length;
+  s('lActTotalProps',   props.length);
+  s('lActTotalLeads',   todosLeads.length);
+  s('lActTotalVisitas', totalVisitas);
+  s('lActPendVisita',   pendVisita);
+
+  // Ordenar por consultas
   const propsConConteo = props.map(p => ({ ...p, consultas: conPorProp(p) }))
     .sort((a, b) => b.consultas.length - a.consultas.length);
 
@@ -401,17 +588,17 @@ function renderActividadLeads() {
         <div style="font-size:1.2rem;margin-bottom:4px;">${medals[i]}</div>
         <div style="font-weight:700;font-size:0.85rem;margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(p.direccion)}</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
-          <span style="font-size:0.73rem;background:#EFF6FF;color:#2563EB;padding:2px 7px;border-radius:8px;font-weight:600;">${p.consultas.length} consultas</span>
-          <span style="font-size:0.73rem;background:#ECFDF5;color:#059669;padding:2px 7px;border-radius:8px;font-weight:600;">${visitaron} visitas</span>
+          <span style="font-size:0.73rem;background:var(--rx-blue-light);color:var(--rx-blue);padding:2px 7px;border-radius:8px;font-weight:600;">${p.consultas.length} consultas</span>
+          <span style="font-size:0.73rem;background:var(--success-bg);color:var(--success);padding:2px 7px;border-radius:8px;font-weight:600;">${visitaron} visitas</span>
         </div>
       </div>`;
     }).join('');
   }
 
-  // Índice por propiedad
+  // Índice por nombre de propiedad
   const indexEl = document.getElementById('lPropNombreIndex');
   if (indexEl && propsConConteo.length > 0) {
-    indexEl.innerHTML = `<div style="background:var(--cream,#f8f9ff);border:1px solid var(--border);border-radius:8px;padding:10px 14px;">
+    indexEl.innerHTML = `<div style="background:var(--cream);border:1px solid var(--border);border-radius:8px;padding:10px 14px;">
       <div style="font-size:0.72rem;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">Filtrar por propiedad</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
         <button onclick="filtrarPropLead('')"
@@ -442,6 +629,14 @@ function renderActividadLeads() {
     container.innerHTML = `<div class="empty-state">No hay propiedades publicadas o reservadas todavía.</div>`; return;
   }
 
+  const ESTADIO_LABELS = {
+    'nuevo':            { label:'Nuevo',           color:'#6B7280', bg:'#F3F4F6' },
+    'pendiente_visita': { label:'Pend. visita',     color:'#7C3AED', bg:'#F5F3FF' },
+    'contesto':         { label:'Contestó',         color:'#D97706', bg:'#FFFBEB' },
+    'seguimiento':      { label:'Seguimiento',      color:'#2563EB', bg:'#EFF6FF' },
+    'visito':           { label:'Visitó ✓',         color:'#059669', bg:'#ECFDF5' },
+  };
+
   container.innerHTML = mostrar.map(p => {
     const est = (p.estado_tasacion||'').toLowerCase();
     const esP = est.includes('publ');
@@ -462,7 +657,7 @@ function renderActividadLeads() {
           ${p.nombre_propietario?`<div style="font-size:0.79rem;color:#888;">👤 ${escHtml(p.nombre_propietario)}</div>`:''}
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          ${[['Consultas',p.consultas.length,'#2563EB'],['Visitaron',nV,'#059669'],['Pend.visita',nPV,'#7C3AED'],['Seguim.',nS,'#2563EB']].map(([lbl,num,col])=>
+          ${[['Consultas',p.consultas.length,'var(--rx-blue)'],['Visitaron',nV,'#059669'],['Pend.visita',nPV,'#7C3AED'],['Seguim.',nS,'#2563EB']].map(([lbl,num,col])=>
             `<div style="text-align:center;padding:6px 10px;background:white;border-radius:8px;border:1px solid var(--border);min-width:50px;">
               <div style="font-size:1.1rem;font-weight:700;color:${col};">${num}</div>
               <div style="font-size:0.6rem;color:#888;white-space:nowrap;">${lbl}</div>
@@ -470,11 +665,11 @@ function renderActividadLeads() {
         </div>
       </div>
       ${p.consultas.length===0
-        ?`<div style="padding:16px;text-align:center;color:#bbb;font-size:0.82rem;">Sin consultas en el período seleccionado</div>`
+        ?`<div style="padding:16px;text-align:center;color:#bbb;font-size:0.82rem;">Sin consultas asociadas todavía</div>`
         :`<div style="padding:10px 18px 14px;">
           <div style="font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Consultas (${p.consultas.length})</div>
           ${p.consultas.map(c=>{
-            const st=ESTADIO_LABELS[c.estado]||{label:c.estado||'—',color:'#888',bg:'#f3f4f6'};
+            const st=ESTADIO_LABELS[c.estado]||{label:c.estado,color:'#888',bg:'#f3f4f6'};
             return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:${st.bg}22;border:1px solid ${st.color}22;margin-bottom:5px;flex-wrap:wrap;">
               <div style="flex:1;min-width:0;">
                 <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
