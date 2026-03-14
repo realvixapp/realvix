@@ -312,7 +312,7 @@ from blueprints.negocio   import bp as bp_negocio
 from blueprints.leads     import bp as bp_leads
 from blueprints.cierres   import bp as bp_cierres
 from blueprints.agenda    import bp as bp_agenda
-from blueprints.firma     import bp as bp_firma
+from firma_blueprint      import bp_firma          # ← firma independiente (firma_blueprint.py)
 from blueprints.contenido import bp as bp_contenido
 from blueprints.admin     import bp as bp_admin
 from blueprints.metricas  import bp as bp_metricas
