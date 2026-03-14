@@ -37,67 +37,67 @@
       <span class="nb-label">Dashboard</span>
     </a>
 
-    <div class="nb-sep"></div>
-    <div class="nav-section">Negocio</div>
+    <div class="nb-sep" data-section-sep="negocio" style="display:none"></div>
+    <div class="nav-section" data-section-sep="negocio" style="display:none">Negocio</div>
 
-    <a href="/negocio" class="nb-item {% if request.path == '/negocio' %}active{% endif %}">
+    <a href="/negocio" class="nb-item {% if request.path == '/negocio' %}active{% endif %}" data-section="negocio" style="display:none">
       <span class="nb-icon">🏢</span>
       <span class="nb-label">Negocio</span>
     </a>
-    <a href="/propiedades" class="nb-item {% if request.path == '/propiedades' %}active{% endif %}">
+    <a href="/propiedades" class="nb-item {% if request.path == '/propiedades' %}active{% endif %}" data-section="negocio" style="display:none">
       <span class="nb-icon">🏠</span>
       <span class="nb-label">Propiedades</span>
     </a>
 
-    <a href="/leads" class="nb-item {% if request.path == '/leads' %}active{% endif %}">
+    <a href="/leads" class="nb-item {% if request.path == '/leads' %}active{% endif %}" data-section="leads" style="display:none">
       <span class="nb-icon">🔍</span>
       <span class="nb-label">Leads</span>
       <span class="nb-badge" id="badgeLeads" style="display:none">0</span>
     </a>
 
-    <a href="/metricas" class="nb-item {% if request.path == '/metricas' %}active{% endif %}">
+    <a href="/metricas" class="nb-item {% if request.path == '/metricas' %}active{% endif %}" data-section="metricas" style="display:none">
       <span class="nb-icon">📈</span>
       <span class="nb-label">Métricas</span>
     </a>
 
-    <a href="/cierres" class="nb-item {% if request.path == '/cierres' %}active{% endif %}">
+    <a href="/cierres" class="nb-item {% if request.path == '/cierres' %}active{% endif %}" data-section="cierres" style="display:none">
       <span class="nb-icon">💰</span>
       <span class="nb-label">Cierres</span>
     </a>
 
-    <div class="nb-sep"></div>
-    <div class="nav-section">Gestión</div>
+    <div class="nb-sep" data-section-sep="gestion" style="display:none"></div>
+    <div class="nav-section" data-section-sep="gestion" style="display:none">Gestión</div>
 
-    <a href="/agenda" class="nb-item {% if request.path == '/agenda' %}active{% endif %}">
+    <a href="/agenda" class="nb-item {% if request.path == '/agenda' %}active{% endif %}" data-section="agenda" style="display:none">
       <span class="nb-icon">📅</span>
       <span class="nb-label">Agenda</span>
       <span class="nb-badge" id="badgeTareas" style="display:none">0</span>
     </a>
 
-    <a href="/firma" class="nb-item {% if request.path == '/firma' %}active{% endif %}">
+    <a href="/firma" class="nb-item {% if request.path == '/firma' %}active{% endif %}" data-section="firma" style="display:none">
       <span class="nb-icon">✍️</span>
       <span class="nb-label">Firma</span>
     </a>
 
-    <a href="/asistente" class="nb-item {% if request.path == '/asistente' %}active{% endif %}">
+    <a href="/asistente" class="nb-item {% if request.path == '/asistente' %}active{% endif %}" data-section="asistente" style="display:none">
       <span class="nb-icon">🤖</span>
       <span class="nb-label">Asistente IA</span>
     </a>
 
-    <div class="nb-sep"></div>
-    <div class="nav-section">Contenido</div>
+    <div class="nb-sep" data-section-sep="contenido" style="display:none"></div>
+    <div class="nav-section" data-section-sep="contenido" style="display:none">Contenido</div>
 
-    <a href="/contenido" class="nb-item {% if request.path == '/contenido' %}active{% endif %}">
+    <a href="/contenido" class="nb-item {% if request.path == '/contenido' %}active{% endif %}" data-section="contenido" style="display:none">
       <span class="nb-icon">📄</span>
       <span class="nb-label">Textos</span>
     </a>
 
-    <a href="/guiones" class="nb-item {% if request.path == '/guiones' %}active{% endif %}">
+    <a href="/guiones" class="nb-item {% if request.path == '/guiones' %}active{% endif %}" data-section="guiones" style="display:none">
       <span class="nb-icon">📸</span>
       <span class="nb-label">Guiones</span>
     </a>
 
-    <a href="/ideas" class="nb-item {% if request.path == '/ideas' %}active{% endif %}">
+    <a href="/ideas" class="nb-item {% if request.path == '/ideas' %}active{% endif %}" data-section="ideas" style="display:none">
       <span class="nb-icon">💡</span>
       <span class="nb-label">Ideas</span>
     </a>
