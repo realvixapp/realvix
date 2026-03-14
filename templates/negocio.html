@@ -53,10 +53,29 @@
   </div>
 
   <!-- Filtros por estado tasación -->
-  <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
+  <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
     <button class="estadio-btn active" onclick="filtrarEstadioEstado('todos',this)" style="border-radius:20px;padding:6px 16px;font-size:0.82rem;font-weight:600;background:var(--rx-blue);color:white;border:none;cursor:pointer;">Todos</button>
     <button class="estadio-btn" onclick="filtrarEstadioEstado('pendiente',this)" style="border-radius:20px;padding:6px 14px;font-size:0.82rem;font-weight:600;background:white;border:1px solid #e5e7eb;cursor:pointer;display:flex;align-items:center;gap:5px;">⏳ Pendiente</button>
     <button class="estadio-btn" onclick="filtrarEstadioEstado('esperando_respuesta',this)" style="border-radius:20px;padding:6px 14px;font-size:0.82rem;font-weight:600;background:white;border:1px solid #e5e7eb;cursor:pointer;display:flex;align-items:center;gap:5px;">📋 Esperando respuesta</button>
+  </div>
+
+  <!-- Filtros por Respuesta Propietario -->
+  <div style="margin-bottom:12px;">
+    <div style="font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Filtrar por respuesta propietario</div>
+    <div id="respFiltroEstadoBtns" style="display:flex;gap:6px;flex-wrap:wrap;">
+      <button class="resp-btn-est" data-val="" onclick="filtrarRespuestaEstado('')"
+        style="padding:4px 12px;border-radius:20px;border:1.5px solid var(--rx-blue);background:var(--rx-blue);color:white;font-size:0.78rem;font-weight:600;cursor:pointer;">Todas</button>
+      <button class="resp-btn-est" data-val="esperando_respuesta" onclick="filtrarRespuestaEstado('esperando_respuesta')"
+        style="padding:4px 12px;border-radius:20px;border:1.5px solid #D97706;background:white;color:#D97706;font-size:0.78rem;font-weight:600;cursor:pointer;">⏳ Esperando resp.</button>
+      <button class="resp-btn-est" data-val="aceptado" onclick="filtrarRespuestaEstado('aceptado')"
+        style="padding:4px 12px;border-radius:20px;border:1.5px solid #059669;background:white;color:#059669;font-size:0.78rem;font-weight:600;cursor:pointer;">✅ Aceptado</button>
+      <button class="resp-btn-est" data-val="rechazado" onclick="filtrarRespuestaEstado('rechazado')"
+        style="padding:4px 12px;border-radius:20px;border:1.5px solid #DC2626;background:white;color:#DC2626;font-size:0.78rem;font-weight:600;cursor:pointer;">❌ Rechazado</button>
+      <button class="resp-btn-est" data-val="decide_esperar" onclick="filtrarRespuestaEstado('decide_esperar')"
+        style="padding:4px 12px;border-radius:20px;border:1.5px solid #7C3AED;background:white;color:#7C3AED;font-size:0.78rem;font-weight:600;cursor:pointer;">🕐 Decide esperar</button>
+      <button class="resp-btn-est" data-val="vendio_con_otro" onclick="filtrarRespuestaEstado('vendio_con_otro')"
+        style="padding:4px 12px;border-radius:20px;border:1.5px solid #6B7280;background:white;color:#6B7280;font-size:0.78rem;font-weight:600;cursor:pointer;">🔄 Vendió con otro</button>
+    </div>
   </div>
 
   <!-- Buscador -->
@@ -182,20 +201,15 @@
             <option>Local</option><option>Terreno</option><option>Oficina</option>
           </select>
         </div>
-        <div class="field">
-          <label class="field-label">Estado tasación</label>
-          <select id="propEstado" class="input-base">
-            <option value="pendiente" selected>⏳ Pendiente</option>
-            <option value="esperando_respuesta">📋 Esperando respuesta</option>
-          </select>
-        </div>
+        <!-- Estado tasación - oculto, se maneja automáticamente por la sincronización -->
+        <input type="hidden" id="propEstado" value="pendiente">
         <div class="field" style="grid-column:span 2">
           <label class="field-label">Link de ficha / portal</label>
           <input type="text" id="propUrl" class="input-base" placeholder="https://zonaprop.com.ar/...">
         </div>
         <div class="field" style="grid-column:span 2">
           <label class="field-label">Respuesta propietario</label>
-          <select id="propRespuesta" class="input-base">
+          <select id="propRespuesta" class="input-base" onchange="onCambioRespuestaPropModal(this.value)">
             <option value="">— Sin respuesta —</option>
             <option value="esperando_respuesta">⏳ Esperando respuesta</option>
             <option value="aceptado">✅ Aceptado</option>
@@ -245,14 +259,22 @@
         </div>
       </div>
 
-      <!-- Documentación (#7) -->
+      <!-- Documentación con archivos reales -->
       <div class="modal-section-title" style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;">
         <span>📁 Carga documentación</span>
-        <button onclick="agregarDocumento()"
-          style="font-size:0.75rem;padding:4px 12px;border-radius:8px;border:none;background:#6B7280;color:white;cursor:pointer;font-weight:600;">
-          + Agregar doc.
-        </button>
+        <div style="display:flex;gap:6px;">
+          <button onclick="document.getElementById('inputArchivoDoc').click()"
+            style="font-size:0.75rem;padding:4px 12px;border-radius:8px;border:none;background:var(--rx-blue);color:white;cursor:pointer;font-weight:600;">
+            📎 Subir archivo
+          </button>
+          <button onclick="agregarDocumento()"
+            style="font-size:0.75rem;padding:4px 12px;border-radius:8px;border:none;background:#6B7280;color:white;cursor:pointer;font-weight:600;">
+            + Agregar doc.
+          </button>
+        </div>
       </div>
+      <input type="file" id="inputArchivoDoc" style="display:none;" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.txt,.zip"
+        onchange="cargarArchivosDocumentacion(this.files)">
       <div id="documentosLista" style="margin-bottom:8px;"></div>
       <input type="hidden" id="propDocumentosJSON" value="[]">
     </div>
