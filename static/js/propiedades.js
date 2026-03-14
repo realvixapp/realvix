@@ -59,14 +59,15 @@ function renderEstadoProp() {
 
   // Stats
   const s = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  s('stCaptadas',   PROPS.propiedades.filter(p => (p.estado_tasacion||'').toLowerCase() === 'captado').length);
   s('stPublicadas', PROPS.propiedades.filter(p => (p.estado_tasacion||'').toLowerCase() === 'publicado').length);
   s('stReservadas', PROPS.propiedades.filter(p => (p.estado_tasacion||'').toLowerCase() === 'reservado').length);
   s('stCerradas',   PROPS.propiedades.filter(p => (p.estado_tasacion||'').toLowerCase() === 'cerrado').length);
 
-  // Filtrar solo publicado/reservado/cerrado + filtro usuario
+  // Filtrar captado/publicado/reservado/cerrado + filtro usuario
   let lista = PROPS.propiedades.filter(p => {
     const pEst = (p.estado_tasacion || p.estadio || '').toLowerCase();
-    const enEstados = ['publicado','reservado','cerrado'].includes(pEst);
+    const enEstados = ['captado','publicado','reservado','cerrado'].includes(pEst);
     const matchEst  = est === 'todos' || pEst === est;
     const matchQ    = !q || (p.direccion||'').toLowerCase().includes(q) || (p.nombre_propietario||'').toLowerCase().includes(q);
     return enEstados && matchEst && matchQ;
@@ -103,6 +104,7 @@ function renderEstadoProp() {
               <select class="estadio-inline-select" data-pid="${p.id}"
                 onchange="cambiarEstadioProp(this.dataset.pid, this.value)"
                 style="font-size:0.75rem;padding:3px 8px;border-radius:12px;border:1px solid ${estInfo.color}44;background:${estInfo.bg};color:${estInfo.color};font-weight:700;cursor:pointer;outline:none;">
+                <option value="captado"   ${'captado'===pEst?'selected':''}>🔷 Captado</option>
                 <option value="publicado" ${'publicado'===pEst?'selected':''}>🟢 Publicado</option>
                 <option value="reservado" ${'reservado'===pEst?'selected':''}>🔴 Reservado</option>
                 <option value="cerrado"   ${'cerrado'===pEst?'selected':''}>⬛ Cerrado</option>
