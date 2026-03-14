@@ -23,6 +23,7 @@
   <!-- Filtros estadio -->
   <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;">
     <button class="estadio-btn active" onclick="filtrarEstadioProps('todos',this)">Todos</button>
+    <button class="estadio-btn" onclick="filtrarEstadioProps('captado',this)">🔷 Captado</button>
     <button class="estadio-btn" onclick="filtrarEstadioProps('publicado',this)">🟢 Publicado</button>
     <button class="estadio-btn" onclick="filtrarEstadioProps('reservado',this)">🔴 Reservado</button>
     <button class="estadio-btn" onclick="filtrarEstadioProps('cerrado',this)">⬛ Cerrado</button>
@@ -33,7 +34,8 @@
   </div>
 
   <!-- Stats -->
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;">
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;">
+    <div class="stat-mini" style="border-left:3px solid #2563EB;"><div class="stat-mini-label">🔷 Captadas</div><div class="stat-mini-num" id="stCaptadas" style="color:#2563EB;">—</div></div>
     <div class="stat-mini" style="border-left:3px solid #059669;"><div class="stat-mini-label">🟢 Publicadas</div><div class="stat-mini-num" id="stPublicadas" style="color:#059669;">—</div></div>
     <div class="stat-mini" style="border-left:3px solid #DC2626;"><div class="stat-mini-label">🔴 Reservadas</div><div class="stat-mini-num" id="stReservadas" style="color:#DC2626;">—</div></div>
     <div class="stat-mini" style="border-left:3px solid #374151;"><div class="stat-mini-label">⬛ Cerradas</div><div class="stat-mini-num" id="stCerradas" style="color:#374151;">—</div></div>
@@ -111,6 +113,7 @@
       <div class="field">
         <label class="field-label">Estadio</label>
         <select id="editPropEstadio" class="input-base">
+          <option value="captado">🔷 Captado</option>
           <option value="publicado">🟢 Publicado</option>
           <option value="reservado">🔴 Reservado</option>
           <option value="cerrado">⬛ Cerrado</option>
