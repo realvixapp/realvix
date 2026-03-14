@@ -88,6 +88,45 @@ async function cargarConsultas() {
 
 function filtrarLeads() { renderLeads(); }
 
+let _leadsSeleccionados = new Set();
+
+function toggleSeleccionLead(cid) {
+  if (_leadsSeleccionados.has(cid)) _leadsSeleccionados.delete(cid);
+  else _leadsSeleccionados.add(cid);
+  _actualizarBarraLeads();
+}
+
+function toggleSeleccionTodosLeads(checked, cids) {
+  if (checked) cids.forEach(id => _leadsSeleccionados.add(id));
+  else _leadsSeleccionados.clear();
+  _actualizarBarraLeads();
+  document.querySelectorAll('.lead-checkbox-row').forEach(cb => { cb.checked = checked; });
+}
+
+function _actualizarBarraLeads() {
+  const barra = document.getElementById('barraSeleccionLeads');
+  if (!barra) return;
+  if (_leadsSeleccionados.size > 0) {
+    barra.style.display = 'flex';
+    document.getElementById('selCountLeads').textContent = `${_leadsSeleccionados.size} seleccionado(s)`;
+  } else {
+    barra.style.display = 'none';
+  }
+}
+
+async function eliminarSeleccionadosLeads() {
+  if (_leadsSeleccionados.size === 0) return;
+  if (!confirmar(`¿Eliminar ${_leadsSeleccionados.size} lead(s)? No se puede deshacer.`)) return;
+  try {
+    for (const cid of _leadsSeleccionados) {
+      await apiDelete(`/api/consultas/${cid}`);
+    }
+    _leadsSeleccionados.clear();
+    showToast('Leads eliminados ✓', 'success');
+    await cargarConsultas();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
 function renderLeads() {
   const q = (document.getElementById('filtroLeads')?.value || '').toLowerCase();
   let lista = LEADS.consultas.filter(c => {
@@ -107,50 +146,70 @@ function renderLeads() {
 
   const container = document.getElementById('leadsGrid');
   if (!container) return;
+
+  const cids = lista.map(c => `'${c.id}'`).join(',');
+
+  let html = `
+    <div id="barraSeleccionLeads" style="display:none;align-items:center;gap:10px;padding:8px 12px;background:#FEF9C3;border-radius:8px;margin-bottom:10px;border:1px solid #FDE047;">
+      <span id="selCountLeads" style="font-size:0.85rem;font-weight:600;color:#92400E;"></span>
+      <button onclick="eliminarSeleccionadosLeads()"
+        style="padding:5px 14px;border-radius:8px;border:none;background:#DC2626;color:white;cursor:pointer;font-size:0.82rem;font-weight:600;">🗑️ Eliminar seleccionados</button>
+      <button onclick="_leadsSeleccionados.clear();_actualizarBarraLeads();renderLeads();"
+        style="padding:5px 12px;border-radius:8px;border:1px solid #e5e7eb;background:white;cursor:pointer;font-size:0.82rem;">✕ Cancelar</button>
+    </div>`;
+
   if (lista.length === 0) {
-    container.innerHTML = `<div class="empty-state">No hay leads en este estadio</div>`;
+    html += `<div class="empty-state">No hay leads en este estadio</div>`;
+    container.innerHTML = html;
     return;
   }
 
-  container.innerHTML = `
-    <div style="display:flex;flex-direction:column;gap:8px;">
-      ${lista.map(c => {
-        const est = ESTADIO_LABELS[c.estado] || { label:c.estado, color:'#888', bg:'#f8f9fa' };
-        const tieneVisita = c.estado === 'pendiente_visita' && c.fecha_visita;
-        return `
-          <div class="card" style="padding:14px;display:flex;align-items:center;gap:14px;">
-            <div style="flex:1;">
-              <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap;">
-                <strong style="font-size:0.9rem;color:var(--rx-blue);cursor:pointer;text-decoration:underline dotted;"
-                  data-lid="${c.id}" onclick="abrirFichaLead(this.dataset.lid)">${escHtml(c.nombre || 'Sin nombre')}</strong>
-                <span style="font-size:0.72rem;padding:2px 8px;border-radius:12px;font-weight:600;background:${est.bg};color:${est.color};">${est.label}</span>
-                ${tieneVisita ? `<span style="font-size:0.72rem;background:#EDE9FE;color:#7C3AED;border-radius:12px;padding:2px 8px;font-weight:600;">📅 ${formatFecha(c.fecha_visita)}</span>` : ''}
-              </div>
-              <div style="font-size:0.8rem;color:#888;display:flex;gap:12px;flex-wrap:wrap;">
-                ${c.telefono          ? `<span>📞 ${escHtml(c.telefono)}</span>`          : ''}
-                ${c.propiedad_nombre  ? `<span>🏠 ${escHtml(c.propiedad_nombre)}</span>`  : ''}
-                ${c.presupuesto       ? `<span>💰 ${escHtml(c.presupuesto)}</span>`       : ''}
-                <span style="color:#ccc;">${formatFecha(c.created_at)}</span>
-              </div>
+  html += `<div style="display:flex;flex-direction:column;gap:8px;">
+    <div style="display:flex;align-items:center;gap:8px;padding:4px 10px 4px 6px;">
+      <input type="checkbox" style="cursor:pointer;" onchange="toggleSeleccionTodosLeads(this.checked,[${cids}])">
+      <span style="font-size:0.75rem;color:#888;font-weight:600;">Seleccionar todos</span>
+    </div>
+    ${lista.map(c => {
+      const est = ESTADIO_LABELS[c.estado] || { label:c.estado, color:'#888', bg:'#f8f9fa' };
+      const tieneVisita = c.estado === 'pendiente_visita' && c.fecha_visita;
+      const isSelected = _leadsSeleccionados.has(c.id);
+      return `
+        <div class="card" style="padding:14px;display:flex;align-items:center;gap:14px;${isSelected?'background:#EFF6FF;border-color:var(--rx-blue);':''}" >
+          <input type="checkbox" class="lead-checkbox-row" style="cursor:pointer;flex-shrink:0;" ${isSelected?'checked':''} onchange="toggleSeleccionLead('${c.id}')">
+          <div style="flex:1;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap;">
+              <strong style="font-size:0.9rem;color:var(--rx-blue);cursor:pointer;text-decoration:underline dotted;"
+                data-lid="${c.id}" onclick="editarConsulta(this.dataset.lid)">${escHtml(c.nombre || 'Sin nombre')}</strong>
+              <span style="font-size:0.72rem;padding:2px 8px;border-radius:12px;font-weight:600;background:${est.bg};color:${est.color};">${est.label}</span>
+              ${tieneVisita ? `<span style="font-size:0.72rem;background:#EDE9FE;color:#7C3AED;border-radius:12px;padding:2px 8px;font-weight:600;">📅 ${formatFecha(c.fecha_visita)}</span>` : ''}
             </div>
-            <div style="display:flex;gap:6px;align-items:center;">
-              <select class="input-base" style="font-size:0.78rem;padding:4px 8px;height:auto;width:150px;"
-                data-cid="${c.id}" onchange="cambiarEstadio(this.dataset.cid, this.value)">
-                ${Object.entries(ESTADIO_LABELS).map(([k,v]) =>
-                  `<option value="${k}" ${c.estado===k?'selected':''}>${v.label}</option>`
-                ).join('')}
-              </select>
-              ${c.telefono ? `<button class="btn-icon-sm" data-lid="${c.id}" onclick="abrirWAConMensajes(this.dataset.lid)" title="WhatsApp"
-                style="background:#25D366;color:white;border:none;border-radius:8px;width:30px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="14" height="14"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.556 4.121 1.526 5.851L.057 23.868c-.11.415.271.802.687.702l6.225-1.634A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.027-1.384l-.36-.214-3.714.975.992-3.621-.235-.372A9.818 9.818 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>
-                </button>` : ''}
-              <button class="btn-icon-sm" data-cid="${c.id}" onclick="abrirFichaLead(this.dataset.cid)" title="Ver ficha">👁️</button>
-              <button class="btn-icon-sm" data-cid="${c.id}" onclick="editarConsulta(this.dataset.cid)" title="Editar">✏️</button>
-              <button class="btn-icon-sm danger" data-cid="${c.id}" onclick="eliminarConsulta(this.dataset.cid)" title="Eliminar">🗑️</button>
+            <div style="font-size:0.8rem;color:#888;display:flex;gap:12px;flex-wrap:wrap;">
+              ${c.telefono          ? `<span>📞 ${escHtml(c.telefono)}</span>`          : ''}
+              ${c.propiedad_nombre  ? `<span>🏠 ${escHtml(c.propiedad_nombre)}</span>`  : ''}
+              ${c.presupuesto       ? `<span>💰 ${escHtml(c.presupuesto)}</span>`       : ''}
+              <span style="color:#ccc;">${formatFecha(c.created_at)}</span>
             </div>
-          </div>`;
-      }).join('')}
-    </div>`;
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <select class="input-base" style="font-size:0.78rem;padding:4px 8px;height:auto;width:150px;"
+              data-cid="${c.id}" onchange="cambiarEstadio(this.dataset.cid, this.value)">
+              ${Object.entries(ESTADIO_LABELS).map(([k,v]) =>
+                `<option value="${k}" ${c.estado===k?'selected':''}>${v.label}</option>`
+              ).join('')}
+            </select>
+            ${c.telefono ? `<button class="btn-icon-sm" data-lid="${c.id}" onclick="abrirWAConMensajes(this.dataset.lid)" title="WhatsApp"
+              style="background:#25D366;color:white;border:none;border-radius:8px;width:30px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="14" height="14"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.556 4.121 1.526 5.851L.057 23.868c-.11.415.271.802.687.702l6.225-1.634A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.027-1.384l-.36-.214-3.714.975.992-3.621-.235-.372A9.818 9.818 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>
+              </button>` : ''}
+            <button class="btn-icon-sm" data-cid="${c.id}" onclick="editarConsulta(this.dataset.cid)" title="Editar">✏️</button>
+            <button class="btn-icon-sm danger" data-cid="${c.id}" onclick="eliminarConsulta(this.dataset.cid)" title="Eliminar">🗑️</button>
+          </div>
+        </div>`;
+    }).join('')}
+  </div>`;
+
+  container.innerHTML = html;
+  _actualizarBarraLeads();
 }
 
 async function cambiarEstadio(id, nuevoEstado) {
@@ -305,19 +364,22 @@ function abrirWAConMensajes(leadId) {
 
 function _buildPropTexto(c) {
   // {propiedad} = nombre + localidad + zona
-  // {ficha_propiedad} = URL
+  // {ficha_propiedad} = URL del link de ficha/portal
   const partes = [c.propiedad_nombre || ''];
-  // Buscar en todas las fuentes disponibles: LEADS, NEG, LACT
+  // Buscar en todas las fuentes disponibles
   const allProps = [
     ...(LEADS.propiedades || []),
     ...(typeof NEG !== 'undefined' && NEG.propiedades ? NEG.propiedades : []),
     ...(typeof LACT !== 'undefined' && LACT.propiedades ? LACT.propiedades : []),
+    ...(typeof PROPS !== 'undefined' && PROPS.propiedades ? PROPS.propiedades : []),
   ];
-  const p = allProps.find(x => x.direccion === c.propiedad_nombre);
+  const p = allProps.find(x => x.direccion && c.propiedad_nombre &&
+    x.direccion.trim().toLowerCase() === c.propiedad_nombre.trim().toLowerCase());
   if (p) {
     if (p.localidad) partes.push(p.localidad);
     if (p.zona)      partes.push(p.zona);
-    return { propTexto: partes.filter(Boolean).join(', '), fichaUrl: p.url || '', propietarioNombre: p.nombre_propietario || '' };
+    const fichaUrl = p.url || p.link_ficha || p.ficha_portal || '';
+    return { propTexto: partes.filter(Boolean).join(', '), fichaUrl, propietarioNombre: p.nombre_propietario || '' };
   }
   return { propTexto: partes.filter(Boolean).join(', '), fichaUrl: '', propietarioNombre: '' };
 }
@@ -577,6 +639,40 @@ async function cargarActividadLeads() {
 
 function renderActividadLeads() {
   const s = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+
+  // ── ANÁLISIS DE LEADS POR ESTADIO ──
+  const ESTADIO_LABELS_ACT = {
+    'nuevo':            { label:'Nuevo',            color:'#6B7280', bg:'#F3F4F6' },
+    'pendiente_visita': { label:'Pendiente Visita',  color:'#7C3AED', bg:'#F5F3FF' },
+    'contesto':         { label:'Contestó',          color:'#D97706', bg:'#FFFBEB' },
+    'seguimiento':      { label:'Seguimiento',       color:'#2563EB', bg:'#EFF6FF' },
+    'visito':           { label:'Visitó ✓',          color:'#059669', bg:'#ECFDF5' },
+  };
+  const statsEstadiosEl = document.getElementById('lActStatsEstadios');
+  if (statsEstadiosEl) {
+    const total = LACT.consultas.length;
+    statsEstadiosEl.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;width:100%;">
+        ${Object.entries(ESTADIO_LABELS_ACT).map(([k,v]) => {
+          const count = LACT.consultas.filter(c => c.estado === k).length;
+          const pct = total > 0 ? Math.round((count/total)*100) : 0;
+          return `
+            <div class="stat-mini" style="border-left:4px solid ${v.color};cursor:pointer;" onclick="filtrarEstadio('${k}',null);switchLeadsTab('consultas',document.querySelector('.tab-btn'));">
+              <div class="stat-mini-label" style="color:${v.color};font-weight:600;font-size:0.72rem;text-transform:uppercase;">${v.label}</div>
+              <div class="stat-mini-num" style="color:${v.color};">${count}</div>
+              <div style="font-size:0.7rem;color:#aaa;margin-top:2px;">${pct}% del total</div>
+              <div style="height:3px;background:#f3f4f6;border-radius:4px;margin-top:5px;overflow:hidden;">
+                <div style="height:100%;width:${pct}%;background:${v.color};border-radius:4px;transition:width 0.4s;"></div>
+              </div>
+            </div>`;
+        }).join('')}
+        <div class="stat-mini" style="border-left:4px solid #374151;">
+          <div class="stat-mini-label" style="font-weight:600;font-size:0.72rem;text-transform:uppercase;">Total leads</div>
+          <div class="stat-mini-num">${total}</div>
+          <div style="font-size:0.7rem;color:#aaa;margin-top:2px;">Todos los estadios</div>
+        </div>
+      </div>`;
+  }
 
   // Stats respuesta propietario
   s('lActRespAcept', LACT.propiedades.filter(p => p.respuesta_listing === 'aceptado').length);
