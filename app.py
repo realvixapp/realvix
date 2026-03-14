@@ -312,7 +312,7 @@ from blueprints.negocio   import bp as bp_negocio
 from blueprints.leads     import bp as bp_leads
 from blueprints.cierres   import bp as bp_cierres
 from blueprints.agenda    import bp as bp_agenda
-from blueprints.firma     import bp as bp_firma
+from appfirma.app         import bp as bp_firma
 from blueprints.contenido import bp as bp_contenido
 from blueprints.admin     import bp as bp_admin
 from blueprints.metricas  import bp as bp_metricas
@@ -367,10 +367,6 @@ def cierres_page():
 def agenda_page():
     return render_template('agenda.html')
 
-@app.route('/firma')
-@login_required
-def firma_page():
-    return render_template('firma.html')
 
 @app.route('/asistente')
 @login_required
