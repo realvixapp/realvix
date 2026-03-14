@@ -7,13 +7,12 @@
 
 <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center;flex-wrap:wrap;">
   <input type="text" id="filtroTextos" placeholder="Buscar texto..." class="input-base" style="max-width:260px;" oninput="filtrarTextos()">
-  <select id="filtroCategoria" class="input-base" style="max-width:180px;" onchange="filtrarTextos()">
+  <select id="filtroCategoria" class="input-base" style="max-width:220px;" onchange="filtrarTextos()">
     <option value="">Todas las categorías</option>
-    <option value="bienvenida">Bienvenida</option>
-    <option value="seguimiento">Seguimiento</option>
-    <option value="visita">Visita</option>
-    <option value="cierre">Cierre</option>
-    <option value="general">General</option>
+    <option value="bienvenida_lead">Bienvenida Lead</option>
+    <option value="seguimiento_lead">Seguimiento Lead</option>
+    <option value="visita_lead">Visita Lead</option>
+    <option value="seguimiento_propietario">Seguimiento Propietario</option>
   </select>
   <button class="btn-primary" onclick="abrirNuevoTexto()">+ Nuevo texto</button>
 </div>
@@ -47,11 +46,10 @@
         <div class="field">
           <label class="field-label">Categoría</label>
           <select id="txtCategoria" class="input-base">
-            <option value="bienvenida">Bienvenida</option>
-            <option value="seguimiento">Seguimiento</option>
-            <option value="visita">Visita</option>
-            <option value="cierre">Cierre</option>
-            <option value="general">General</option>
+            <option value="bienvenida_lead">Bienvenida Lead</option>
+            <option value="seguimiento_lead">Seguimiento Lead</option>
+            <option value="visita_lead">Visita Lead</option>
+            <option value="seguimiento_propietario">Seguimiento Propietario</option>
           </select>
         </div>
       </div>
@@ -63,8 +61,8 @@
             style="resize:vertical;font-size:0.85rem;width:100%;"
             placeholder="Escribí el mensaje. Usá los atributos de la derecha para personalizar..."></textarea>
         </div>
-        <!-- Panel atributos (#19) -->
-        <div style="width:150px;flex-shrink:0;padding:10px;background:#f8f9fa;border-radius:8px;border:1px solid #e5e7eb;">
+        <!-- Panel atributos -->
+        <div style="width:160px;flex-shrink:0;padding:10px;background:#f8f9fa;border-radius:8px;border:1px solid #e5e7eb;">
           <div style="font-size:0.65rem;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Atributos</div>
           <div style="font-size:0.68rem;color:#aaa;margin-bottom:8px;">Click para insertar en el mensaje</div>
           <button onclick="insertarAtributoCont('{nombre}')"
@@ -79,17 +77,11 @@
             <div style="font-weight:600;color:#2563EB;">{propiedad}</div>
             <div style="color:#888;font-size:0.68rem;">Ficha propiedad</div>
           </button>
-          <button onclick="insertarAtributoCont('{telefono}')"
-            style="display:block;width:100%;text-align:left;padding:6px 8px;border-radius:6px;border:1px solid #e5e7eb;background:white;cursor:pointer;margin-bottom:5px;font-size:0.75rem;"
-            onmouseover="this.style.borderColor='#2563EB'" onmouseout="this.style.borderColor='#e5e7eb'">
-            <div style="font-weight:600;color:#2563EB;">{telefono}</div>
-            <div style="color:#888;font-size:0.68rem;">Teléfono</div>
-          </button>
-          <button onclick="insertarAtributoCont('{presupuesto}')"
+          <button onclick="insertarAtributoCont('{nombre_propietario}')"
             style="display:block;width:100%;text-align:left;padding:6px 8px;border-radius:6px;border:1px solid #e5e7eb;background:white;cursor:pointer;font-size:0.75rem;"
             onmouseover="this.style.borderColor='#2563EB'" onmouseout="this.style.borderColor='#e5e7eb'">
-            <div style="font-weight:600;color:#2563EB;">{presupuesto}</div>
-            <div style="color:#888;font-size:0.68rem;">Presupuesto</div>
+            <div style="font-weight:600;color:#2563EB;">{nombre_propietario}</div>
+            <div style="color:#888;font-size:0.68rem;">Nombre propietario</div>
           </button>
         </div>
       </div>
