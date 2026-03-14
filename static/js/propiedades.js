@@ -237,31 +237,9 @@ function renderActividadProp() {
     }).join('');
   }
 
-  // ── ÍNDICE POR RESPUESTA PROPIETARIO ──
+  // Resp index hidden per user request
   const respIndexEl = document.getElementById('propRespIndex');
-  if (respIndexEl) {
-    const RESP_OPTS = [
-      { k:'',                    label:'Todas',             color:'#6B7280', bg:'#F3F4F6' },
-      { k:'aceptado',            label:'✅ Aceptado',        color:'#059669', bg:'#ECFDF5' },
-      { k:'rechazado',           label:'❌ Rechazado',       color:'#DC2626', bg:'#FEF2F2' },
-      { k:'esperando_respuesta', label:'⏳ Esperando resp.', color:'#D97706', bg:'#FFFBEB' },
-      { k:'decide_esperar',      label:'🕐 Decide esperar',  color:'#7C3AED', bg:'#F5F3FF' },
-      { k:'vendio_con_otro',     label:'🔄 Vendió c/otro',   color:'#6B7280', bg:'#F3F4F6' },
-    ];
-    respIndexEl.innerHTML = RESP_OPTS.map(opt => {
-      const count = opt.k === ''
-        ? propsConConteo.length
-        : propsConConteo.filter(p => (p.respuesta_listing||'esperando_respuesta') === opt.k).length;
-      const active = PROPS.respFiltro === opt.k;
-      return `<button onclick="filtrarRespActividad('${opt.k}')"
-        style="padding:4px 12px;border-radius:20px;font-size:0.75rem;font-weight:600;cursor:pointer;
-        border:1.5px solid ${active ? opt.color : '#e0e0e0'};
-        background:${active ? opt.bg : 'white'};
-        color:${active ? opt.color : '#666'};">
-        ${opt.label} (${count})
-      </button>`;
-    }).join('');
-  }
+  if (respIndexEl) respIndexEl.innerHTML = '';
 
   // Apply respuesta filter
   let propsParaMostrar = PROPS.respFiltro
