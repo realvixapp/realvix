@@ -94,8 +94,38 @@ async function guardarTexto() {
   } catch (e) { showToast(e.message, 'error'); }
 }
 
+// Modal de confirmación reutilizable (igual que en negocio.js)
+function mostrarConfirmacionCont(titulo, subtitulo) {
+  return new Promise(resolve => {
+    let overlay = document.getElementById('_confirmOverlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = '_confirmOverlay';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;justify-content:center;';
+      document.body.appendChild(overlay);
+    }
+    overlay.innerHTML = `
+      <div style="background:var(--bg-card,white);border-radius:12px;padding:28px 32px;max-width:380px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.18);">
+        <div style="font-size:1rem;font-weight:700;margin-bottom:8px;">${titulo}</div>
+        ${subtitulo ? `<div style="font-size:0.85rem;color:#666;margin-bottom:20px;">${subtitulo}</div>` : '<div style="margin-bottom:20px;"></div>'}
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+          <button id="_confirmCancelar" style="padding:8px 18px;border-radius:8px;border:1px solid #e5e7eb;background:white;cursor:pointer;font-size:0.88rem;">Cancelar</button>
+          <button id="_confirmAceptar" style="padding:8px 18px;border-radius:8px;border:none;background:#DC2626;color:white;cursor:pointer;font-size:0.88rem;font-weight:600;">Eliminar</button>
+        </div>
+      </div>`;
+    overlay.style.display = 'flex';
+    const cerrar = (val) => { overlay.style.display = 'none'; resolve(val); };
+    document.getElementById('_confirmAceptar').onclick  = () => cerrar(true);
+    document.getElementById('_confirmCancelar').onclick = () => cerrar(false);
+    overlay.onclick = (e) => { if (e.target === overlay) cerrar(false); };
+  });
+}
+
 async function eliminarTexto(id) {
-  if (!confirmar('¿Eliminar este texto?')) return;
+  const t = CONT.textos.find(x => x.id === id);
+  const tit = t ? (t.titulo || 'este texto') : 'este texto';
+  const confirmado = await mostrarConfirmacionCont(`¿Eliminar "${tit}"?`, 'Esta acción no se puede deshacer.');
+  if (!confirmado) return;
   try {
     await apiDelete(`/api/textos/${id}`);
     showToast('Texto eliminado');
