@@ -13,12 +13,15 @@ const NEG = {
 
 // Mapa de colores por estadio
 const ESTADIO_MAP = {
-  nuevo:       { label: 'Nuevo',       color: '#6B7280', bg: '#F3F4F6' },
-  en_tasacion: { label: 'En tasación', color: '#7C3AED', bg: '#F5F3FF' },
+  pendiente:            { label: 'Pendiente',           color: '#6B7280', bg: '#F3F4F6' },
+  esperando_respuesta:  { label: 'Esperando respuesta', color: '#7C3AED', bg: '#F5F3FF' },
   captado:     { label: 'Captado',     color: '#2563EB', bg: '#EFF6FF' },
   publicado:   { label: 'Publicado',   color: '#D97706', bg: '#FFFBEB' },
   reservado:   { label: 'Reservado',   color: '#DC2626', bg: '#FEF2F2' },
   cerrado:     { label: 'Cerrado ✓',   color: '#059669', bg: '#ECFDF5' },
+  // legacy
+  nuevo:       { label: 'Nuevo',       color: '#6B7280', bg: '#F3F4F6' },
+  en_tasacion: { label: 'En tasación', color: '#7C3AED', bg: '#F5F3FF' },
 };
 
 async function initNegocio() {
@@ -261,9 +264,8 @@ function renderEstado() {
             <td>
               <select class="estadio-inline-select" onchange="cambiarEstadio('${p.id}', this.value)"
                 style="font-size:0.78rem;padding:3px 8px;border-radius:20px;border:1px solid ${est.color}44;background:${est.bg};color:${est.color};font-weight:600;cursor:pointer;outline:none;">
-                ${Object.entries(ESTADIO_MAP).map(([k,v]) =>
-                  `<option value="${k}" ${estadio===k?'selected':''}>${v.label}</option>`
-                ).join('')}
+                <option value="pendiente" ${estadio==='pendiente'?'selected':''}>⏳ Pendiente</option>
+                <option value="esperando_respuesta" ${estadio==='esperando_respuesta'?'selected':''}>📋 Esperando respuesta</option>
               </select>
             </td>
             <td>
@@ -307,8 +309,8 @@ function abrirNuevaPropiedad() {
     'propPrelisting','propObservaciones'];
   campos.forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
   document.getElementById('propTipologia').value = '';
-  document.getElementById('propEstado').value    = 'nuevo';      // default al crear
-  document.getElementById('propEstadio').value   = 'nuevo';      // default al crear
+  document.getElementById('propEstado').value    = 'pendiente';   // default al crear
+  document.getElementById('propEstadio').value   = 'pendiente';   // default al crear
   document.querySelector('#modalPropiedad .modal-footer .btn-primary').textContent = 'Crear propiedad';
   document.getElementById('modalPropTitulo').textContent = 'Nueva propiedad';
   abrirModal('modalPropiedad');
