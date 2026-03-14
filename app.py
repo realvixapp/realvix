@@ -188,7 +188,6 @@ def init_db():
         "ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS permisos JSONB DEFAULT '{}'",
         "UPDATE propiedades SET user_id='legacy' WHERE user_id IS NULL OR user_id=''",
-        # Nuevas columnas
         "ALTER TABLE consultas ADD COLUMN IF NOT EXISTS fecha_visita TEXT",
         "ALTER TABLE contactos ADD COLUMN IF NOT EXISTS cumpleanos TEXT",
         "ALTER TABLE contactos ADD COLUMN IF NOT EXISTS hijos TEXT",
@@ -318,14 +317,8 @@ from blueprints.contenido import bp as bp_contenido
 from blueprints.admin     import bp as bp_admin
 from blueprints.metricas  import bp as bp_metricas
 
-try:
-    app.register_blueprint(bp_negocio)
-except ValueError:
-    pass  # blueprint already registered (duplicate file), skip
-try:
-    app.register_blueprint(bp_leads)
-except ValueError:
-    pass  # blueprint already registered, skip
+app.register_blueprint(bp_negocio, name='negocio_api')
+app.register_blueprint(bp_leads, name='leads_api')
 app.register_blueprint(bp_cierres)
 app.register_blueprint(bp_agenda)
 app.register_blueprint(bp_firma)
