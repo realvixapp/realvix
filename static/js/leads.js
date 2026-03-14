@@ -288,7 +288,6 @@ async function cambiarEstadioDesdeficha(id, nuevoEstado) {
 function abrirWAConMensajes(leadId) {
   const c = LEADS.consultas.find(x => x.id === leadId);
   if (!c || !c.telefono) return;
-
   if (LEADS_TEXTOS_WA.length === 0) {
     cargarTextosWA().then(() => _abrirWAOverlay(leadId));
     return;
@@ -296,28 +295,33 @@ function abrirWAConMensajes(leadId) {
   _abrirWAOverlay(leadId);
 }
 
+function _buildPropTexto(c) {
+  // {propiedad} = nombre + localidad + zona
+  // {ficha_propiedad} = URL
+  const partes = [c.propiedad_nombre || ''];
+  // Si tenemos NEG cargado, buscar localidad y zona
+  if (typeof NEG !== 'undefined' && NEG.propiedades) {
+    const p = NEG.propiedades.find(x => x.direccion === c.propiedad_nombre);
+    if (p) {
+      if (p.localidad) partes.push(p.localidad);
+      if (p.zona)      partes.push(p.zona);
+      return { propTexto: partes.filter(Boolean).join(', '), fichaUrl: p.url || '', propietarioNombre: p.nombre_propietario || '' };
+    }
+  }
+  return { propTexto: partes.filter(Boolean).join(', '), fichaUrl: '', propietarioNombre: '' };
+}
+
 function _abrirWAOverlay(leadId) {
   const c = LEADS.consultas.find(x => x.id === leadId);
   if (!c) return;
 
-  // Buscar la propiedad asociada para obtener la URL de la ficha
-  const propObj = (typeof NEG !== 'undefined' && NEG.propiedades)
-    ? NEG.propiedades.find(p => p.direccion === c.propiedad_nombre)
-    : null;
-  const fichaUrl = propObj?.url || '';
+  const { propTexto, fichaUrl, propietarioNombre } = _buildPropTexto(c);
 
-  const CAT_LABELS = {
-    'bienvenida_lead':         'Bienvenida Lead',
-    'seguimiento_lead':        'Seguimiento Lead',
-    'visita_lead':             'Visita Lead',
-    'seguimiento_propietario': 'Seguimiento Propietario',
-  };
-
-  // Atributos con valores reales: {propiedad} = URL ficha
   const atributos = [
-    { key: '{nombre}',             label: 'Nombre lead',       valor: c.nombre || '' },
-    { key: '{propiedad}',          label: 'Ficha propiedad',   valor: fichaUrl || c.propiedad_nombre || '' },
-    { key: '{nombre_propietario}', label: 'Nombre propietario',valor: propObj?.nombre_propietario || '' },
+    { key: '{nombre}',             label: 'Nombre lead',              valor: c.nombre || '' },
+    { key: '{propiedad}',          label: 'Nombre + localidad + zona', valor: propTexto },
+    { key: '{ficha_propiedad}',    label: 'Link ficha propiedad',     valor: fichaUrl },
+    { key: '{nombre_propietario}', label: 'Nombre propietario',       valor: propietarioNombre },
   ];
 
   let overlay = document.getElementById('_waOverlay');
@@ -328,8 +332,8 @@ function _abrirWAOverlay(leadId) {
     document.body.appendChild(overlay);
   }
 
-  // Mostrar todos los textos al inicio
   const todosTextos = LEADS_TEXTOS_WA;
+
   const textosHTML = (lista) => lista.length > 0
     ? lista.map(t => `
         <div onclick="usarTextoWA('${t.id}','${leadId}')"
@@ -338,68 +342,61 @@ function _abrirWAOverlay(leadId) {
           <div style="font-weight:600;color:#374151;margin-bottom:2px;">${escHtml(t.titulo)}</div>
           <div style="color:#888;font-size:0.72rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml((t.contenido||'').substring(0,90))}…</div>
         </div>`).join('')
-    : '<div style="font-size:0.8rem;color:#aaa;padding:8px 0;">No hay textos en esta categoría.</div>';
+    : '<div style="font-size:0.8rem;color:#aaa;padding:4px 0;">No hay textos guardados.</div>';
 
   overlay.innerHTML = `
     <div style="background:var(--bg-card,white);border-radius:14px;max-width:660px;width:100%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,0.25);">
-      <!-- Header -->
       <div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;">
         <div style="width:36px;height:36px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">💬</div>
         <div style="flex:1;">
           <div style="font-weight:700;font-size:0.95rem;">Enviar WhatsApp</div>
-          <div style="font-size:0.75rem;color:#888;">📞 ${escHtml(c.telefono)} · ${escHtml(c.nombre||'Lead')}${c.propiedad_nombre ? ' · 🏠 ' + escHtml(c.propiedad_nombre) : ''}</div>
+          <div style="font-size:0.75rem;color:#888;">📞 ${escHtml(c.telefono)} · ${escHtml(c.nombre||'Lead')}${c.propiedad_nombre ? ' · 🏠 '+escHtml(c.propiedad_nombre) : ''}</div>
         </div>
         <button onclick="document.getElementById('_waOverlay').style.display='none'"
           style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#888;padding:4px;">✕</button>
       </div>
-      <!-- Body -->
       <div style="display:flex;flex:1;overflow:hidden;min-height:0;">
-        <!-- Panel izquierdo -->
         <div style="flex:1;padding:14px 16px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;">
-          <!-- Filtro categoría -->
+          <!-- Filtro por título -->
           <div style="display:flex;align-items:center;gap:8px;">
-            <label style="font-size:0.7rem;font-weight:600;color:#888;text-transform:uppercase;white-space:nowrap;">Categoría:</label>
-            <select id="waCategoriaSelect" style="flex:1;font-size:0.82rem;padding:5px 8px;border:1px solid #e5e7eb;border-radius:8px;outline:none;cursor:pointer;"
-              onchange="filtrarTextosWACat(this.value,'${leadId}')">
-              <option value="">— Todas —</option>
-              ${Object.entries(CAT_LABELS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}
-            </select>
+            <input id="waTituloFiltro" type="text" placeholder="Buscar por título..." class="input-base"
+              style="font-size:0.82rem;padding:6px 10px;"
+              oninput="filtrarTextosWATitulo(this.value,'${leadId}')">
           </div>
-          <!-- Lista textos predeterminados -->
+          <!-- Lista textos -->
           <div>
             <div style="font-size:0.7rem;font-weight:600;color:#888;text-transform:uppercase;margin-bottom:6px;">Textos predeterminados</div>
-            <div id="waTextosGrid" style="max-height:180px;overflow-y:auto;">
+            <div id="waTextosGrid" style="max-height:190px;overflow-y:auto;">
               ${textosHTML(todosTextos)}
             </div>
           </div>
-          <!-- Textarea mensaje -->
+          <!-- Textarea -->
           <div style="flex:1;display:flex;flex-direction:column;">
             <div style="font-size:0.7rem;font-weight:600;color:#888;text-transform:uppercase;margin-bottom:5px;">Mensaje a enviar</div>
             <textarea id="waMensajeTexto" rows="5"
               style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:10px;font-size:0.85rem;resize:vertical;font-family:inherit;box-sizing:border-box;outline:none;"
-              placeholder="Seleccioná un texto arriba o escribí uno directamente..."></textarea>
+              placeholder="Seleccioná un texto arriba o escribí directamente..."></textarea>
           </div>
         </div>
         <!-- Panel atributos -->
-        <div style="width:170px;flex-shrink:0;border-left:1px solid var(--border);padding:14px 12px;background:#f8f9fa;overflow-y:auto;">
+        <div style="width:175px;flex-shrink:0;border-left:1px solid var(--border);padding:14px 12px;background:#f8f9fa;overflow-y:auto;">
           <div style="font-size:0.68rem;color:#888;font-weight:600;text-transform:uppercase;margin-bottom:6px;">Atributos</div>
-          <div style="font-size:0.7rem;color:#aaa;margin-bottom:10px;">Click para insertar en el mensaje</div>
+          <div style="font-size:0.68rem;color:#aaa;margin-bottom:10px;">Click para insertar</div>
           ${atributos.map(a=>`
             <button onclick="insertarAtributoWA('${a.key}')"
               style="display:block;width:100%;text-align:left;padding:7px 9px;border-radius:7px;border:1px solid #e5e7eb;background:white;cursor:pointer;margin-bottom:6px;"
               onmouseover="this.style.borderColor='#2563EB'" onmouseout="this.style.borderColor='#e5e7eb'">
               <div style="font-weight:700;color:#2563EB;font-size:0.78rem;">${a.key}</div>
-              <div style="color:#888;font-size:0.68rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px;">${escHtml(a.valor||'(vacío)')}</div>
+              <div style="color:#888;font-size:0.67rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px;">${escHtml(a.valor||'(vacío)')}</div>
             </button>`).join('')}
         </div>
       </div>
-      <!-- Footer -->
       <div style="padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;align-items:center;">
         <div style="flex:1;font-size:0.75rem;color:#aaa;">El mensaje se abrirá en WhatsApp Web</div>
         <button onclick="document.getElementById('_waOverlay').style.display='none'"
           style="padding:8px 16px;border-radius:8px;border:1px solid #e5e7eb;background:white;cursor:pointer;font-size:0.84rem;">Cancelar</button>
         <button onclick="enviarMensajeWA('${escHtml(c.telefono)}')"
-          style="padding:8px 22px;border-radius:8px;border:none;background:#25D366;color:white;cursor:pointer;font-size:0.84rem;font-weight:700;display:flex;align-items:center;gap:6px;">
+          style="padding:8px 22px;border-radius:8px;border:none;background:#25D366;color:white;cursor:pointer;font-size:0.84rem;font-weight:700;">
           💬 Abrir WhatsApp
         </button>
       </div>
@@ -409,8 +406,9 @@ function _abrirWAOverlay(leadId) {
   overlay.onclick = e => { if (e.target === overlay) overlay.style.display = 'none'; };
 }
 
-function filtrarTextosWACat(cat, leadId) {
-  const filtrados = cat ? LEADS_TEXTOS_WA.filter(t => t.categoria === cat) : LEADS_TEXTOS_WA;
+function filtrarTextosWATitulo(q, leadId) {
+  const term = q.toLowerCase();
+  const filtrados = term ? LEADS_TEXTOS_WA.filter(t => (t.titulo||'').toLowerCase().includes(term)) : LEADS_TEXTOS_WA;
   const grid = document.getElementById('waTextosGrid');
   if (!grid) return;
   grid.innerHTML = filtrados.length > 0
@@ -421,34 +419,31 @@ function filtrarTextosWACat(cat, leadId) {
           <div style="font-weight:600;color:#374151;margin-bottom:2px;">${escHtml(t.titulo)}</div>
           <div style="color:#888;font-size:0.72rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml((t.contenido||'').substring(0,90))}…</div>
         </div>`).join('')
-    : '<div style="font-size:0.8rem;color:#aaa;padding:8px 0;">No hay textos en esta categoría.</div>';
+    : '<div style="font-size:0.8rem;color:#aaa;padding:4px 0;">No hay textos con ese título.</div>';
 }
 
 function usarTextoWA(textoId, leadId) {
   const t = LEADS_TEXTOS_WA.find(x => x.id === textoId);
   const c = LEADS.consultas.find(x => x.id === leadId);
   if (!t || !c) return;
-  // Buscar URL ficha de la propiedad
-  const propObj = (typeof NEG !== 'undefined' && NEG.propiedades)
-    ? NEG.propiedades.find(p => p.direccion === c.propiedad_nombre)
-    : null;
-  const fichaUrl = propObj?.url || '';
+  const { propTexto, fichaUrl, propietarioNombre } = _buildPropTexto(c);
   let msg = t.contenido || '';
   msg = msg
     .replace(/\{nombre\}/gi,             c.nombre || '')
-    .replace(/\{propiedad\}/gi,          fichaUrl || c.propiedad_nombre || '')
-    .replace(/\{nombre_propietario\}/gi, propObj?.nombre_propietario || '');
-  const textarea = document.getElementById('waMensajeTexto');
-  if (textarea) { textarea.value = msg; textarea.focus(); }
+    .replace(/\{propiedad\}/gi,          propTexto)
+    .replace(/\{ficha_propiedad\}/gi,    fichaUrl)
+    .replace(/\{nombre_propietario\}/gi, propietarioNombre);
+  const ta = document.getElementById('waMensajeTexto');
+  if (ta) { ta.value = msg; ta.focus(); }
 }
 
 function insertarAtributoWA(atributo) {
-  const textarea = document.getElementById('waMensajeTexto');
-  if (!textarea) return;
-  const s = textarea.selectionStart, e = textarea.selectionEnd;
-  textarea.value = textarea.value.substring(0,s) + atributo + textarea.value.substring(e);
-  textarea.selectionStart = textarea.selectionEnd = s + atributo.length;
-  textarea.focus();
+  const ta = document.getElementById('waMensajeTexto');
+  if (!ta) return;
+  const s = ta.selectionStart, e = ta.selectionEnd;
+  ta.value = ta.value.substring(0,s) + atributo + ta.value.substring(e);
+  ta.selectionStart = ta.selectionEnd = s + atributo.length;
+  ta.focus();
 }
 
 function enviarMensajeWA(telefono) {
@@ -458,37 +453,6 @@ function enviarMensajeWA(telefono) {
   if (ov) ov.style.display = 'none';
 }
 
-
-function renderMuestras() {
-  const muestras = LEADS.consultas.filter(c =>
-    ['visito','visitó','Visitó','Visito'].includes(c.estado));
-  const container = document.getElementById('muestrasGrid');
-  if (!container) return;
-  if (muestras.length === 0) {
-    container.innerHTML = `<div class="empty-state">No hay muestras todavía. Los leads que lleguen a "Visitó" aparecen acá.</div>`;
-    return;
-  }
-  container.innerHTML = `
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;">
-      ${muestras.map(c => `
-        <div class="card" style="padding:14px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-            <div style="font-weight:600;font-size:0.9rem;color:var(--rx-blue);cursor:pointer;text-decoration:underline dotted;"
-              data-lid="${c.id}" onclick="abrirFichaLead(this.dataset.lid)">${escHtml(c.nombre || 'Sin nombre')}</div>
-            ${c.telefono ? `<button data-lid="${c.id}" onclick="abrirWAConMensajes(this.dataset.lid)"
-              style="padding:4px 10px;border-radius:8px;border:none;background:#25D366;color:white;cursor:pointer;font-size:0.75rem;font-weight:600;">💬 WA</button>` : ''}
-          </div>
-          ${c.telefono         ? `<div style="font-size:0.82rem;color:#555;">📞 ${escHtml(c.telefono)}</div>` : ''}
-          ${c.propiedad_nombre ? `<div style="font-size:0.82rem;color:#555;">🏠 ${escHtml(c.propiedad_nombre)}</div>` : ''}
-          ${c.presupuesto      ? `<div style="font-size:0.82rem;color:#555;">💰 ${escHtml(c.presupuesto)}</div>` : ''}
-          ${c.zona_interes     ? `<div style="font-size:0.82rem;color:#555;">📍 ${escHtml(c.zona_interes)}</div>` : ''}
-          ${c.fecha_visita     ? `<div style="font-size:0.82rem;color:#7C3AED;">📅 Visita: ${formatFecha(c.fecha_visita)}</div>` : ''}
-          ${c.notas            ? `<div style="font-size:0.78rem;color:#888;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">${escHtml(c.notas)}</div>` : ''}
-          <div style="font-size:0.7rem;color:#ccc;margin-top:6px;">${formatFecha(c.updated_at)}</div>
-        </div>
-      `).join('')}
-    </div>`;
-}
 
 function abrirNuevaConsulta() {
   ['leadId','leadNombre','leadTelefono','leadEmail','leadPropiedad',
