@@ -130,33 +130,39 @@
 <div id="tabActividad" style="display:none">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
     <div>
-      <div style="font-size:1rem;font-weight:700;">Actividad por Propiedad</div>
-      <div style="font-size:0.78rem;color:var(--text-secondary);">Propiedades publicadas/reservadas · consultas · respuesta propietario</div>
+      <div style="font-size:1rem;font-weight:700;">Actividad de Leads</div>
+      <div style="font-size:0.78rem;color:var(--text-secondary);">Consultas por estadio y período</div>
     </div>
-    <button class="btn-secondary" style="font-size:0.78rem;" onclick="cargarActividadLeads()">🔄 Actualizar</button>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <!-- Filtro período -->
+      <select id="filtroPeriodoLead" class="input-base" style="max-width:170px;font-size:0.82rem;" onchange="renderActividadLeads()">
+        <option value="trimestre">Trimestre actual</option>
+        <option value="cuatrimestre">Cuatrimestre actual</option>
+        <option value="anual">Año actual</option>
+        <option value="personalizado">Fecha personalizada</option>
+        <option value="todos" selected>Todos</option>
+      </select>
+      <button class="btn-secondary" style="font-size:0.78rem;" onclick="cargarActividadLeads()">🔄 Actualizar</button>
+    </div>
   </div>
 
-  <!-- Stats respuesta propietario (desde listing) -->
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;">
-    <div class="stat-mini" style="border-left:3px solid #059669;">
-      <div class="stat-mini-label">✅ Aceptaron tasación</div>
-      <div class="stat-mini-num" id="lActRespAcept" style="color:#059669;">—</div>
-    </div>
-    <div class="stat-mini" style="border-left:3px solid #DC2626;">
-      <div class="stat-mini-label">❌ Rechazaron</div>
-      <div class="stat-mini-num" id="lActRespRech" style="color:#DC2626;">—</div>
-    </div>
-    <div class="stat-mini" style="border-left:3px solid #D97706;">
-      <div class="stat-mini-label">⏳ Esperando resp.</div>
-      <div class="stat-mini-num" id="lActRespEsp" style="color:#D97706;">—</div>
-    </div>
+  <!-- Rango personalizado (oculto por defecto) -->
+  <div id="rangoPersonalizadoLead" style="display:none;gap:10px;margin-bottom:14px;align-items:center;flex-wrap:wrap;">
+    <label style="font-size:0.82rem;color:#666;">Desde</label>
+    <input type="date" id="fechaDesde" class="input-base" style="max-width:160px;" onchange="renderActividadLeads()">
+    <label style="font-size:0.82rem;color:#666;">Hasta</label>
+    <input type="date" id="fechaHasta" class="input-base" style="max-width:160px;" onchange="renderActividadLeads()">
   </div>
-  <!-- Stats consultas -->
+
+  <!-- Stats por estadio de LEAD (no de propiedad) -->
+  <div id="lActStatsEstadios" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;"></div>
+
+  <!-- Stats generales -->
   <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;">
-    <div class="stat-mini"><div class="stat-mini-label">Props. activas</div><div class="stat-mini-num" id="lActTotalProps">—</div></div>
-    <div class="stat-mini"><div class="stat-mini-label">Total consultas</div><div class="stat-mini-num" id="lActTotalLeads">—</div></div>
+    <div class="stat-mini"><div class="stat-mini-label">Total leads</div><div class="stat-mini-num" id="lActTotalLeads">—</div></div>
     <div class="stat-mini"><div class="stat-mini-label">Visitaron</div><div class="stat-mini-num" id="lActTotalVisitas">—</div></div>
     <div class="stat-mini"><div class="stat-mini-label">Pend. visita</div><div class="stat-mini-num" id="lActPendVisita">—</div></div>
+    <div class="stat-mini"><div class="stat-mini-label">Seguimiento</div><div class="stat-mini-num" id="lActSeguimiento">—</div></div>
   </div>
 
   <!-- 🏆 Top 5 -->
