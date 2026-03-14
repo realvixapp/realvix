@@ -43,7 +43,7 @@
   <div id="listingTable"><div class="loading-state">Cargando...</div></div>
 </div>
 
-<!-- ══ ACTIVIDAD LISTING ══ -->
+<!-- ══ ESTADO DE PROPIEDADES ══ -->
 <div id="tabEstado" style="display:none">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
     <div>
@@ -52,27 +52,28 @@
     </div>
   </div>
 
-  <!-- Embudo de Listing (#11) -->
-  <div id="embudoListing" style="margin-bottom:20px;"></div>
-
-  <!-- Filtros estado tasación — todos (#9) generados dinámicamente por JS -->
-  <div style="margin-bottom:10px;">
-    <div style="font-size:0.72rem;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Filtrar por estado tasación</div>
-    <div id="filtrosBotonesEstado" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;"></div>
+  <!-- Filtros por estado tasación -->
+  <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
+    <button class="estadio-btn active" onclick="filtrarEstadioEstado('todos',this)" style="border-radius:20px;padding:6px 16px;font-size:0.82rem;font-weight:600;background:var(--rx-blue);color:white;border:none;cursor:pointer;">Todos</button>
+    <button class="estadio-btn" onclick="filtrarEstadioEstado('pendiente',this)" style="border-radius:20px;padding:6px 14px;font-size:0.82rem;font-weight:600;background:white;border:1px solid #e5e7eb;cursor:pointer;display:flex;align-items:center;gap:5px;">⏳ Pendiente</button>
+    <button class="estadio-btn" onclick="filtrarEstadioEstado('esperando_respuesta',this)" style="border-radius:20px;padding:6px 14px;font-size:0.82rem;font-weight:600;background:white;border:1px solid #e5e7eb;cursor:pointer;display:flex;align-items:center;gap:5px;">📋 Esperando respuesta</button>
   </div>
-
-  <!-- Filtros respuesta propietario (#9) -->
-  <div style="margin-bottom:16px;">
-    <div style="font-size:0.72rem;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Filtrar por respuesta propietario</div>
-    <div id="filtrosBotonesResp" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;"></div>
-  </div>
-
-  <!-- Contadores dinámicos (#9) -->
-  <div id="estadoCounters" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;"></div>
 
   <!-- Buscador -->
   <div style="margin-bottom:16px;">
     <input type="text" id="filtroEstadoBuscar" placeholder="Buscar propiedad..." class="input-base" style="max-width:280px;" oninput="filtrarEstado()">
+  </div>
+
+  <!-- Contadores por estado tasación -->
+  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px;" id="estadoCounters">
+    <div class="stat-mini" style="border-left:4px solid #6B7280;">
+      <div class="stat-mini-label" style="color:#6B7280;font-weight:600;text-transform:uppercase;font-size:0.72rem;letter-spacing:0.5px;">⏳ Pendientes</div>
+      <div class="stat-mini-num" id="cntPendientes" style="color:#6B7280;">—</div>
+    </div>
+    <div class="stat-mini" style="border-left:4px solid #7C3AED;">
+      <div class="stat-mini-label" style="color:#7C3AED;font-weight:600;text-transform:uppercase;font-size:0.72rem;letter-spacing:0.5px;">📋 Esperando respuesta</div>
+      <div class="stat-mini-num" id="cntEsperando" style="color:#7C3AED;">—</div>
+    </div>
   </div>
 
   <!-- Tabla -->
@@ -198,35 +199,27 @@
         </div>
       </div>
 
-      <div class="modal-section-title">👤 Propietario</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
-        <div class="field">
-          <label class="field-label">Nombre propietario</label>
-          <input type="text" id="propNombre" class="input-base" placeholder="Juan García">
-        </div>
-        <div class="field">
-          <label class="field-label">Teléfono</label>
-          <input type="text" id="propTelefono" class="input-base" placeholder="+54 11 ...">
-        </div>
-        <div class="field">
-          <label class="field-label">Email</label>
-          <input type="email" id="propEmail" class="input-base">
-        </div>
-        <div class="field">
-          <label class="field-label">Referido por</label>
-          <input type="text" id="propReferido" class="input-base">
-        </div>
+      <div class="modal-section-title" style="display:flex;align-items:center;justify-content:space-between;">
+        <span>👤 Propietarios</span>
+        <button onclick="abrirAgregarPropietario()"
+          style="font-size:0.75rem;padding:4px 12px;border-radius:8px;border:none;background:var(--rx-blue);color:white;cursor:pointer;font-weight:600;">
+          + Agregar propietario
+        </button>
       </div>
+      <!-- Tabla de propietarios agregados -->
+      <div id="propietariosLista" style="margin-bottom:16px;min-height:40px;">
+        <div style="font-size:0.8rem;color:#aaa;text-align:center;padding:12px;">Sin propietarios agregados todavía</div>
+      </div>
+      <!-- Campos legacy ocultos para compatibilidad con guardarPropiedad -->
+      <input type="hidden" id="propNombre">
+      <input type="hidden" id="propTelefono">
+      <input type="hidden" id="propEmail">
+      <input type="hidden" id="propReferido">
+      <!-- JSON con lista completa de propietarios -->
+      <input type="hidden" id="propPropietariosJSON" value="[]">
 
       <div class="modal-section-title">📅 Seguimiento</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div class="field">
-          <label class="field-label">Estadio</label>
-          <select id="propEstadio" class="input-base">
-            <option value="pendiente" selected>⏳ Pendiente</option>
-            <option value="esperando_respuesta">📋 Esperando respuesta</option>
-          </select>
-        </div>
         <div class="field">
           <label class="field-label">Próximo contacto</label>
           <input type="date" id="propProximo" class="input-base">
@@ -244,10 +237,83 @@
           <textarea id="propObservaciones" class="input-base" rows="3" placeholder="Notas iniciales..." style="resize:vertical;"></textarea>
         </div>
       </div>
+
+      <!-- Documentación (#7) -->
+      <div class="modal-section-title" style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;">
+        <span>📁 Carga documentación</span>
+        <button onclick="agregarDocumento()"
+          style="font-size:0.75rem;padding:4px 12px;border-radius:8px;border:none;background:#6B7280;color:white;cursor:pointer;font-weight:600;">
+          + Agregar doc.
+        </button>
+      </div>
+      <div id="documentosLista" style="margin-bottom:8px;"></div>
+      <input type="hidden" id="propDocumentosJSON" value="[]">
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="cerrarModal('modalPropiedad')">Cancelar</button>
       <button class="btn-primary" onclick="guardarPropiedad()">Crear propiedad</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL AGREGAR PROPIETARIO (#6) ══ -->
+<div class="modal-bg" id="modalAgregarProp">
+  <div class="modal" style="max-width:500px;z-index:1100;">
+    <div class="modal-header">
+      <h3>Agregar propietario</h3>
+      <button class="modal-close" onclick="cerrarModal('modalAgregarProp')">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- Selector: base o nuevo -->
+      <div style="display:flex;gap:10px;margin-bottom:16px;">
+        <button id="btnDesdeBase" onclick="switchModoAgregarProp('base')"
+          style="flex:1;padding:10px;border-radius:10px;border:2px solid var(--rx-blue);background:var(--rx-blue);color:white;cursor:pointer;font-weight:600;font-size:0.85rem;">
+          🔍 Desde base de contactos
+        </button>
+        <button id="btnNuevoProp" onclick="switchModoAgregarProp('nuevo')"
+          style="flex:1;padding:10px;border-radius:10px;border:2px solid #e5e7eb;background:white;color:#374151;cursor:pointer;font-weight:600;font-size:0.85rem;">
+          ➕ Nuevo propietario
+        </button>
+      </div>
+
+      <!-- Modo: desde base -->
+      <div id="modoBaseContacto">
+        <div class="field">
+          <label class="field-label">Buscar en contactos</label>
+          <input type="text" id="buscarContactoProp" class="input-base" placeholder="Nombre, teléfono..."
+            oninput="buscarContactosParaProp(this.value)">
+        </div>
+        <div id="resultadosBusquedaProp" style="max-height:220px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;margin-top:6px;"></div>
+      </div>
+
+      <!-- Modo: nuevo -->
+      <div id="modoNuevoProp" style="display:none;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div class="field" style="grid-column:span 2">
+            <label class="field-label">Nombre *</label>
+            <input type="text" id="newPropNombre" class="input-base">
+          </div>
+          <div class="field">
+            <label class="field-label">Teléfono</label>
+            <input type="text" id="newPropTelefono" class="input-base">
+          </div>
+          <div class="field">
+            <label class="field-label">Email</label>
+            <input type="email" id="newPropEmail" class="input-base">
+          </div>
+          <div class="field" style="grid-column:span 2">
+            <label class="field-label">Referido por</label>
+            <input type="text" id="newPropReferido" class="input-base">
+          </div>
+        </div>
+        <div style="font-size:0.75rem;color:#888;margin-top:8px;padding:8px;background:#f8f9fa;border-radius:6px;">
+          💡 El propietario se guardará automáticamente en tu base de contactos
+        </div>
+        <div class="modal-footer" style="padding:12px 0 0;border:none;">
+          <button class="btn-secondary" onclick="cerrarModal('modalAgregarProp')">Cancelar</button>
+          <button class="btn-primary" onclick="confirmarNuevoPropietario()">Agregar propietario</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
