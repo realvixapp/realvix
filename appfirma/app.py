@@ -1,45 +1,27 @@
 """
-appfirma/app.py — Blueprint de Firma Electrónica
-Registra las rutas:
-  POST /api/documento          → crear doc + enviar emails de firma
-  GET  /api/documentos         → listar docs (pendientes / completados)
-  GET  /api/documento/<id>/estado  → estado de un doc
-  GET  /api/documento/<id>/certificado → descargar PDF certificado
-  GET  /firmar/<doc_id>/<token>     → página de firma
-  POST /api/firmar/<doc_id>/<token> → guardar firma + enviar certificado
-  GET  /api/documentos/historial   → documentos archivados
-  DELETE /api/documentos/historial/<carpeta> → borrar carpeta
-  DELETE /api/documento/<id>       → borrar documento
-
-VARIABLES DE ENTORNO REQUERIDAS:
-  SMTP_HOST     (ej: smtp.gmail.com)
-  SMTP_PORT     (ej: 587)
-  SMTP_USER     (tu email)
-  SMTP_PASSWORD (contraseña de app)
-  SMTP_FROM     (ej: "Realvix CRM <no-reply@tudominio.com>")
-  BASE_URL      (ej: https://tuapp.railway.app)
+appfirma/app.py — Blueprint de Firma Electrónica con Brevo
 """
 
 import os
 import json
 import uuid
-import smtplib
 import traceback
-from datetime import datetime, timedelta
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.mime.application import MIMEApplication
+import base64
+import urllib.request
+import urllib.error
+from datetime import datetime
 from functools import wraps
 
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from flask import (Blueprint, request, jsonify, render_template,
-                   abort, redirect, url_for, current_app)
+                   redirect, url_for, Response)
 
-bp = Blueprint('firma', __name__)
+# template_folder apunta a la carpeta templates/ de la RAÍZ del proyecto
+bp = Blueprint('firma', __name__, template_folder='../templates')
 
 # ══════════════════════════════════════════
-#  DB helpers (propios, no dependen de app.py)
+#  DB helpers
 # ══════════════════════════════════════════
 
 def _get_conn():
@@ -91,7 +73,6 @@ def _query(sql, params=None, one=False):
 
 
 def _ensure_table():
-    """Crea la tabla documents si no existe."""
     _exec("""
         CREATE TABLE IF NOT EXISTS documents (
             id TEXT PRIMARY KEY,
@@ -102,7 +83,7 @@ def _ensure_table():
 
 
 # ══════════════════════════════════════════
-#  AUTH helper (reutiliza sesión de app.py)
+#  AUTH helper
 # ══════════════════════════════════════════
 
 def _get_current_user():
@@ -128,60 +109,55 @@ def login_required(f):
 
 
 # ══════════════════════════════════════════
-#  EMAIL
+#  EMAIL — Brevo API
 # ══════════════════════════════════════════
 
-def _smtp_config():
-    return {
-        'host':     os.environ.get('SMTP_HOST', ''),
-        'port':     int(os.environ.get('SMTP_PORT', 587)),
-        'user':     os.environ.get('SMTP_USER', ''),
-        'password': os.environ.get('SMTP_PASSWORD', ''),
-        'from':     os.environ.get('SMTP_FROM', os.environ.get('SMTP_USER', '')),
-    }
-
-
 def _send_email(to_email, subject, html_body, attachments=None):
-    """
-    Envía un email HTML con adjuntos opcionales.
-    attachments: lista de dicts {'filename': str, 'data': bytes}
-    Retorna True si OK, False si error.
-    """
-    cfg = _smtp_config()
-    if not cfg['host'] or not cfg['user'] or not cfg['password']:
-        print("[FIRMA][EMAIL] ⚠️  SMTP no configurado. Verificá SMTP_HOST, SMTP_USER, SMTP_PASSWORD.")
+    api_key = os.environ.get('BREVO_API_KEY', '')
+    if not api_key:
+        print("[FIRMA][EMAIL] ⚠️  BREVO_API_KEY no configurada.")
         return False
 
+    from_email = os.environ.get('SMTP_FROM', 'no-reply@realvix.com')
+    from_name  = 'Realvix CRM'
+
+    payload = {
+        "sender":      {"name": from_name, "email": from_email},
+        "to":          [{"email": to_email}],
+        "subject":     subject,
+        "htmlContent": html_body,
+    }
+
+    if attachments:
+        payload["attachment"] = [
+            {
+                "name":    att["filename"],
+                "content": base64.b64encode(att["data"]).decode("utf-8"),
+            }
+            for att in attachments
+        ]
+
+    body = json.dumps(payload).encode("utf-8")
+    req  = urllib.request.Request(
+        "https://api.brevo.com/v3/smtp/email",
+        data=body,
+        headers={
+            "api-key":      api_key,
+            "Content-Type": "application/json",
+            "Accept":       "application/json",
+        },
+        method="POST",
+    )
+
     try:
-        msg = MIMEMultipart('mixed')
-        msg['From']    = cfg['from'] or cfg['user']
-        msg['To']      = to_email
-        msg['Subject'] = subject
-
-        # Parte HTML
-        alt = MIMEMultipart('alternative')
-        alt.attach(MIMEText(html_body, 'html', 'utf-8'))
-        msg.attach(alt)
-
-        # Adjuntos
-        for att in (attachments or []):
-            part = MIMEApplication(att['data'], Name=att['filename'])
-            part['Content-Disposition'] = f'attachment; filename="{att["filename"]}"'
-            msg.attach(part)
-
-        with smtplib.SMTP(cfg['host'], cfg['port'], timeout=15) as server:
-            server.ehlo()
-            server.starttls()
-            server.ehlo()
-            server.login(cfg['user'], cfg['password'])
-            server.sendmail(cfg['from'] or cfg['user'], to_email, msg.as_string())
-
-        print(f"[FIRMA][EMAIL] ✓ Enviado a {to_email}: {subject}")
-        return True
-
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            print(f"[FIRMA][EMAIL] ✓ Enviado a {to_email} (status {resp.status})")
+            return True
+    except urllib.error.HTTPError as e:
+        print(f"[FIRMA][EMAIL] ✗ HTTP {e.code} enviando a {to_email}: {e.read().decode()}")
+        return False
     except Exception as e:
         print(f"[FIRMA][EMAIL] ✗ Error enviando a {to_email}: {e}")
-        traceback.print_exc()
         return False
 
 
@@ -311,207 +287,127 @@ def _email_certificado(doc_title, destinatario_name, all_signers):
 
 
 # ══════════════════════════════════════════
-#  PDF CERTIFICADO (con PyMuPDF / fitz)
+#  PDF CERTIFICADO
 # ══════════════════════════════════════════
 
 def _generar_certificado(doc_data):
-    """
-    Incrusta las firmas en el PDF original y agrega una página de certificado.
-    Retorna bytes del PDF final, o None si hay error.
-    """
     try:
-        import fitz  # PyMuPDF
-
+        import fitz
         pdf_b64 = doc_data.get('pdf_base64', '')
         if not pdf_b64:
             return _generar_certificado_simple(doc_data)
 
-        import base64
         pdf_bytes = base64.b64decode(pdf_b64)
         pdf = fitz.open(stream=pdf_bytes, filetype='pdf')
 
-        # Incrustar cada firma en su zona
-        firmantes = doc_data.get('firmantes', [])
-        for f in firmantes:
+        for f in doc_data.get('firmantes', []):
             if not f.get('signed') or not f.get('signature') or not f.get('sign_zone'):
                 continue
-            zona = f['sign_zone']
+            zona     = f['sign_zone']
             page_num = int(zona.get('page', 1)) - 1
             if page_num < 0 or page_num >= len(pdf):
                 page_num = 0
-
-            page = pdf[page_num]
-            pw, ph = page.rect.width, page.rect.height
-            cw = zona.get('canvasW', pw) or pw
-            ch = zona.get('canvasH', ph) or ph
-
-            # Escalar coords del canvas al PDF
-            sx = pw / cw
-            sy = ph / ch
+            page    = pdf[page_num]
+            pw, ph  = page.rect.width, page.rect.height
+            cw      = zona.get('canvasW', pw) or pw
+            ch      = zona.get('canvasH', ph) or ph
+            sx, sy  = pw / cw, ph / ch
             x0 = zona.get('x', 0) * sx
             y0 = zona.get('y', 0) * sy
             x1 = x0 + zona.get('w', 100) * sx
             y1 = y0 + zona.get('h', 40) * sy
-
-            # Insertar imagen de firma
             sig_data = f['signature']
             if sig_data.startswith('data:'):
                 sig_data = sig_data.split(',', 1)[1]
-            import base64 as b64m
-            sig_bytes = b64m.b64decode(sig_data)
-            rect = fitz.Rect(x0, y0, x1, y1)
-            page.insert_image(rect, stream=sig_bytes, keep_proportion=True, overlay=True)
-
-            # Texto debajo de la firma
+            sig_bytes = base64.b64decode(sig_data)
+            page.insert_image(fitz.Rect(x0, y0, x1, y1), stream=sig_bytes, keep_proportion=True, overlay=True)
             signed_at = f.get('signed_at', '')
             label = f"{f.get('name') or f.get('email', '')} · {signed_at[:10] if signed_at else ''}"
-            page.insert_text(
-                fitz.Point(x0, y1 + 10),
-                label,
-                fontsize=7,
-                color=(0.3, 0.3, 0.3),
-            )
+            page.insert_text(fitz.Point(x0, y1 + 10), label, fontsize=7, color=(0.3, 0.3, 0.3))
 
-        # Agregar página de certificado
-        cert_page = pdf.new_page(width=595, height=842)  # A4
+        cert_page = pdf.new_page(width=595, height=842)
         _dibujar_pagina_certificado(cert_page, doc_data)
-
         result = pdf.tobytes(deflate=True)
         pdf.close()
         return result
 
     except Exception as e:
-        print(f"[FIRMA][CERT] Error generando certificado con PyMuPDF: {e}")
+        print(f"[FIRMA][CERT] Error con PyMuPDF: {e}")
         traceback.print_exc()
         return _generar_certificado_simple(doc_data)
 
 
 def _dibujar_pagina_certificado(page, doc_data):
-    """Dibuja la página de certificado en una página fitz."""
     try:
         import fitz
-        W, H = page.rect.width, page.rect.height
+        W, H      = page.rect.width, page.rect.height
         firmantes = doc_data.get('firmantes', [])
-
-        # Fondo
         page.draw_rect(fitz.Rect(0, 0, W, H), color=None, fill=(0.98, 0.97, 0.95))
-
-        # Borde decorativo
-        page.draw_rect(fitz.Rect(20, 20, W-20, H-20),
-                       color=(0.79, 0.66, 0.30), width=2)
-
-        # Título
-        page.insert_text(fitz.Point(W/2 - 120, 70),
-                         "CERTIFICADO DE FIRMA",
-                         fontsize=20, color=(0.06, 0.06, 0.06))
-
-        page.insert_text(fitz.Point(W/2 - 80, 98),
-                         "Firma Electrónica — Realvix CRM",
-                         fontsize=9, color=(0.5, 0.5, 0.5))
-
-        # Línea separadora
-        page.draw_line(fitz.Point(40, 110), fitz.Point(W-40, 110),
-                       color=(0.79, 0.66, 0.30), width=1)
-
-        # Info del documento
+        page.draw_rect(fitz.Rect(20, 20, W-20, H-20), color=(0.79, 0.66, 0.30), width=2)
+        page.insert_text(fitz.Point(W/2 - 120, 70), "CERTIFICADO DE FIRMA", fontsize=20, color=(0.06, 0.06, 0.06))
+        page.insert_text(fitz.Point(W/2 - 80, 98), "Firma Electronica — Realvix CRM", fontsize=9, color=(0.5, 0.5, 0.5))
+        page.draw_line(fitz.Point(40, 110), fitz.Point(W-40, 110), color=(0.79, 0.66, 0.30), width=1)
         y = 135
-        page.insert_text(fitz.Point(40, y), "Documento:", fontsize=9, color=(0.4, 0.4, 0.4))
-        page.insert_text(fitz.Point(130, y), doc_data.get('title', ''), fontsize=9, color=(0.1, 0.1, 0.1))
+        for label, value in [("Documento:", doc_data.get('title', '')),
+                              ("Organizador:", doc_data.get('organizer_name', '')),
+                              ("Fecha:", doc_data.get('created_at', '')[:10])]:
+            page.insert_text(fitz.Point(40, y), label, fontsize=9, color=(0.4, 0.4, 0.4))
+            page.insert_text(fitz.Point(130, y), value, fontsize=9, color=(0.1, 0.1, 0.1))
+            y += 18
+        y += 12
+        page.draw_line(fitz.Point(40, y), fitz.Point(W-40, y), color=(0.85, 0.82, 0.78), width=0.5)
         y += 18
-        page.insert_text(fitz.Point(40, y), "Organizador:", fontsize=9, color=(0.4, 0.4, 0.4))
-        page.insert_text(fitz.Point(130, y), doc_data.get('organizer_name', ''), fontsize=9, color=(0.1, 0.1, 0.1))
-        y += 18
-        page.insert_text(fitz.Point(40, y), "Fecha:", fontsize=9, color=(0.4, 0.4, 0.4))
-        page.insert_text(fitz.Point(130, y), doc_data.get('created_at', ''), fontsize=9, color=(0.1, 0.1, 0.1))
-
-        y += 30
-        page.draw_line(fitz.Point(40, y), fitz.Point(W-40, y),
-                       color=(0.85, 0.82, 0.78), width=0.5)
-        y += 18
-
         page.insert_text(fitz.Point(40, y), "FIRMANTES", fontsize=10, color=(0.06, 0.06, 0.06))
         y += 20
-
         for f in firmantes:
             if y > H - 80:
                 break
             signed = f.get('signed', False)
             color  = (0.04, 0.37, 0.27) if signed else (0.6, 0.3, 0.0)
-            status = "✔ Firmado" if signed else "⏳ Pendiente"
-            page.insert_text(fitz.Point(40, y),
-                             f"{f.get('name') or f.get('email', '')} <{f.get('email', '')}>",
-                             fontsize=9, color=(0.1, 0.1, 0.1))
-            page.insert_text(fitz.Point(W - 120, y), status, fontsize=9, color=color)
+            page.insert_text(fitz.Point(40, y), f"{f.get('name') or f.get('email', '')} <{f.get('email', '')}>", fontsize=9, color=(0.1, 0.1, 0.1))
+            page.insert_text(fitz.Point(W - 110, y), "Firmado" if signed else "Pendiente", fontsize=9, color=color)
             if signed and f.get('signed_at'):
                 y += 13
-                page.insert_text(fitz.Point(56, y),
-                                 f"Fecha de firma: {f['signed_at'][:19]}",
-                                 fontsize=7.5, color=(0.5, 0.5, 0.5))
+                page.insert_text(fitz.Point(56, y), f"Fecha: {f['signed_at'][:19]}", fontsize=7.5, color=(0.5, 0.5, 0.5))
             y += 22
-
-        # Pie
-        page.draw_line(fitz.Point(40, H-50), fitz.Point(W-40, H-50),
-                       color=(0.85, 0.82, 0.78), width=0.5)
-        page.insert_text(fitz.Point(40, H-35),
-                         "Este certificado es evidencia del proceso de firma electrónica registrado en Realvix CRM.",
-                         fontsize=7, color=(0.6, 0.6, 0.6))
+        page.draw_line(fitz.Point(40, H-50), fitz.Point(W-40, H-50), color=(0.85, 0.82, 0.78), width=0.5)
+        page.insert_text(fitz.Point(40, H-35), "Certificado generado por Realvix CRM.", fontsize=7, color=(0.6, 0.6, 0.6))
     except Exception as e:
-        print(f"[FIRMA][CERT] Error dibujando página: {e}")
+        print(f"[FIRMA][CERT] Error dibujando pagina: {e}")
 
 
 def _generar_certificado_simple(doc_data):
-    """Genera un PDF simple con ReportLab si no hay PyMuPDF o falla."""
     try:
         from reportlab.lib.pagesizes import A4
         from reportlab.pdfgen import canvas as rl_canvas
         import io
-
         buf = io.BytesIO()
         c   = rl_canvas.Canvas(buf, pagesize=A4)
         W, H = A4
-
         c.setFont("Helvetica-Bold", 20)
-        c.drawCentredString(W/2, H - 80, "CERTIFICADO DE FIRMA ELECTRÓNICA")
+        c.drawCentredString(W/2, H - 80, "CERTIFICADO DE FIRMA ELECTRONICA")
         c.setFont("Helvetica", 11)
         c.drawCentredString(W/2, H - 105, "Realvix CRM")
-
-        c.setFont("Helvetica-Bold", 11)
-        c.drawString(60, H - 145, "Documento:")
-        c.setFont("Helvetica", 11)
-        c.drawString(170, H - 145, doc_data.get('title', ''))
-
-        c.setFont("Helvetica-Bold", 11)
-        c.drawString(60, H - 165, "Organizador:")
-        c.setFont("Helvetica", 11)
-        c.drawString(170, H - 165, doc_data.get('organizer_name', ''))
-
-        c.setFont("Helvetica-Bold", 11)
-        c.drawString(60, H - 185, "Fecha:")
-        c.setFont("Helvetica", 11)
-        c.drawString(170, H - 185, doc_data.get('created_at', ''))
-
-        y = H - 230
-        c.setFont("Helvetica-Bold", 13)
-        c.drawString(60, y, "Firmantes:")
-        y -= 25
-
+        y = H - 145
+        for label, value in [("Documento:", doc_data.get('title', '')),
+                              ("Organizador:", doc_data.get('organizer_name', '')),
+                              ("Fecha:", doc_data.get('created_at', '')[:10])]:
+            c.setFont("Helvetica-Bold", 11); c.drawString(60, y, label)
+            c.setFont("Helvetica", 11);      c.drawString(170, y, value)
+            y -= 20
+        y -= 20
+        c.setFont("Helvetica-Bold", 13); c.drawString(60, y, "Firmantes:"); y -= 25
         for f in doc_data.get('firmantes', []):
-            c.setFont("Helvetica-Bold", 10)
-            c.drawString(60, y, f.get('name') or f.get('email', ''))
-            c.setFont("Helvetica", 10)
-            c.drawString(60, y - 14, f.get('email', ''))
-            status = "✔ Firmado" if f.get('signed') else "⏳ Pendiente"
-            c.drawString(60, y - 28, f"Estado: {status}")
+            c.setFont("Helvetica-Bold", 10); c.drawString(60, y, f.get('name') or f.get('email', ''))
+            c.setFont("Helvetica", 10);      c.drawString(60, y - 14, f.get('email', ''))
+            c.drawString(60, y - 28, f"Estado: {'Firmado' if f.get('signed') else 'Pendiente'}")
             if f.get('signed') and f.get('signed_at'):
-                c.drawString(60, y - 42, f"Fecha de firma: {f['signed_at'][:19]}")
-                y -= 20
+                c.drawString(60, y - 42, f"Fecha: {f['signed_at'][:19]}"); y -= 20
             y -= 60
-
         c.save()
         return buf.getvalue()
-
     except Exception as e:
-        print(f"[FIRMA][CERT] Error generando certificado simple: {e}")
+        print(f"[FIRMA][CERT] Error certificado simple: {e}")
         return None
 
 
@@ -519,37 +415,28 @@ def _generar_certificado_simple(doc_data):
 #  RUTAS
 # ══════════════════════════════════════════
 
-# ── Crear documento y enviar emails ──
 @bp.route('/api/documento', methods=['POST'])
 @login_required
 def crear_documento():
     _ensure_table()
     user = _get_current_user()
-
-    # Datos del form
-    title          = (request.form.get('title') or '').strip()
-    organizer_name = (request.form.get('organizer_name') or '').strip()
+    title           = (request.form.get('title') or '').strip()
+    organizer_name  = (request.form.get('organizer_name') or '').strip()
     organizer_email = (request.form.get('organizer_email') or user.get('email', '')).strip()
-
     try:
         firmantes = json.loads(request.form.get('firmantes', '[]'))
     except Exception:
-        return jsonify({'error': 'firmantes JSON inválido'}), 400
-
+        return jsonify({'error': 'firmantes JSON invalido'}), 400
     if not title:
-        return jsonify({'error': 'El título es requerido'}), 400
+        return jsonify({'error': 'El titulo es requerido'}), 400
     if not firmantes:
         return jsonify({'error': 'Debe haber al menos un firmante'}), 400
 
-    # PDF (opcional pero recomendado)
     pdf_base64 = None
-    pdf_file = request.files.get('pdf_file')
+    pdf_file   = request.files.get('pdf_file')
     if pdf_file:
-        import base64
-        pdf_bytes = pdf_file.read()
-        pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
+        pdf_base64 = base64.b64encode(pdf_file.read()).decode('utf-8')
 
-    # Generar tokens para cada firmante
     import secrets as sec
     doc_id = str(uuid.uuid4())
     now    = datetime.utcnow().isoformat()
@@ -559,9 +446,7 @@ def crear_documento():
         f['signed']    = False
         f['signed_at'] = None
         f['signature'] = None
-        # Construir URL de firma
-        base = _base_url()
-        f['sign_url'] = f"{base}/firmar/{doc_id}/{f['token']}"
+        f['sign_url']  = f"{_base_url()}/firmar/{doc_id}/{f['token']}"
 
     doc_data = {
         'title':           title,
@@ -574,239 +459,159 @@ def crear_documento():
         'status':          'pendiente',
     }
 
-    # Guardar en DB
-    ok = _exec(
-        "INSERT INTO documents (id, data, created_at) VALUES (%s, %s, %s)",
-        (doc_id, json.dumps(doc_data), now)
-    )
+    ok = _exec("INSERT INTO documents (id, data, created_at) VALUES (%s, %s, %s)",
+               (doc_id, json.dumps(doc_data), now))
     if not ok:
-        return jsonify({'error': 'Error al guardar el documento en la base de datos'}), 500
+        return jsonify({'error': 'Error al guardar el documento'}), 500
 
-    # Enviar emails a cada firmante
-    emails_ok  = []
-    emails_err = []
+    emails_ok, emails_err = [], []
     for f in firmantes:
-        subject  = f"✍️ Te pidieron que firmes: {title}"
-        html     = _email_invitacion(title, organizer_name, f.get('name', ''), f['sign_url'])
-        enviado  = _send_email(f['email'], subject, html)
-        if enviado:
+        subject = f"✍️ Te pidieron que firmes: {title}"
+        html    = _email_invitacion(title, organizer_name, f.get('name', ''), f['sign_url'])
+        if _send_email(f['email'], subject, html):
             emails_ok.append(f['email'])
         else:
             emails_err.append(f['email'])
 
-    # Respuesta
     resp = {
-        'ok':          True,
-        'doc_id':      doc_id,
-        'firmantes':   [{'email': f['email'], 'name': f.get('name', ''), 'sign_url': f['sign_url']} for f in firmantes],
-        'emails_ok':   emails_ok,
-        'emails_err':  emails_err,
+        'ok':         True,
+        'doc_id':     doc_id,
+        'firmantes':  [{'email': f['email'], 'name': f.get('name', ''), 'sign_url': f['sign_url']} for f in firmantes],
+        'emails_ok':  emails_ok,
+        'emails_err': emails_err,
     }
     if emails_err:
-        resp['warning'] = f"No se pudo enviar el email a: {', '.join(emails_err)}. Revisá la configuración SMTP."
-
+        resp['warning'] = f"No se pudo enviar email a: {', '.join(emails_err)}"
     return jsonify(resp), 201
 
 
-# ── Listar documentos del usuario ──
 @bp.route('/api/documentos', methods=['GET'])
 @login_required
 def listar_documentos():
     _ensure_table()
     user   = _get_current_user()
-    estado = request.args.get('estado', '')  # 'pendiente' | 'completado' | ''
-
-    rows = _query(
-        "SELECT id, data, created_at FROM documents ORDER BY created_at DESC"
-    )
-
+    estado = request.args.get('estado', '')
+    rows   = _query("SELECT id, data, created_at FROM documents ORDER BY created_at DESC")
     result = []
     for row in rows:
         d = row['data']
-        # Filtrar por user_id
         if d.get('user_id') and d['user_id'] != user['id'] and user.get('role') != 'admin':
             continue
-
         firmantes = d.get('firmantes', [])
         total     = len(firmantes)
         firmados  = sum(1 for f in firmantes if f.get('signed'))
-        all_done  = total > 0 and firmados == total
-        doc_est   = 'completado' if all_done else 'pendiente'
-
+        doc_est   = 'completado' if (total > 0 and firmados == total) else 'pendiente'
         if estado and doc_est != estado:
             continue
-
         result.append({
             'id':         row['id'],
             'title':      d.get('title', ''),
             'created_at': str(row['created_at']),
             'status':     doc_est,
-            'firmantes':  [
-                {
-                    'name':      f.get('name', ''),
-                    'email':     f.get('email', ''),
-                    'signed':    f.get('signed', False),
-                    'signed_at': f.get('signed_at'),
-                    'sign_url':  f.get('sign_url', ''),
-                }
-                for f in firmantes
-            ],
-            'total':   total,
+            'firmantes':  [{'name': f.get('name',''), 'email': f.get('email',''),
+                            'signed': f.get('signed', False), 'signed_at': f.get('signed_at'),
+                            'sign_url': f.get('sign_url','')} for f in firmantes],
+            'total':    total,
             'firmados': firmados,
         })
-
     return jsonify({'documentos': result})
 
 
-# ── Estado de un documento ──
 @bp.route('/api/documento/<doc_id>/estado', methods=['GET'])
 @login_required
 def estado_documento(doc_id):
     _ensure_table()
-    user = _get_current_user()
-    row  = _query("SELECT id, data, created_at FROM documents WHERE id=%s", (doc_id,), one=True)
+    row = _query("SELECT id, data, created_at FROM documents WHERE id=%s", (doc_id,), one=True)
     if not row:
         return jsonify({'error': 'Documento no encontrado'}), 404
-
     d         = row['data']
     firmantes = d.get('firmantes', [])
     total     = len(firmantes)
     firmados  = sum(1 for f in firmantes if f.get('signed'))
-
     return jsonify({
         'id':         doc_id,
         'title':      d.get('title', ''),
         'created_at': str(row['created_at']),
         'status':     'completado' if firmados == total else 'pendiente',
-        'firmantes':  [
-            {
-                'name':      f.get('name', ''),
-                'email':     f.get('email', ''),
-                'signed':    f.get('signed', False),
-                'signed_at': f.get('signed_at'),
-                'sign_url':  f.get('sign_url', ''),
-            }
-            for f in firmantes
-        ],
+        'firmantes':  [{'name': f.get('name',''), 'email': f.get('email',''),
+                        'signed': f.get('signed', False), 'signed_at': f.get('signed_at'),
+                        'sign_url': f.get('sign_url','')} for f in firmantes],
         'total':    total,
         'firmados': firmados,
     })
 
 
-# ── Página de firma (pública, solo con token) ──
 @bp.route('/firmar/<doc_id>/<token>', methods=['GET'])
 def pagina_firmar(doc_id, token):
     _ensure_table()
     row = _query("SELECT id, data FROM documents WHERE id=%s", (doc_id,), one=True)
     if not row:
         return "Documento no encontrado", 404
-
-    d         = row['data']
-    firmantes = d.get('firmantes', [])
-    firmante  = next((f for f in firmantes if f.get('token') == token), None)
+    d        = row['data']
+    firmante = next((f for f in d.get('firmantes', []) if f.get('token') == token), None)
     if not firmante:
-        return "Link de firma inválido", 404
-
-    # Renderizar template (usa firmar.html del proyecto)
-    return render_template(
-        'firmar.html',
-        doc_id=doc_id,
-        token=token,
-        doc=d,
-        firmante=firmante,
-    )
+        return "Link de firma invalido", 404
+    return render_template('firmar.html', doc_id=doc_id, token=token, doc=d, firmante=firmante)
 
 
-# ── Guardar firma (POST desde la página de firma) ──
 @bp.route('/api/firmar/<doc_id>/<token>', methods=['POST'])
 def guardar_firma(doc_id, token):
     _ensure_table()
     row = _query("SELECT id, data FROM documents WHERE id=%s", (doc_id,), one=True)
     if not row:
         return jsonify({'error': 'Documento no encontrado'}), 404
-
     d         = dict(row['data'])
     firmantes = list(d.get('firmantes', []))
     idx       = next((i for i, f in enumerate(firmantes) if f.get('token') == token), None)
     if idx is None:
-        return jsonify({'error': 'Token de firma inválido'}), 404
-
+        return jsonify({'error': 'Token de firma invalido'}), 404
     if firmantes[idx].get('signed'):
         return jsonify({'error': 'Ya firmaste este documento'}), 400
-
-    body = request.get_json(silent=True) or {}
+    body      = request.get_json(silent=True) or {}
     signature = body.get('signature', '')
     if not signature:
         return jsonify({'error': 'Falta la firma'}), 400
 
-    # Registrar firma
     firmantes[idx]['signed']    = True
     firmantes[idx]['signed_at'] = datetime.utcnow().isoformat()
     firmantes[idx]['signature'] = signature
     d['firmantes'] = firmantes
 
-    # ¿Todos firmaron?
     total    = len(firmantes)
     firmados = sum(1 for f in firmantes if f.get('signed'))
     all_done = firmados == total
-
     if all_done:
-        d['status'] = 'completado'
+        d['status']       = 'completado'
         d['completed_at'] = datetime.utcnow().isoformat()
 
-    # Actualizar en DB
-    ok = _exec(
-        "UPDATE documents SET data=%s WHERE id=%s",
-        (json.dumps(d), doc_id)
-    )
+    ok = _exec("UPDATE documents SET data=%s WHERE id=%s", (json.dumps(d), doc_id))
     if not ok:
         return jsonify({'error': 'Error al guardar la firma'}), 500
-
-    # Si todos firmaron → generar certificado y enviar por email
     if all_done:
         _enviar_certificado_final(doc_id, d)
-
-    return jsonify({
-        'ok':          True,
-        'all_signed':  all_done,
-        'signed_count': firmados,
-        'total':       total,
-    })
+    return jsonify({'ok': True, 'all_signed': all_done, 'signed_count': firmados, 'total': total})
 
 
 def _enviar_certificado_final(doc_id, doc_data):
-    """Genera el PDF certificado y lo envía a todos los firmantes + organizador."""
     try:
         pdf_bytes = _generar_certificado(doc_data)
         filename  = f"certificado_{doc_id[:8]}.pdf"
-
-        destinatarios = []
-        # Firmantes
-        for f in doc_data.get('firmantes', []):
-            if f.get('email'):
-                destinatarios.append({'email': f['email'], 'name': f.get('name', '')})
-        # Organizador (si tiene email y no es ya un firmante)
+        destinatarios = [{'email': f['email'], 'name': f.get('name', '')}
+                         for f in doc_data.get('firmantes', []) if f.get('email')]
         org_email = doc_data.get('organizer_email', '')
         if org_email and not any(d['email'] == org_email for d in destinatarios):
             destinatarios.append({'email': org_email, 'name': doc_data.get('organizer_name', '')})
-
-        title = doc_data.get('title', 'Documento')
+        title         = doc_data.get('title', 'Documento')
         firmantes_all = doc_data.get('firmantes', [])
-
         for dest in destinatarios:
-            subject = f"🎉 Certificado de firma: {title}"
-            html    = _email_certificado(title, dest['name'], firmantes_all)
-            attachments = []
-            if pdf_bytes:
-                attachments = [{'filename': filename, 'data': pdf_bytes}]
-            _send_email(dest['email'], subject, html, attachments)
-
+            html        = _email_certificado(title, dest['name'], firmantes_all)
+            attachments = [{'filename': filename, 'data': pdf_bytes}] if pdf_bytes else []
+            _send_email(dest['email'], f"Certificado de firma: {title}", html, attachments)
     except Exception as e:
         print(f"[FIRMA][CERT] Error enviando certificado: {e}")
         traceback.print_exc()
 
 
-# ── Descargar certificado PDF ──
 @bp.route('/api/documento/<doc_id>/certificado', methods=['GET'])
 @login_required
 def descargar_certificado(doc_id):
@@ -814,30 +619,19 @@ def descargar_certificado(doc_id):
     row = _query("SELECT id, data FROM documents WHERE id=%s", (doc_id,), one=True)
     if not row:
         return jsonify({'error': 'Documento no encontrado'}), 404
-
     pdf_bytes = _generar_certificado(row['data'])
     if not pdf_bytes:
         return jsonify({'error': 'No se pudo generar el certificado'}), 500
-
-    from flask import Response
-    return Response(
-        pdf_bytes,
-        mimetype='application/pdf',
-        headers={
-            'Content-Disposition': f'attachment; filename="certificado_{doc_id[:8]}.pdf"'
-        }
-    )
+    return Response(pdf_bytes, mimetype='application/pdf',
+                    headers={'Content-Disposition': f'attachment; filename="certificado_{doc_id[:8]}.pdf"'})
 
 
-# ── Historial de documentos ──
 @bp.route('/api/documentos/historial', methods=['GET'])
 @login_required
 def historial_documentos():
     _ensure_table()
-    user = _get_current_user()
-    rows = _query("SELECT id, data, created_at FROM documents ORDER BY created_at DESC")
-
-    # Agrupar completados por mes
+    user     = _get_current_user()
+    rows     = _query("SELECT id, data, created_at FROM documents ORDER BY created_at DESC")
     carpetas = {}
     for row in rows:
         d = row['data']
@@ -845,37 +639,24 @@ def historial_documentos():
             continue
         if d.get('status') != 'completado':
             continue
-        # Clave de carpeta = mes/año
         try:
             dt  = datetime.fromisoformat(str(row['created_at']).replace('Z', ''))
             key = dt.strftime('%B %Y')
         except:
             key = 'Sin fecha'
-
-        if key not in carpetas:
-            carpetas[key] = []
-        carpetas[key].append({
-            'id':    row['id'],
-            'title': d.get('title', ''),
-            'created_at': str(row['created_at']),
+        carpetas.setdefault(key, []).append({
+            'id': row['id'], 'title': d.get('title', ''), 'created_at': str(row['created_at'])
         })
-
-    result = [
-        {'nombre': nombre, 'cantidad': len(docs), 'docs': docs}
-        for nombre, docs in carpetas.items()
-    ]
+    result = [{'nombre': k, 'cantidad': len(v), 'docs': v} for k, v in carpetas.items()]
     return jsonify({'carpetas': result})
 
 
-# ── Eliminar carpeta de historial ──
 @bp.route('/api/documentos/historial/<carpeta>', methods=['DELETE'])
 @login_required
 def eliminar_carpeta_historial(carpeta):
-    """Elimina todos los documentos completados de un mes/carpeta."""
     _ensure_table()
     user = _get_current_user()
     rows = _query("SELECT id, data, created_at FROM documents")
-
     ids_a_eliminar = []
     for row in rows:
         d = row['data']
@@ -890,14 +671,11 @@ def eliminar_carpeta_historial(carpeta):
             key = 'Sin fecha'
         if key == carpeta:
             ids_a_eliminar.append(row['id'])
-
     for doc_id in ids_a_eliminar:
         _exec("DELETE FROM documents WHERE id=%s", (doc_id,))
-
     return jsonify({'ok': True, 'eliminados': len(ids_a_eliminar)})
 
 
-# ── Eliminar documento ──
 @bp.route('/api/documento/<doc_id>', methods=['DELETE'])
 @login_required
 def eliminar_documento(doc_id):
