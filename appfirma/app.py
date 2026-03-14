@@ -195,94 +195,165 @@ def _generar_pdf_firmado(doc):
         cert_doc  = fitz.open()
         cert_page = cert_doc.new_page(width=595, height=842)
         W, H      = 595, 842
-        BLUE  = (0.106, 0.247, 0.894)
-        WHITE = (1.0, 1.0, 1.0)
-        DARK  = (0.1,  0.1,  0.1)
-        GRAY  = (0.4,  0.4,  0.4)
-        LGRAY = (0.85, 0.85, 0.85)
-        GREEN = (0.22, 0.72, 0.42)
-        CREAM = (0.98, 0.98, 0.96)
+        BLUE      = (0.106, 0.247, 0.894)
+        BLUE_DARK = (0.08,  0.13,  0.30)
+        WHITE     = (1.0,   1.0,   1.0)
+        DARK      = (0.1,   0.1,   0.1)
+        GRAY      = (0.45,  0.45,  0.45)
+        LGRAY     = (0.82,  0.82,  0.82)
+        BLUE_LT   = (0.93,  0.95,  0.99)
 
-        def _txt(page, x, y, text, size=10, color=DARK, bold=False):
+        def _t(page, x, y, text, size=9, color=DARK, bold=False):
             safe = str(text).encode('latin-1', errors='replace').decode('latin-1')
             page.insert_text(fitz.Point(x, y), safe,
                              fontname='hebo' if bold else 'helv',
                              fontsize=size, color=color)
 
-        def _rect(page, x0, y0, x1, y1, fill):
+        def _r(page, x0, y0, x1, y1, fill, stroke=None, sw=0.5):
             s = page.new_shape()
             s.draw_rect(fitz.Rect(x0, y0, x1, y1))
-            s.finish(fill=fill, color=None, width=0)
+            s.finish(fill=fill, color=stroke, width=sw if stroke else 0)
             s.commit()
 
-        def _stroke(page, x0, y0, x1, y1, color=LGRAY, width=0.5):
-            s = page.new_shape()
-            s.draw_rect(fitz.Rect(x0, y0, x1, y1))
-            s.finish(fill=None, color=color, width=width)
-            s.commit()
-
-        def _line(page, x0, y0, x1, y1, color=LGRAY):
+        def _l(page, x0, y0, x1, y1, color=LGRAY, w=0.5):
             s = page.new_shape()
             s.draw_line(fitz.Point(x0, y0), fitz.Point(x1, y1))
-            s.finish(color=color, width=0.5)
+            s.finish(color=color, width=w)
             s.commit()
 
-        def _circle(page, cx, cy, r, fill):
-            s = page.new_shape()
-            s.draw_circle(fitz.Point(cx, cy), r)
-            s.finish(fill=fill, color=None, width=0)
-            s.commit()
+        # Fondo blanco
+        _r(cert_page, 0, 0, W, H, WHITE)
 
-        # Fondo crema + header azul
-        _rect(cert_page, 0, 0, W, H, CREAM)
-        _rect(cert_page, 0, 0, W, 70, BLUE)
-        _txt(cert_page, 40, 28, 'Certificado de Auditoria de Firma', size=16, color=WHITE, bold=True)
-        _txt(cert_page, 40, 52, 'Realvix Firma Electronica', size=9, color=WHITE)
+        # Logo Realvix - rombo azul + texto
+        sq = cert_page.new_shape()
+        cx, cy, rr = 50, 36, 8
+        sq.draw_quad(fitz.Quad(
+            fitz.Point(cx, cy-rr), fitz.Point(cx+rr, cy),
+            fitz.Point(cx, cy+rr), fitz.Point(cx-rr, cy)))
+        sq.finish(fill=BLUE, color=None, width=0)
+        sq.commit()
+        _t(cert_page, 63, 41, 'Realvix', size=13, color=DARK, bold=True)
+        _t(cert_page, 116, 41, 'CRM', size=7, color=GRAY)
 
-        # Info del documento
-        y = 98
-        _txt(cert_page, 40, y, 'Documento', size=11, bold=True);            y += 18
-        _txt(cert_page, 40, y, doc.get('title', ''), size=10);              y += 16
-        _txt(cert_page, 40, y, f"Organizado por: {doc.get('organizer_name','')}", size=10); y += 16
-        completed_at = doc.get('completed_at', '')[:16].replace('T', ' ')
-        _txt(cert_page, 40, y, f'Completado el: {completed_at}', size=10); y += 22
-        _line(cert_page, 40, y, W - 40, y);                                 y += 20
-        _txt(cert_page, 40, y, 'Registro de Firmas', size=11, bold=True);   y += 22
+        # Titulo centrado
+        _t(cert_page, 128, 98,  'Certificado de Auditoria', size=17, color=DARK, bold=True)
+        _t(cert_page, 145, 118, 'de Firma Electronica',     size=17, color=DARK, bold=True)
+        _l(cert_page, 60, 128, W-60, 128, color=BLUE, w=1.5)
+
+        # Ref + Emitido
+        doc_id_up = doc.get('id', '').upper()
+        emitido_raw = doc.get('completed_at', doc.get('created_at', ''))
+        try:
+            dt = datetime.fromisoformat(emitido_raw)
+            emitido_str = dt.strftime('%d/%m/%Y a las %H:%M:%S')
+        except Exception:
+            emitido_str = emitido_raw[:16].replace('T', ' ')
+
+        y = 148
+        _t(cert_page, 60, y, 'Ref:  ' + doc_id_up, size=9, bold=True); y += 16
+        _t(cert_page, 60, y, 'Emitido el: ' + emitido_str, size=9, color=GRAY); y += 24
+
+        # Tabla resumen
+        rh = 22
+        c1 = 160
+        for i, (lbl, val) in enumerate([
+            ('DOCUMENTO', doc.get('title','')),
+            ('ESTADO',    'Completado'),
+            ('FIRMANTES', str(len(firmantes))),
+        ]):
+            bg = BLUE_LT if i % 2 == 0 else WHITE
+            _r(cert_page, 60, y, W-60, y+rh, bg, stroke=LGRAY, sw=0.3)
+            _r(cert_page, 60, y, 60+c1, y+rh, bg, stroke=LGRAY, sw=0.3)
+            _t(cert_page, 66,    y+15, lbl, size=8, color=BLUE, bold=True)
+            _t(cert_page, 66+c1, y+15, val, size=9, color=DARK)
+            y += rh
+        y += 18
+
+        # Header registro de firmas
+        _r(cert_page, 60, y, W-60, y+22, BLUE_LT, stroke=LGRAY, sw=0.3)
+        _t(cert_page, 66, y+14, 'REGISTRO DE FIRMAS', size=8, color=BLUE, bold=True)
+        y += 22
 
         for f in firmantes:
-            if y + 72 > H - 40:
+            card_h = 92
+            if y + card_h > H - 80:
                 cert_doc.insert_page(-1, width=595, height=842)
                 cert_page = cert_doc[-1]
-                _rect(cert_page, 0, 0, W, H, CREAM)
+                _r(cert_page, 0, 0, W, H, WHITE)
                 y = 40
 
-            _rect(cert_page,   38, y,      W - 38, y + 64, CREAM)
-            _stroke(cert_page, 38, y,      W - 38, y + 64, LGRAY)
-            _circle(cert_page, 64, y + 32, 14, BLUE)
+            _r(cert_page, 60, y, W-60, y+card_h, WHITE, stroke=LGRAY, sw=0.5)
 
-            inicial = (f.get('name') or f.get('email') or '?')[0].upper()
-            _txt(cert_page, 58, y + 37, inicial, size=12, color=WHITE, bold=True)
+            nombre = f.get('name') or f.get('email', '')
+            email  = f.get('email', '')
+            sat_raw2 = f.get('signed_at', '')
+            try:
+                sd = datetime.fromisoformat(sat_raw2)
+                meses = ['enero','febrero','marzo','abril','mayo','junio',
+                         'julio','agosto','septiembre','octubre','noviembre','diciembre']
+                sat_str = 'el %d de %s de %d a las %s' % (
+                    sd.day, meses[sd.month-1], sd.year, sd.strftime('%H:%M:%S'))
+            except Exception:
+                sat_str = sat_raw2[:16].replace('T',' ')
 
-            _txt(cert_page, 90, y + 18, f.get('name') or f.get('email',''), size=10, bold=True)
-            _txt(cert_page, 90, y + 33, f.get('email',''),                  size=9,  color=GRAY)
-            sat = (f.get('signed_at','')[:16] or '').replace('T',' ')
-            _txt(cert_page, 90, y + 48, f'Firmado el: {sat}',              size=9,  color=GRAY)
+            ip_str = f.get('ip', '')
+            _t(cert_page, 70, y+18, nombre, size=10, bold=True)
+            _t(cert_page, 70, y+32, email,  size=9, color=GRAY)
+            _t(cert_page, 70, y+46, 'Firmado ' + sat_str, size=8, color=GRAY)
+            if ip_str:
+                _t(cert_page, 70, y+58, 'IP: ' + ip_str, size=7, color=GRAY)
 
-            _rect(cert_page,  W-122, y+23, W-46, y+43, GREEN)
-            _txt(cert_page,   W-115, y+36, 'FIRMADO', size=8, color=WHITE, bold=True)
+            # Miniatura de la firma dibujada
+            sig_d = f.get('signature', '')
+            if sig_d:
+                try:
+                    if ',' in sig_d:
+                        sig_d = sig_d.split(',',1)[1]
+                    cert_page.insert_image(
+                        fitz.Rect(W-200, y+8, W-68, y+72),
+                        stream=base64.b64decode(sig_d),
+                        keep_proportion=True)
+                except Exception as se:
+                    print('[PDF] miniatura: ' + str(se))
 
-            y += 76
+            # Badge FIRMADO
+            _r(cert_page, W-122, y+14, W-66, y+30, BLUE)
+            _t(cert_page, W-115, y+25, 'FIRMADO', size=7, color=WHITE, bold=True)
+            y += card_h + 8
 
-        _line(cert_page, 40, H - 38, W - 40, H - 38)
-        _txt(cert_page, 40, H - 24,
-             'Certificado generado por Realvix Firma. Las firmas son evidencia de consentimiento.',
-             size=7, color=GRAY)
+        y += 10
+
+        # Texto legal
+        legal_lines = [
+            'Por medio del presente instrumento digital, los firmantes declaran bajo juramento',
+            'ser autores del documento suscripto, reconociendo la plena validez juridica de la',
+            'firma electronica incorporada. Este certificado valida la firma del documento',
+            'especificado mediante los mecanismos de autenticacion y cifrado utilizados',
+            'conforme a la Ley N 25.506 y sus Decretos Reglamentarios de la Republica Argentina.',
+        ]
+        if y + len(legal_lines)*12 + 70 > H - 50:
+            cert_doc.insert_page(-1, width=595, height=842)
+            cert_page = cert_doc[-1]
+            _r(cert_page, 0, 0, W, H, WHITE)
+            y = 40
+        for ln in legal_lines:
+            _t(cert_page, 60, y, ln, size=8, color=GRAY); y += 12
+        y += 18
+
+        # Caja Repor rf Id
+        _r(cert_page, W-222, y, W-60, y+44, WHITE, stroke=LGRAY, sw=0.5)
+        _t(cert_page, W-216, y+15, 'Repor rf Id:', size=8, color=BLUE, bold=True)
+        _t(cert_page, W-216, y+29, '#:' + doc_id_up, size=7, color=DARK)
+
+        # Footer azul oscuro
+        _r(cert_page, 0, H-34, W, H, BLUE_DARK)
+        _t(cert_page, W//2-42, H-14, 'www.realvix.com.ar', size=9, color=WHITE)
 
         pdf_doc.insert_pdf(cert_doc)
         cert_doc.close()
         print('[PDF] Certificado OK')
     except Exception as e:
-        print(f'[PDF] Error certificado: {e}')
+        print('[PDF] Error certificado: ' + str(e))
 
     try:
         out = BytesIO()
@@ -427,6 +498,9 @@ def guardar_firma(doc_id, token):
         firmante['signed']    = True
         firmante['signed_at'] = datetime.now().isoformat()
         firmante['signature'] = sig_dataurl
+        # Capturar IP del firmante
+        ip = request.headers.get('X-Forwarded-For', request.remote_addr or '')
+        firmante['ip'] = ip
 
         all_signed   = all(f.get('signed') for f in doc.get('firmantes', []))
         signed_count = sum(1 for f in doc['firmantes'] if f.get('signed'))
