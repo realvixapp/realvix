@@ -53,6 +53,45 @@ function filtrarEstadioProps(est, btn) {
   renderEstadoProp();
 }
 
+let _propSeleccionados = new Set();
+
+function toggleSeleccionProp(pid) {
+  if (_propSeleccionados.has(pid)) _propSeleccionados.delete(pid);
+  else _propSeleccionados.add(pid);
+  _actualizarBarraProp();
+}
+
+function toggleSeleccionTodosProp(checked, pids) {
+  if (checked) pids.forEach(id => _propSeleccionados.add(id));
+  else _propSeleccionados.clear();
+  _actualizarBarraProp();
+  document.querySelectorAll('.prop-checkbox-row').forEach(cb => { cb.checked = checked; });
+}
+
+function _actualizarBarraProp() {
+  const barra = document.getElementById('barraSeleccionProp');
+  if (!barra) return;
+  if (_propSeleccionados.size > 0) {
+    barra.style.display = 'flex';
+    document.getElementById('selCountProp').textContent = `${_propSeleccionados.size} seleccionada(s)`;
+  } else {
+    barra.style.display = 'none';
+  }
+}
+
+async function eliminarSeleccionadosProp() {
+  if (_propSeleccionados.size === 0) return;
+  if (!confirmar(`¿Eliminar ${_propSeleccionados.size} propiedad(es)? No se puede deshacer.`)) return;
+  try {
+    for (const pid of _propSeleccionados) {
+      await apiDelete(`/api/propiedades/${pid}`);
+    }
+    _propSeleccionados.clear();
+    showToast('Propiedades eliminadas ✓', 'success');
+    await cargarActividadProp();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
 function renderEstadoProp() {
   const q   = (document.getElementById('filtroEstadoProp')?.value || '').toLowerCase();
   const est = PROPS.estadioFiltro;
@@ -64,7 +103,6 @@ function renderEstadoProp() {
   s('stReservadas', PROPS.propiedades.filter(p => (p.estado_tasacion||'').toLowerCase() === 'reservado').length);
   s('stCerradas',   PROPS.propiedades.filter(p => (p.estado_tasacion||'').toLowerCase() === 'cerrado').length);
 
-  // Filtrar captado/publicado/reservado/cerrado + filtro usuario
   let lista = PROPS.propiedades.filter(p => {
     const pEst = (p.estado_tasacion || p.estadio || '').toLowerCase();
     const enEstados = ['captado','publicado','reservado','cerrado'].includes(pEst);
@@ -75,14 +113,32 @@ function renderEstadoProp() {
 
   const container = document.getElementById('estadoPropsTable');
   if (!container) return;
-  if (lista.length === 0) {
-    container.innerHTML = `<div class="empty-state">No hay propiedades en estos estadios</div>`; return;
-  }
 
   const hoy = new Date().toISOString().split('T')[0];
-  container.innerHTML = `
+
+  const pids = lista.map(p => `'${p.id}'`).join(',');
+
+  let html = `
+    <div id="barraSeleccionProp" style="display:none;align-items:center;gap:10px;padding:8px 12px;background:#FEF9C3;border-radius:8px;margin-bottom:10px;border:1px solid #FDE047;">
+      <span id="selCountProp" style="font-size:0.85rem;font-weight:600;color:#92400E;"></span>
+      <button onclick="eliminarSeleccionadosProp()"
+        style="padding:5px 14px;border-radius:8px;border:none;background:#DC2626;color:white;cursor:pointer;font-size:0.82rem;font-weight:600;">🗑️ Eliminar seleccionadas</button>
+      <button onclick="_propSeleccionados.clear();_actualizarBarraProp();renderEstadoProp();"
+        style="padding:5px 12px;border-radius:8px;border:1px solid #e5e7eb;background:white;cursor:pointer;font-size:0.82rem;">✕ Cancelar</button>
+    </div>`;
+
+  if (lista.length === 0) {
+    html += `<div class="empty-state">No hay propiedades en estos estadios</div>`;
+    container.innerHTML = html;
+    return;
+  }
+
+  html += `
     <table class="table">
       <thead><tr>
+        <th style="width:32px;padding:8px 6px;">
+          <input type="checkbox" style="cursor:pointer;" onchange="toggleSeleccionTodosProp(this.checked,[${pids}])">
+        </th>
         <th>Dirección</th>
         <th>Estadio</th>
         <th>Propietario</th>
@@ -93,12 +149,15 @@ function renderEstadoProp() {
         ${lista.map(p => {
           const pEst = (p.estado_tasacion || p.estadio || '').toLowerCase();
           const estInfo = ESTADIO_MAP_P[pEst] || { label: p.estado_tasacion || '—', color:'#888', bg:'#f3f4f6' };
-          return `<tr>
+          const isSelected = _propSeleccionados.has(p.id);
+          return `<tr style="${isSelected ? 'background:#EFF6FF;' : ''}">
+            <td style="padding:8px 6px;">
+              <input type="checkbox" class="prop-checkbox-row" style="cursor:pointer;" ${isSelected?'checked':''} onchange="toggleSeleccionProp('${p.id}')">
+            </td>
             <td>
               <div style="font-weight:600;cursor:pointer;color:var(--rx-blue);"
                 data-pid="${p.id}" onclick="abrirEditarPropModal(this.dataset.pid)">${escHtml(p.direccion||'—')}</div>
               ${p.localidad ? `<div style="font-size:0.74rem;color:#888;">${escHtml(p.localidad)}</div>` : ''}
-              ${p.url ? `<a href="${escHtml(p.url)}" target="_blank" style="font-size:0.72rem;color:var(--rx-blue);">🔗 Ver ficha</a>` : ''}
             </td>
             <td>
               <select class="estadio-inline-select" data-pid="${p.id}"
@@ -114,7 +173,6 @@ function renderEstadoProp() {
               <div style="font-size:0.84rem;">${escHtml(p.nombre_propietario||'—')}</div>
               ${p.telefono ? `<div style="font-size:0.74rem;color:#888;">📞 ${escHtml(p.telefono)}</div>` : ''}
             </td>
-
             <td style="max-width:180px;">
               ${p.observaciones
                 ? `<div style="font-size:0.77rem;color:#666;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:170px;" title="${escHtml(p.observaciones)}">${escHtml(p.observaciones)}</div>`
@@ -122,17 +180,29 @@ function renderEstadoProp() {
             </td>
             <td style="text-align:right;white-space:nowrap;">
               ${p.telefono ? `<button class="btn-icon-sm" data-tel="${escHtml(p.telefono)}" data-nom="${escHtml(p.nombre_propietario||'')}" onclick="window.open(buildWhatsAppUrl(this.dataset.tel,'Hola '+this.dataset.nom),'_blank')">💬</button>` : ''}
-              <button class="btn-icon-sm" data-pid="${p.id}" onclick="verMasProp(this.dataset.pid)" title="Ver toda la información">👁️</button>
               <button class="btn-icon-sm" data-pid="${p.id}" onclick="abrirEditarPropModal(this.dataset.pid)" title="Editar">✏️</button>
+              <button class="btn-icon-sm danger" data-pid="${p.id}" onclick="eliminarPropiedadEstado(this.dataset.pid)" title="Eliminar">🗑️</button>
             </td>
           </tr>`;
         }).join('')}
       </tbody>
     </table>`;
+
+  container.innerHTML = html;
+  _actualizarBarraProp();
 }
 
 
-async function cambiarEstadioProp(pid, nuevoEstadio) {
+async function eliminarPropiedadEstado(pid) {
+  if (!confirmar('¿Eliminar esta propiedad? No se puede deshacer.')) return;
+  try {
+    await apiDelete(`/api/propiedades/${pid}`);
+    showToast('Propiedad eliminada');
+    await cargarActividadProp();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+
   const p = PROPS.propiedades.find(x => x.id === pid);
   if (!p) return;
   try {
@@ -145,7 +215,6 @@ async function cambiarEstadioProp(pid, nuevoEstadio) {
 }
 
 function abrirEditarPropModal(pid) {
-  // Store pid and open a simple edit modal
   PROPS.editandoId = pid;
   const p = PROPS.propiedades.find(x => x.id === pid);
   if (!p) return;
@@ -157,7 +226,6 @@ function abrirEditarPropModal(pid) {
   document.getElementById('editPropTelefono').value = p.telefono || '';
   document.getElementById('editPropUrl').value = p.url || '';
   document.getElementById('editPropObs').value = p.observaciones || '';
-  const est = (p.estado_tasacion || p.estadio || '').toLowerCase();
   const selE = document.getElementById('editPropEstadio');
   if (selE) {
     const val = p.estado_tasacion || p.estadio || 'captado';
@@ -167,6 +235,9 @@ function abrirEditarPropModal(pid) {
     }
     selE.value = val;
   }
+  // Mostrar botón Ver más en el modal
+  const btnVerMas = document.getElementById('btnVerMasEditProp');
+  if (btnVerMas) btnVerMas.dataset.pid = pid;
   abrirModal('modalEditarProp');
 }
 
@@ -445,12 +516,13 @@ async function abrirWADesdeActividad(consultaId) {
   }
 
   // Buscar propiedad para {propiedad} y {ficha_propiedad}
-  const propObj = PROPS.propiedades.find(p => p.direccion === c.propiedad_nombre);
+  const propObj = PROPS.propiedades.find(p => p.direccion && c.propiedad_nombre &&
+    p.direccion.trim().toLowerCase() === c.propiedad_nombre.trim().toLowerCase());
   const propPartes = [c.propiedad_nombre||''];
   if (propObj?.localidad) propPartes.push(propObj.localidad);
   if (propObj?.zona)      propPartes.push(propObj.zona);
   const propTexto    = propPartes.filter(Boolean).join(', ');
-  const fichaUrl     = propObj?.url || '';
+  const fichaUrl     = propObj?.url || propObj?.link_ficha || propObj?.ficha_portal || '';
   const propietario  = propObj?.nombre_propietario || '';
 
   const atributos = [
