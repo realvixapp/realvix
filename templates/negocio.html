@@ -8,6 +8,7 @@
 <!-- Tabs principales -->
 <div style="display:flex;gap:0;margin-bottom:24px;border-bottom:2px solid var(--border);">
   <button class="tab-btn active" id="tab-listing" onclick="switchTab('listing',this)">🏢 Listing</button>
+  <button class="tab-btn" id="tab-estado" onclick="switchTab('estado',this)">📊 Estado</button>
   <button class="tab-btn" id="tab-contactos" onclick="switchTab('contactos',this)">👥 Contactos</button>
 </div>
 
@@ -47,27 +48,43 @@
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
     <div>
       <div style="font-size:1rem;font-weight:700;">Estado de Propiedades</div>
-      <div style="font-size:0.78rem;color:var(--text-secondary);">Seguimiento post-captación — estadio, próximo contacto, observaciones</div>
+      <div style="font-size:0.78rem;color:var(--text-secondary);">Seguimiento de propiedades publicadas, reservadas y cerradas</div>
     </div>
-    <button class="btn-primary" onclick="abrirNuevaPropiedad()">+ Nueva propiedad</button>
   </div>
 
-  <!-- Filtro por estadio -->
-  <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;">
-    <button class="estadio-btn active" onclick="filtrarEstadioEstado('todos',this)">Todos</button>
-    <button class="estadio-btn" onclick="filtrarEstadioEstado('nuevo',this)">Nuevo</button>
-    <button class="estadio-btn" onclick="filtrarEstadioEstado('en_tasacion',this)">En tasación</button>
-    <button class="estadio-btn" onclick="filtrarEstadioEstado('captado',this)">Captado</button>
-    <button class="estadio-btn" onclick="filtrarEstadioEstado('publicado',this)">Publicado</button>
-    <button class="estadio-btn" onclick="filtrarEstadioEstado('reservado',this)">Reservado</button>
-    <button class="estadio-btn" onclick="filtrarEstadioEstado('cerrado',this)">Cerrado ✓</button>
+  <!-- Filtros por estado tasación -->
+  <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
+    <button class="estadio-btn active" onclick="filtrarEstadioEstado('todos',this)" style="border-radius:20px;padding:6px 16px;font-size:0.82rem;font-weight:600;background:var(--rx-blue);color:white;border:none;cursor:pointer;">Todos</button>
+    <button class="estadio-btn" onclick="filtrarEstadioEstado('nuevo',this)" style="border-radius:20px;padding:6px 14px;font-size:0.82rem;font-weight:600;background:white;border:1px solid #e5e7eb;cursor:pointer;display:flex;align-items:center;gap:5px;">🔵 Nuevo</button>
+    <button class="estadio-btn" onclick="filtrarEstadioEstado('en_tasacion',this)" style="border-radius:20px;padding:6px 14px;font-size:0.82rem;font-weight:600;background:white;border:1px solid #e5e7eb;cursor:pointer;display:flex;align-items:center;gap:5px;">🟣 En tasación</button>
+    <button class="estadio-btn" onclick="filtrarEstadioEstado('captado',this)" style="border-radius:20px;padding:6px 14px;font-size:0.82rem;font-weight:600;background:white;border:1px solid #e5e7eb;cursor:pointer;display:flex;align-items:center;gap:5px;">🔷 Captado</button>
+    <button class="estadio-btn" onclick="filtrarEstadioEstado('publicado',this)" style="border-radius:20px;padding:6px 14px;font-size:0.82rem;font-weight:600;background:white;border:1px solid #e5e7eb;cursor:pointer;display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;background:#059669;border-radius:50%;display:inline-block;"></span> Publicado</button>
+    <button class="estadio-btn" onclick="filtrarEstadioEstado('reservado',this)" style="border-radius:20px;padding:6px 14px;font-size:0.82rem;font-weight:600;background:white;border:1px solid #e5e7eb;cursor:pointer;display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;background:#DC2626;border-radius:50%;display:inline-block;"></span> Reservado</button>
+    <button class="estadio-btn" onclick="filtrarEstadioEstado('cerrado',this)" style="border-radius:20px;padding:6px 14px;font-size:0.82rem;font-weight:600;background:white;border:1px solid #e5e7eb;cursor:pointer;display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;background:#374151;border-radius:4px;display:inline-block;"></span> Cerrado</button>
   </div>
 
-  <div style="display:flex;gap:8px;margin-bottom:14px;">
+  <!-- Buscador -->
+  <div style="margin-bottom:16px;">
     <input type="text" id="filtroEstadoBuscar" placeholder="Buscar propiedad..." class="input-base" style="max-width:280px;" oninput="filtrarEstado()">
   </div>
 
-  <!-- Tabla: dirección, estadio, próximo contacto, último contacto, observaciones -->
+  <!-- Contadores por estado -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;" id="estadoCounters">
+    <div class="stat-mini" style="border-left:4px solid #059669;">
+      <div class="stat-mini-label" style="color:#059669;font-weight:600;text-transform:uppercase;font-size:0.72rem;letter-spacing:0.5px;">● Publicadas</div>
+      <div class="stat-mini-num" id="cntPublicadas" style="color:#059669;">—</div>
+    </div>
+    <div class="stat-mini" style="border-left:4px solid #DC2626;">
+      <div class="stat-mini-label" style="color:#DC2626;font-weight:600;text-transform:uppercase;font-size:0.72rem;letter-spacing:0.5px;">● Reservadas</div>
+      <div class="stat-mini-num" id="cntReservadas" style="color:#DC2626;">—</div>
+    </div>
+    <div class="stat-mini" style="border-left:4px solid #374151;">
+      <div class="stat-mini-label" style="color:#374151;font-weight:600;text-transform:uppercase;font-size:0.72rem;letter-spacing:0.5px;">■ Cerradas</div>
+      <div class="stat-mini-num" id="cntCerradas" style="color:#374151;">—</div>
+    </div>
+  </div>
+
+  <!-- Tabla -->
   <div id="estadoTable"><div class="loading-state">Cargando...</div></div>
 </div>
 
@@ -171,7 +188,7 @@
           <label class="field-label">Estado tasación</label>
           <select id="propEstado" class="input-base">
             <option value="">— Estado —</option>
-            <option value="nuevo">Nuevo</option>
+            <option value="nuevo" selected>Nuevo</option>
             <option value="en_tasacion">En tasación</option>
             <option value="captado">Captado</option>
             <option value="publicado">Publicado</option>
@@ -211,7 +228,7 @@
           <label class="field-label">Estadio</label>
           <select id="propEstadio" class="input-base">
             <option value="">— Estadio —</option>
-            <option value="nuevo">Nuevo</option>
+            <option value="nuevo" selected>Nuevo</option>
             <option value="en_tasacion">En tasación</option>
             <option value="captado">Captado</option>
             <option value="publicado">Publicado</option>
