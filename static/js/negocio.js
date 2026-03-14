@@ -72,7 +72,8 @@ function renderListing() {
   }
 
   const RESP_MAP = {
-    'esperando_respuesta':{ label: '⏳ Esperando respuesta', color:'#D97706', bg:'#FFFBEB' },
+    '':                   { label: '⏳ Esperando resp.',      color:'#D97706', bg:'#FFFBEB' },
+    'esperando_respuesta':{ label: '⏳ Esperando resp.',      color:'#D97706', bg:'#FFFBEB' },
     'aceptado':           { label: '✅ Aceptado',             color:'#059669', bg:'#ECFDF5' },
     'rechazado':          { label: '❌ Rechazado',            color:'#DC2626', bg:'#FEF2F2' },
     'decide_esperar':     { label: '🕐 Decide esperar',       color:'#7C3AED', bg:'#F5F3FF' },
@@ -93,8 +94,8 @@ function renderListing() {
       <tbody>
         ${lista.map(p => {
           const est   = ESTADIO_MAP[p.estado_tasacion] || { label: p.estado_tasacion || '—', color: '#888', bg: '#f3f4f6' };
-          const resp  = p.respuesta_listing || '';
-          const rInfo = RESP_MAP[resp] || RESP_MAP[''];
+          const resp  = p.respuesta_listing || 'esperando_respuesta';
+          const rInfo = RESP_MAP[resp] || RESP_MAP['esperando_respuesta'] || { label:'⏳', color:'#D97706', bg:'#FFFBEB' };
           return `<tr>
             <td>
               <div style="font-weight:600;">${escHtml(p.direccion || '—')}</div>
