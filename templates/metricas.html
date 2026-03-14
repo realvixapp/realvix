@@ -7,46 +7,516 @@
 
 {% block content %}
 <div class="page-title">Métricas del negocio</div>
-<div class="page-sub">Embudo, objetivos y planilla de resultados</div>
+<div class="page-sub">Sistema OSBA · Productividad · Rituales de crecimiento</div>
 
 <!-- Tabs -->
-<div style="display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border);">
-  <button class="tab-btn active" onclick="switchMetTab('embudo',this)">🔽 Embudo</button>
+<div style="display:flex;gap:0;margin-bottom:24px;border-bottom:2px solid var(--border);flex-wrap:wrap;">
+  <button class="tab-btn active" onclick="switchMetTab('dashboard',this)">📊 Dashboard</button>
+  <button class="tab-btn" onclick="switchMetTab('embudo',this)">🔽 Embudo</button>
   <button class="tab-btn" onclick="switchMetTab('objetivos',this)">🎯 Objetivos</button>
-  <button class="tab-btn" onclick="switchMetTab('planilla',this)">📋 Planilla</button>
+  <button class="tab-btn" onclick="switchMetTab('rituales',this)">📋 Rituales</button>
+  <button class="tab-btn" onclick="switchMetTab('planilla',this)">📈 Planilla semanal</button>
+  <button class="tab-btn" onclick="switchMetTab('prospeccion',this)">🔍 Prospección</button>
 </div>
 
-<!-- ── EMBUDO ── -->
-<div id="tabEmbudo">
-  <div class="embudo-grid" id="embudoGrid">
-    <!-- Generado por JS -->
+<!-- ═══════════════════════════════════════════════
+     DASHBOARD — Vista ejecutiva rápida
+════════════════════════════════════════════════ -->
+<div id="tabDashboard">
+  <!-- Header con fecha y saludo -->
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+    <div>
+      <div style="font-size:1rem;font-weight:700;" id="dashTitulo">Resumen ejecutivo</div>
+      <div style="font-size:0.78rem;color:#888;" id="dashFecha">—</div>
+    </div>
+    <button class="btn-secondary" style="font-size:0.78rem;" onclick="cargarDashboard()">🔄 Actualizar</button>
   </div>
-  <div class="card" style="margin-top:16px;">
-    <canvas id="embudoChart" height="80"></canvas>
-  </div>
-</div>
 
-<!-- ── OBJETIVOS ── -->
-<div id="tabObjetivos" style="display:none">
-  <div style="margin-bottom:16px;">
-    <div style="font-weight:600;font-size:0.9rem;color:#374151;">Metas por período</div>
-    <div style="font-size:0.78rem;color:#888;">Editá los objetivos de cada período individualmente</div>
-  </div>
-  <div id="objetivosGrid">
+  <!-- KPIs principales extraídos del CRM -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:20px;" id="dashKpis">
     <div class="loading-state">Cargando...</div>
   </div>
+
+  <!-- Semáforo del negocio basado en Pareto/Viti -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">
+
+    <!-- Cartera vs objetivo base -->
+    <div class="card" style="padding:18px;">
+      <div style="font-size:0.72rem;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">🏘️ Cartera activa vs objetivo</div>
+      <div style="display:flex;align-items:flex-end;gap:8px;margin-bottom:8px;">
+        <span id="dashCarteraNum" style="font-size:2rem;font-weight:800;color:var(--rx-blue);">—</span>
+        <span style="font-size:0.85rem;color:#aaa;margin-bottom:6px;">/ 20 propiedades objetivo</span>
+      </div>
+      <div style="height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden;margin-bottom:6px;">
+        <div id="dashCarteraBarra" style="height:100%;width:0%;background:var(--rx-blue);border-radius:4px;transition:width 0.6s;"></div>
+      </div>
+      <div id="dashCarteraMsg" style="font-size:0.75rem;color:#888;"></div>
+      <div style="font-size:0.68rem;color:#aaa;margin-top:6px;">📖 Viti: base mínima para negocio rentable = 20 propiedades con rotación competitiva</div>
+    </div>
+
+    <!-- Estacionalidad trimestral -->
+    <div class="card" style="padding:18px;">
+      <div style="font-size:0.72rem;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">📅 Estacionalidad — trimestre actual</div>
+      <div id="dashEstacionalidad" style="font-size:0.85rem;">Cargando...</div>
+      <div style="margin-top:10px;">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
+          <div style="text-align:center;padding:8px 4px;border-radius:8px;" id="trim1Card">
+            <div style="font-size:0.65rem;font-weight:700;color:#888;">Q1</div>
+            <div style="font-size:1rem;font-weight:800;color:#6B7280;">17%</div>
+            <div style="font-size:0.6rem;color:#aaa;">Ene-Mar</div>
+          </div>
+          <div style="text-align:center;padding:8px 4px;border-radius:8px;" id="trim2Card">
+            <div style="font-size:0.65rem;font-weight:700;color:#888;">Q2</div>
+            <div style="font-size:1rem;font-weight:800;color:#6B7280;">23%</div>
+            <div style="font-size:0.6rem;color:#aaa;">Abr-Jun</div>
+          </div>
+          <div style="text-align:center;padding:8px 4px;border-radius:8px;" id="trim3Card">
+            <div style="font-size:0.65rem;font-weight:700;color:#888;">Q3</div>
+            <div style="font-size:1rem;font-weight:800;color:#6B7280;">25%</div>
+            <div style="font-size:0.6rem;color:#aaa;">Jul-Sep</div>
+          </div>
+          <div style="text-align:center;padding:8px 4px;border-radius:8px;" id="trim4Card">
+            <div style="font-size:0.65rem;font-weight:700;color:#888;">Q4</div>
+            <div style="font-size:1rem;font-weight:800;color:#6B7280;">35%</div>
+            <div style="font-size:0.6rem;color:#aaa;">Oct-Dic</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Regla 80/20 aplicada al negocio -->
+  <div class="card" style="padding:18px;margin-bottom:20px;">
+    <div style="font-size:0.72rem;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;">📐 Regla de Pareto aplicada — ¿Estás en el 20%?</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;" id="dashPareto">
+      <div class="loading-state">Cargando...</div>
+    </div>
+    <div style="font-size:0.68rem;color:#aaa;margin-top:10px;padding:8px;background:#f8f9fa;border-radius:6px;">
+      📖 <strong>Pareto en inmobiliario:</strong> 80% de los resultados los genera el 20% de los agentes. El 4% (20% del 20%) define a los agentes de ALTO rendimiento.
+    </div>
+  </div>
+
+  <!-- Alertas y acciones pendientes -->
+  <div class="card" style="padding:18px;">
+    <div style="font-size:0.72rem;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;">⚡ Alertas y oportunidades del negocio</div>
+    <div id="dashAlertas" style="display:flex;flex-direction:column;gap:8px;">
+      <div class="loading-state">Analizando...</div>
+    </div>
+  </div>
 </div>
 
-<!-- ── PLANILLA ── -->
+<!-- ═══════════════════════════════════════════════
+     EMBUDO DE CONVERSIÓN
+════════════════════════════════════════════════ -->
+<div id="tabEmbudo" style="display:none">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+    <div>
+      <div style="font-size:1rem;font-weight:700;">Embudo de conversión</div>
+      <div style="font-size:0.78rem;color:#888;">Desde cartera hasta cierre — análisis de tasas de conversión</div>
+    </div>
+    <button class="btn-secondary" style="font-size:0.78rem;" onclick="cargarDatosEmbudo()">🔄 Actualizar</button>
+  </div>
+
+  <!-- Embudo visual -->
+  <div id="embudoGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-bottom:20px;"></div>
+
+  <!-- Gráfico de barras -->
+  <div class="card" style="padding:16px;margin-bottom:16px;">
+    <canvas id="embudoChart" height="70"></canvas>
+  </div>
+
+  <!-- Análisis de tasas -->
+  <div class="card" style="padding:18px;">
+    <div style="font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px;">📊 Análisis de tasas de conversión</div>
+    <div id="embudoAnalisis" style="display:flex;flex-direction:column;gap:8px;"></div>
+    <div style="font-size:0.68rem;color:#aaa;margin-top:12px;padding:8px;background:#f8f9fa;border-radius:6px;">
+      📖 <strong>Benchmark Viti:</strong> Tasa de aceptación pre-listing 30%–50%. Objetivo: 15 cara a cara/semana → 3 pre-listings → 1 captación.
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     OBJETIVOS POR PERÍODO — con cálculo de trimestres
+════════════════════════════════════════════════ -->
+<div id="tabObjetivos" style="display:none">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+    <div>
+      <div style="font-size:1rem;font-weight:700;">Objetivos y seguimiento</div>
+      <div style="font-size:0.78rem;color:#888;">Metas personales vs. resultados reales del CRM</div>
+    </div>
+    <button class="btn-primary" onclick="abrirEditarObjetivosAnual()">✏️ Editar objetivos anuales</button>
+  </div>
+
+  <!-- Objetivo anual de referencia Viti -->
+  <div style="background:linear-gradient(135deg,#EFF6FF,#DBEAFE);border:1px solid #BFDBFE;border-radius:12px;padding:16px;margin-bottom:20px;">
+    <div style="font-size:0.72rem;font-weight:700;color:#1E40AF;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">🏆 Objetivo de referencia — Negocio de ALTO rendimiento (Pablo Viti)</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;">
+      <div style="background:white;border-radius:8px;padding:12px;">
+        <div style="font-size:0.68rem;color:#888;font-weight:600;text-transform:uppercase;">Cartera mínima</div>
+        <div style="font-size:1.4rem;font-weight:800;color:#1E40AF;">20</div>
+        <div style="font-size:0.68rem;color:#aaa;">propiedades con rotación</div>
+      </div>
+      <div style="background:white;border-radius:8px;padding:12px;">
+        <div style="font-size:0.68rem;color:#888;font-weight:600;text-transform:uppercase;">Facturación anual</div>
+        <div style="font-size:1.4rem;font-weight:800;color:#059669;">U$D 200K</div>
+        <div style="font-size:0.68rem;color:#aaa;">alto rendimiento</div>
+      </div>
+      <div style="background:white;border-radius:8px;padding:12px;">
+        <div style="font-size:0.68rem;color:#888;font-weight:600;text-transform:uppercase;">Cara a cara/semana</div>
+        <div style="font-size:1.4rem;font-weight:800;color:#7C3AED;">15</div>
+        <div style="font-size:0.68rem;color:#aaa;">encuentros mínimos</div>
+      </div>
+      <div style="background:white;border-radius:8px;padding:12px;">
+        <div style="font-size:0.68rem;color:#888;font-weight:600;text-transform:uppercase;">Pre-listings/semana</div>
+        <div style="font-size:1.4rem;font-weight:800;color:#D97706;">3</div>
+        <div style="font-size:0.68rem;color:#aaa;">tasa aceptación 30–50%</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Objetivos por trimestre con cálculo automático -->
+  <div id="objetivosGrid"><div class="loading-state">Cargando...</div></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     RITUALES DIARIOS — Los 10 de Pablo Viti
+════════════════════════════════════════════════ -->
+<div id="tabRituales" style="display:none">
+  <div style="margin-bottom:16px;">
+    <div style="font-size:1rem;font-weight:700;">Los 10 Rituales de la Productividad</div>
+    <div style="font-size:0.78rem;color:#888;">Checkeo diario/semanal · Sistema OSBA · Pablo Viti — Tintorero</div>
+  </div>
+
+  <!-- Apertura de caja diaria -->
+  <div class="card" style="padding:18px;margin-bottom:16px;border-left:4px solid var(--rx-blue);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+      <div>
+        <div style="font-size:0.88rem;font-weight:700;">📅 Apertura de caja — ¿Qué hice hoy por mi negocio?</div>
+        <div style="font-size:0.72rem;color:#888;" id="ritualFecha">Ritual #2 y #9 · Pablo Viti</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-secondary" style="font-size:0.78rem;" onclick="cargarCajaHoy()">📂 Ver hoy</button>
+        <button class="btn-primary" style="font-size:0.78rem;" onclick="abrirCargaCaja()">+ Registrar día</button>
+      </div>
+    </div>
+    <div id="cajaDiariaResumen" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;"></div>
+  </div>
+
+  <!-- Los 10 rituales con checkboxes -->
+  <div class="card" style="padding:18px;margin-bottom:16px;">
+    <div style="font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:14px;text-transform:uppercase;letter-spacing:.5px;">✅ Check semanal de rituales</div>
+    <div id="ritualesLista" style="display:flex;flex-direction:column;gap:6px;"></div>
+    <div style="margin-top:14px;display:flex;align-items:center;gap:10px;">
+      <div style="flex:1;height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden;">
+        <div id="ritualProgresoBarra" style="height:100%;width:0%;background:var(--rx-blue);border-radius:4px;transition:width 0.4s;"></div>
+      </div>
+      <span id="ritualProgresoLabel" style="font-size:0.78rem;font-weight:600;color:var(--rx-blue);white-space:nowrap;">0 / 10</span>
+    </div>
+    <button class="btn-primary" style="margin-top:12px;font-size:0.78rem;" onclick="guardarRituales()">💾 Guardar semana</button>
+  </div>
+
+  <!-- Historial de caja diaria -->
+  <div class="card" style="padding:18px;">
+    <div style="font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px;">📊 Historial de actividad diaria</div>
+    <div id="cajaHistorial"><div class="empty-state" style="font-size:0.82rem;">Registrá tu primer día para ver el historial.</div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     PLANILLA SEMANAL — Sistema de prospección
+════════════════════════════════════════════════ -->
 <div id="tabPlanilla" style="display:none">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-    <div style="font-weight:600;font-size:0.9rem;">Carga semanal de resultados</div>
+    <div>
+      <div style="font-size:1rem;font-weight:700;">Planilla semanal de actividad</div>
+      <div style="font-size:0.78rem;color:#888;">Registro y seguimiento — Sistema de prospección Viti</div>
+    </div>
     <button class="btn-primary" onclick="agregarSemana()">+ Agregar semana</button>
   </div>
-  <div id="planillaTable">
-    <div class="loading-state">Cargando...</div>
+
+  <!-- Benchmark semanal Viti -->
+  <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:12px 16px;margin-bottom:16px;">
+    <div style="font-size:0.72rem;font-weight:700;color:#065F46;text-transform:uppercase;margin-bottom:8px;">📐 Benchmark semanal de referencia (Pablo Viti)</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;">
+      <div style="background:white;border-radius:7px;padding:8px 10px;text-align:center;">
+        <div style="font-size:1.2rem;font-weight:800;color:#059669;">15</div>
+        <div style="font-size:0.68rem;color:#666;">cara a cara</div>
+      </div>
+      <div style="background:white;border-radius:7px;padding:8px 10px;text-align:center;">
+        <div style="font-size:1.2rem;font-weight:800;color:#2563EB;">3</div>
+        <div style="font-size:0.68rem;color:#666;">pre-listings</div>
+      </div>
+      <div style="background:white;border-radius:7px;padding:8px 10px;text-align:center;">
+        <div style="font-size:1.2rem;font-weight:800;color:#7C3AED;">2</div>
+        <div style="font-size:0.68rem;color:#666;">contactos nuevos</div>
+      </div>
+      <div style="background:white;border-radius:7px;padding:8px 10px;text-align:center;">
+        <div style="font-size:1.2rem;font-weight:800;color:#D97706;">1+</div>
+        <div style="font-size:0.68rem;color:#666;">cara a cara/día</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Totales acumulados -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:16px;" id="planillaTotales"></div>
+
+  <!-- Tabla planilla -->
+  <div id="planillaTable"><div class="loading-state">Cargando...</div></div>
+
+  <!-- Gráfico de evolución -->
+  <div class="card" style="padding:16px;margin-top:16px;display:none;" id="planillaChartCard">
+    <div style="font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:10px;text-transform:uppercase;">📈 Evolución semanal</div>
+    <canvas id="planillaChart" height="80"></canvas>
   </div>
 </div>
+
+<!-- ═══════════════════════════════════════════════
+     PROSPECCIÓN — Sistema OSBA
+════════════════════════════════════════════════ -->
+<div id="tabProspeccion" style="display:none">
+  <div style="margin-bottom:16px;">
+    <div style="font-size:1rem;font-weight:700;">Sistema de Prospección — OSBA</div>
+    <div style="font-size:0.78rem;color:#888;">Organización · Sistematización · Base de relaciones · Actividad</div>
+  </div>
+
+  <!-- OSBA explicado -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:20px;">
+    <div class="card" style="padding:14px;border-left:4px solid #2563EB;">
+      <div style="font-weight:700;color:#2563EB;font-size:0.85rem;margin-bottom:4px;">O — Organización</div>
+      <div style="font-size:0.78rem;color:#666;">Sistema de trabajo claro. Bloques de agenda. Semana planificada desde el lunes anterior.</div>
+    </div>
+    <div class="card" style="padding:14px;border-left:4px solid #7C3AED;">
+      <div style="font-weight:700;color:#7C3AED;font-size:0.85rem;margin-bottom:4px;">S — Sistematización</div>
+      <div style="font-size:0.78rem;color:#666;">Procesos repetibles. Armado progresivo decreciente. Técnica "un día cada día".</div>
+    </div>
+    <div class="card" style="padding:14px;border-left:4px solid #059669;">
+      <div style="font-weight:700;color:#059669;font-size:0.85rem;margin-bottom:4px;">B — Base de relaciones</div>
+      <div style="font-size:0.78rem;color:#666;">Verdadero activo. Seguimiento recupera ~20% de oportunidades perdidas. 2 contactos nuevos/semana.</div>
+    </div>
+    <div class="card" style="padding:14px;border-left:4px solid #D97706;">
+      <div style="font-weight:700;color:#D97706;font-size:0.85rem;margin-bottom:4px;">A — Actividad</div>
+      <div style="font-size:0.78rem;color:#666;">15 cara a cara/semana. 3 pre-listings. Mínimo 1 cara a cara por día. Lo que no se mide, no mejora.</div>
+    </div>
+  </div>
+
+  <!-- Calculadora de números críticos -->
+  <div class="card" style="padding:18px;margin-bottom:16px;">
+    <div style="font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:14px;text-transform:uppercase;letter-spacing:.5px;">🔢 Calculadora de número crítico — Ritual #4</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px;">
+      <div>
+        <label class="field-label">Objetivo de facturación anual (USD)</label>
+        <input type="number" id="calcFacAnual" class="input-base" placeholder="Ej: 50000" oninput="calcularNumeroCritico()">
+      </div>
+      <div>
+        <label class="field-label">Comisión promedio por operación (USD)</label>
+        <input type="number" id="calcComision" class="input-base" placeholder="Ej: 5000" oninput="calcularNumeroCritico()">
+      </div>
+      <div>
+        <label class="field-label">Tasa cierre / visita (%)</label>
+        <input type="number" id="calcTasaCierre" class="input-base" placeholder="Ej: 20" value="20" oninput="calcularNumeroCritico()">
+      </div>
+      <div>
+        <label class="field-label">Tasa visita / consulta (%)</label>
+        <input type="number" id="calcTasaVisita" class="input-base" placeholder="Ej: 30" value="30" oninput="calcularNumeroCritico()">
+      </div>
+    </div>
+    <div id="calcResultado" style="display:none;background:linear-gradient(135deg,#EFF6FF,#DBEAFE);border-radius:10px;padding:14px;">
+      <div style="font-size:0.72rem;font-weight:700;color:#1E40AF;text-transform:uppercase;margin-bottom:10px;">Tu número crítico semanal:</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;" id="calcResultadoGrid"></div>
+    </div>
+  </div>
+
+  <!-- FODA del negocio -->
+  <div class="card" style="padding:18px;">
+    <div style="font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:14px;text-transform:uppercase;letter-spacing:.5px;">🔍 Mi FODA — Ritual #1 · Conocé tu negocio</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div>
+        <div style="font-size:0.78rem;font-weight:700;color:#059669;margin-bottom:6px;">💪 Fortalezas</div>
+        <textarea id="fodaF" class="input-base" rows="3" placeholder="Ej: zona conocida, buen network, experiencia..." style="resize:vertical;font-size:0.82rem;"></textarea>
+      </div>
+      <div>
+        <div style="font-size:0.78rem;font-weight:700;color:#DC2626;margin-bottom:6px;">⚠️ Debilidades</div>
+        <textarea id="fodaD" class="input-base" rows="3" placeholder="Ej: poca presencia digital, base pequeña..." style="resize:vertical;font-size:0.82rem;"></textarea>
+      </div>
+      <div>
+        <div style="font-size:0.78rem;font-weight:700;color:#2563EB;margin-bottom:6px;">🚀 Oportunidades</div>
+        <textarea id="fodaO" class="input-base" rows="3" placeholder="Ej: mercado en expansión, nueva zona..." style="resize:vertical;font-size:0.82rem;"></textarea>
+      </div>
+      <div>
+        <div style="font-size:0.78rem;font-weight:700;color:#D97706;margin-bottom:6px;">🌩️ Amenazas</div>
+        <textarea id="fodaA" class="input-base" rows="3" placeholder="Ej: competencia, subida de tasas..." style="resize:vertical;font-size:0.82rem;"></textarea>
+      </div>
+    </div>
+    <button class="btn-primary" style="margin-top:12px;font-size:0.78rem;" onclick="guardarFoda()">💾 Guardar FODA</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     MODAL: Editar objetivos anuales
+════════════════════════════════════════════════ -->
+<div class="modal-bg" id="modalObjetivosAnual">
+  <div class="modal" style="max-width:580px;">
+    <div class="modal-header">
+      <h3>🎯 Objetivos anuales — Mi negocio</h3>
+      <button class="modal-close" onclick="cerrarModal('modalObjetivosAnual')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:#FEF9C3;border:1px solid #FDE047;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:0.78rem;color:#92400E;">
+        💡 Los objetivos por trimestre se calculan automáticamente según la estacionalidad de Viti (Q1:17% · Q2:23% · Q3:25% · Q4:35%)
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="field" style="grid-column:span 2">
+          <label class="field-label">Facturación anual objetivo (USD) 🏆</label>
+          <input type="number" id="objAnualFac" class="input-base" placeholder="Ej: 50000">
+          <div style="font-size:0.68rem;color:#aaa;margin-top:3px;">Alto rendimiento: U$D 200.000</div>
+        </div>
+        <div class="field">
+          <label class="field-label">Cierres anuales objetivo</label>
+          <input type="number" id="objAnualCierres" class="input-base" placeholder="Ej: 12">
+        </div>
+        <div class="field">
+          <label class="field-label">Captaciones anuales objetivo</label>
+          <input type="number" id="objAnualCaptaciones" class="input-base" placeholder="Ej: 30">
+        </div>
+        <div class="field">
+          <label class="field-label">Consultas anuales objetivo</label>
+          <input type="number" id="objAnualConsultas" class="input-base" placeholder="Ej: 200">
+        </div>
+        <div class="field">
+          <label class="field-label">Visitas anuales objetivo</label>
+          <input type="number" id="objAnualVisitas" class="input-base" placeholder="Ej: 60">
+        </div>
+        <div class="field">
+          <label class="field-label">Cara a cara semanales objetivo</label>
+          <input type="number" id="objAnualCaraACara" class="input-base" placeholder="Mínimo: 15" value="15">
+        </div>
+        <div class="field">
+          <label class="field-label">Pre-listings semanales objetivo</label>
+          <input type="number" id="objAnualPreListing" class="input-base" placeholder="Mínimo: 3" value="3">
+        </div>
+        <div class="field">
+          <label class="field-label">Contactos nuevos/semana</label>
+          <input type="number" id="objAnualContactos" class="input-base" placeholder="Mínimo: 2" value="2">
+        </div>
+        <div class="field">
+          <label class="field-label">Cartera objetivo (propiedades)</label>
+          <input type="number" id="objAnualCartera" class="input-base" placeholder="Mínimo: 20" value="20">
+        </div>
+      </div>
+      <div style="margin-top:14px;padding:12px;background:#f8f9fa;border-radius:8px;" id="previewTrimestres"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="cerrarModal('modalObjetivosAnual')">Cancelar</button>
+      <button class="btn-primary" onclick="guardarObjetivosAnual()">Guardar objetivos</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Carga de caja diaria -->
+<div class="modal-bg" id="modalCajaDiaria">
+  <div class="modal" style="max-width:500px;">
+    <div class="modal-header">
+      <h3>📅 Registro del día — Apertura/Cierre de caja</h3>
+      <button class="modal-close" onclick="cerrarModal('modalCajaDiaria')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="field" style="grid-column:span 2">
+          <label class="field-label">Fecha</label>
+          <input type="date" id="cajaFecha" class="input-base">
+        </div>
+        <div class="field">
+          <label class="field-label">Contactos generados</label>
+          <input type="number" id="cajaContactos" class="input-base" value="0">
+        </div>
+        <div class="field">
+          <label class="field-label">Seguimientos realizados</label>
+          <input type="number" id="cajaSeguimientos" class="input-base" value="0">
+        </div>
+        <div class="field">
+          <label class="field-label">Reuniones / cara a cara</label>
+          <input type="number" id="cajaReuniones" class="input-base" value="0">
+        </div>
+        <div class="field">
+          <label class="field-label">Pre-listings realizados</label>
+          <input type="number" id="cajaPreListing" class="input-base" value="0">
+        </div>
+        <div class="field">
+          <label class="field-label">Oportunidades detectadas</label>
+          <input type="number" id="cajaOportunidades" class="input-base" value="0">
+        </div>
+        <div class="field">
+          <label class="field-label">Contactos nuevos a la base</label>
+          <input type="number" id="cajaNuevos" class="input-base" value="0">
+        </div>
+        <div class="field" style="grid-column:span 2">
+          <label class="field-label">Observaciones del día</label>
+          <textarea id="cajaObservaciones" class="input-base" rows="2" placeholder="¿Qué hice hoy por mi negocio?" style="resize:vertical;"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="cerrarModal('modalCajaDiaria')">Cancelar</button>
+      <button class="btn-primary" onclick="guardarCajaDiaria()">Guardar día</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Nueva semana -->
+<div class="modal-bg" id="modalSemana">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <h3>📈 Nueva semana de actividad</h3>
+      <button class="modal-close" onclick="cerrarModal('modalSemana')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="field" style="grid-column:span 2">
+          <label class="field-label">Período</label>
+          <input type="text" id="semPeriodo" class="input-base" placeholder="Ej: Semana del 14/03">
+        </div>
+        <div class="field">
+          <label class="field-label">Cara a cara 🎯 obj: 15</label>
+          <input type="number" id="semCaraACara" class="input-base" value="0">
+        </div>
+        <div class="field">
+          <label class="field-label">Pre-listings 🎯 obj: 3</label>
+          <input type="number" id="semPreListing" class="input-base" value="0">
+        </div>
+        <div class="field">
+          <label class="field-label">Contactos nuevos 🎯 obj: 2</label>
+          <input type="number" id="semContactosNuevos" class="input-base" value="0">
+        </div>
+        <div class="field">
+          <label class="field-label">Consultas entrantes</label>
+          <input type="number" id="semConsultas" class="input-base" value="0">
+        </div>
+        <div class="field">
+          <label class="field-label">Visitas realizadas</label>
+          <input type="number" id="semVisitas" class="input-base" value="0">
+        </div>
+        <div class="field">
+          <label class="field-label">Captaciones</label>
+          <input type="number" id="semCaptaciones" class="input-base" value="0">
+        </div>
+        <div class="field">
+          <label class="field-label">Cierres</label>
+          <input type="number" id="semCierres" class="input-base" value="0">
+        </div>
+        <div class="field" style="grid-column:span 2">
+          <label class="field-label">Comisión USD</label>
+          <input type="number" id="semComision" class="input-base" value="0">
+        </div>
+      </div>
+      <div id="semSemaforo" style="margin-top:12px;display:none;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="cerrarModal('modalSemana')">Cancelar</button>
+      <button class="btn-primary" onclick="guardarSemana()">Guardar semana</button>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
