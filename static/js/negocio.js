@@ -1494,6 +1494,7 @@ function cargarArchivosDocumentacion(files) {
 }
 
 
+function syncDocJSON() {
   const el = document.getElementById('propDocumentosJSON');
   if (el) el.value = JSON.stringify(_documentosList);
 }
