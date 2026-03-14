@@ -203,6 +203,7 @@ async function eliminarPropiedadEstado(pid) {
 }
 
 
+async function cambiarEstadioProp(pid, nuevoEstadio) {
   const p = PROPS.propiedades.find(x => x.id === pid);
   if (!p) return;
   try {
