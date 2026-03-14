@@ -6,14 +6,7 @@
 <div class="page-sub">Textos predeterminados para WhatsApp y comunicaciones</div>
 
 <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center;flex-wrap:wrap;">
-  <input type="text" id="filtroTextos" placeholder="Buscar texto..." class="input-base" style="max-width:260px;" oninput="filtrarTextos()">
-  <select id="filtroCategoria" class="input-base" style="max-width:220px;" onchange="filtrarTextos()">
-    <option value="">Todas las categorías</option>
-    <option value="bienvenida_lead">Bienvenida Lead</option>
-    <option value="seguimiento_lead">Seguimiento Lead</option>
-    <option value="visita_lead">Visita Lead</option>
-    <option value="seguimiento_propietario">Seguimiento Propietario</option>
-  </select>
+  <input type="text" id="filtroTextos" placeholder="Buscar por título..." class="input-base" style="max-width:320px;" oninput="filtrarTextos()">
   <button class="btn-primary" onclick="abrirNuevoTexto()">+ Nuevo texto</button>
 </div>
 
@@ -30,58 +23,47 @@
     </div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;">
       <input type="hidden" id="txtId">
+      <input type="hidden" id="txtTipo" value="whatsapp">
+      <input type="hidden" id="txtCategoria" value="general">
       <div class="field">
         <label class="field-label">Título</label>
-        <input type="text" id="txtTitulo" class="input-base">
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div class="field">
-          <label class="field-label">Tipo</label>
-          <select id="txtTipo" class="input-base">
-            <option value="whatsapp">WhatsApp</option>
-            <option value="email">Email</option>
-            <option value="otro">Otro</option>
-          </select>
-        </div>
-        <div class="field">
-          <label class="field-label">Categoría</label>
-          <select id="txtCategoria" class="input-base">
-            <option value="bienvenida_lead">Bienvenida Lead</option>
-            <option value="seguimiento_lead">Seguimiento Lead</option>
-            <option value="visita_lead">Visita Lead</option>
-            <option value="seguimiento_propietario">Seguimiento Propietario</option>
-          </select>
-        </div>
+        <input type="text" id="txtTitulo" class="input-base" placeholder="Nombre del texto...">
       </div>
       <!-- Contenido + panel atributos lado a lado -->
       <div style="display:flex;gap:10px;align-items:flex-start;">
         <div class="field" style="flex:1;">
           <label class="field-label">Contenido</label>
-          <textarea id="txtContenido" class="input-base" rows="7"
+          <textarea id="txtContenido" class="input-base" rows="8"
             style="resize:vertical;font-size:0.85rem;width:100%;"
             placeholder="Escribí el mensaje. Usá los atributos de la derecha para personalizar..."></textarea>
         </div>
         <!-- Panel atributos -->
         <div style="width:160px;flex-shrink:0;padding:10px;background:#f8f9fa;border-radius:8px;border:1px solid #e5e7eb;">
-          <div style="font-size:0.65rem;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Atributos</div>
-          <div style="font-size:0.68rem;color:#aaa;margin-bottom:8px;">Click para insertar en el mensaje</div>
+          <div style="font-size:0.65rem;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Atributos</div>
+          <div style="font-size:0.67rem;color:#aaa;margin-bottom:8px;">Click para insertar en el mensaje</div>
           <button onclick="insertarAtributoCont('{nombre}')"
-            style="display:block;width:100%;text-align:left;padding:6px 8px;border-radius:6px;border:1px solid #e5e7eb;background:white;cursor:pointer;margin-bottom:5px;font-size:0.75rem;"
+            style="display:block;width:100%;text-align:left;padding:6px 8px;border-radius:6px;border:1px solid #e5e7eb;background:white;cursor:pointer;margin-bottom:5px;font-size:0.74rem;"
             onmouseover="this.style.borderColor='#2563EB'" onmouseout="this.style.borderColor='#e5e7eb'">
             <div style="font-weight:600;color:#2563EB;">{nombre}</div>
-            <div style="color:#888;font-size:0.68rem;">Nombre del lead</div>
+            <div style="color:#888;font-size:0.67rem;">Nombre del lead</div>
           </button>
           <button onclick="insertarAtributoCont('{propiedad}')"
-            style="display:block;width:100%;text-align:left;padding:6px 8px;border-radius:6px;border:1px solid #e5e7eb;background:white;cursor:pointer;margin-bottom:5px;font-size:0.75rem;"
+            style="display:block;width:100%;text-align:left;padding:6px 8px;border-radius:6px;border:1px solid #e5e7eb;background:white;cursor:pointer;margin-bottom:5px;font-size:0.74rem;"
             onmouseover="this.style.borderColor='#2563EB'" onmouseout="this.style.borderColor='#e5e7eb'">
             <div style="font-weight:600;color:#2563EB;">{propiedad}</div>
-            <div style="color:#888;font-size:0.68rem;">Ficha propiedad</div>
+            <div style="color:#888;font-size:0.67rem;">Nombre + localidad + zona</div>
+          </button>
+          <button onclick="insertarAtributoCont('{ficha_propiedad}')"
+            style="display:block;width:100%;text-align:left;padding:6px 8px;border-radius:6px;border:1px solid #e5e7eb;background:white;cursor:pointer;margin-bottom:5px;font-size:0.74rem;"
+            onmouseover="this.style.borderColor='#2563EB'" onmouseout="this.style.borderColor='#e5e7eb'">
+            <div style="font-weight:600;color:#2563EB;">{ficha_propiedad}</div>
+            <div style="color:#888;font-size:0.67rem;">Link ficha propiedad</div>
           </button>
           <button onclick="insertarAtributoCont('{nombre_propietario}')"
-            style="display:block;width:100%;text-align:left;padding:6px 8px;border-radius:6px;border:1px solid #e5e7eb;background:white;cursor:pointer;font-size:0.75rem;"
+            style="display:block;width:100%;text-align:left;padding:6px 8px;border-radius:6px;border:1px solid #e5e7eb;background:white;cursor:pointer;font-size:0.74rem;"
             onmouseover="this.style.borderColor='#2563EB'" onmouseout="this.style.borderColor='#e5e7eb'">
             <div style="font-weight:600;color:#2563EB;">{nombre_propietario}</div>
-            <div style="color:#888;font-size:0.68rem;">Nombre propietario</div>
+            <div style="color:#888;font-size:0.67rem;">Nombre propietario</div>
           </button>
         </div>
       </div>
