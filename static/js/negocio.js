@@ -33,13 +33,16 @@ function switchTab(tab, btn) {
   NEG.tabActual = tab;
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
-  document.getElementById('tabListing').style.display   = tab === 'listing'   ? '' : 'none';
+  document.getElementById('tabListing').style.display    = tab === 'listing'   ? '' : 'none';
   const tabEst = document.getElementById('tabEstado');
   if (tabEst) tabEst.style.display = tab === 'estado' ? '' : 'none';
-  document.getElementById('tabContactos').style.display = tab === 'contactos' ? '' : 'none';
+  document.getElementById('tabContactos').style.display  = tab === 'contactos' ? '' : 'none';
   const tabAct = document.getElementById('tabActividad');
   if (tabAct) tabAct.style.display = 'none';
-  if (tab === 'estado') actualizarContadoresEstado();
+  const tabAcep = document.getElementById('tabAceptadas');
+  if (tabAcep) tabAcep.style.display = tab === 'aceptadas' ? '' : 'none';
+  if (tab === 'estado')    actualizarContadoresEstado();
+  if (tab === 'aceptadas') renderAceptadas();
 }
 
 // ══ PROPIEDADES (datos comunes) ══
@@ -50,8 +53,76 @@ async function cargarPropiedades() {
     renderListing();
     renderEstado();
     actualizarStatsListing();
+    // Actualizar badge tab Aceptadas
+    const nAcep = NEG.propiedades.filter(p => p.respuesta_listing === 'aceptado').length;
+    const tabAcepBtn = document.getElementById('tab-aceptadas');
+    if (tabAcepBtn) {
+      tabAcepBtn.innerHTML = `✅ Aceptadas${nAcep > 0 ? ` <span style="background:#059669;color:white;border-radius:10px;padding:1px 7px;font-size:0.72rem;margin-left:4px;">${nAcep}</span>` : ''}`;
+    }
   } catch (e) { showToast('Error al cargar propiedades', 'error'); }
 }
+
+function renderAceptadas() {
+  const lista = NEG.propiedades.filter(p => p.respuesta_listing === 'aceptado');
+  const container = document.getElementById('aceptadasTable');
+  if (!container) return;
+
+  if (lista.length === 0) {
+    container.innerHTML = `<div class="empty-state">No hay propiedades aceptadas todavía.<br><span style="font-size:0.8rem;color:#aaa;">Cuando un propietario acepte la tasación aparecerá aquí.</span></div>`;
+    return;
+  }
+
+  const RESP_MAP = {
+    'esperando_respuesta':{ label: '⏳ Esperando resp.', color:'#D97706', bg:'#FFFBEB' },
+    'aceptado':           { label: '✅ Aceptado',        color:'#059669', bg:'#ECFDF5' },
+    'rechazado':          { label: '❌ Rechazado',       color:'#DC2626', bg:'#FEF2F2' },
+    'decide_esperar':     { label: '🕐 Decide esperar',  color:'#7C3AED', bg:'#F5F3FF' },
+    'vendio_con_otro':    { label: '🔄 Vendió con otro', color:'#6B7280', bg:'#F3F4F6' },
+  };
+
+  container.innerHTML = `
+    <div style="background:linear-gradient(135deg,#ECFDF5,#D1FAE5);border-radius:10px;border:1px solid #6EE7B7;padding:10px 16px;margin-bottom:14px;display:flex;align-items:center;gap:10px;">
+      <span style="font-size:1.2rem;">✅</span>
+      <div>
+        <div style="font-weight:700;color:#065F46;font-size:0.9rem;">${lista.length} propiedad(es) aceptada(s)</div>
+        <div style="font-size:0.75rem;color:#6B7280;">Estas propiedades pasaron automáticamente a la sección Propiedades</div>
+      </div>
+    </div>
+    <table class="table">
+      <thead><tr>
+        <th>Dirección</th>
+        <th>Propietario</th>
+        <th>Teléfono</th>
+        <th>Tipología</th>
+        <th>Respuesta</th>
+        <th style="text-align:right">Acciones</th>
+      </tr></thead>
+      <tbody>
+        ${lista.map(p => {
+          const resp = p.respuesta_listing || 'aceptado';
+          const rInfo = RESP_MAP[resp] || RESP_MAP['aceptado'];
+          return `<tr style="background:#F0FDF4;">
+            <td>
+              <div style="font-weight:600;color:var(--rx-blue);cursor:pointer;text-decoration:underline dotted;"
+                data-pid="${p.id}" onclick="editarPropiedad(this.dataset.pid)">${escHtml(p.direccion || '—')}</div>
+              ${p.localidad ? `<div style="font-size:0.75rem;color:#888;">${escHtml(p.localidad)}${p.zona ? ' · ' + escHtml(p.zona) : ''}</div>` : ''}
+            </td>
+            <td>${escHtml(p.nombre_propietario || '—')}</td>
+            <td>${p.telefono ? `<a href="tel:${escHtml(p.telefono)}" style="color:var(--text-primary);text-decoration:none;">${escHtml(p.telefono)}</a>` : '—'}</td>
+            <td>${escHtml(p.tipologia || '—')}</td>
+            <td><span style="font-size:0.78rem;font-weight:600;color:${rInfo.color};background:${rInfo.bg};padding:3px 10px;border-radius:12px;">${rInfo.label}</span></td>
+            <td style="text-align:right;white-space:nowrap;">
+              ${p.telefono ? `<button class="btn-icon-sm" onclick="abrirWA('${escHtml(p.telefono)}','${escHtml(p.nombre_propietario||'')}')">💬</button>` : ''}
+              <button class="btn-icon-sm" onclick="editarPropiedad('${p.id}')">✏️</button>
+              <button class="btn-icon-sm danger" onclick="eliminarPropiedad('${p.id}')">🗑️</button>
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+
 
 // ══ LISTING ══
 // Columnas: Dirección · Propietario · Teléfono · Tipología · Estado tasación · Acciones
