@@ -394,7 +394,7 @@ function renderActividadProp() {
         <div style="flex:1;min-width:0;">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
             <span style="font-weight:700;font-size:0.95rem;color:var(--rx-blue);cursor:pointer;text-decoration:underline dotted;"
-              data-pid="${p.id}" onclick="abrirModalInfoPropActividad(this.dataset.pid)">${escHtml(p.direccion||'—')}</span>
+              data-pid="${p.id}" onclick="verMasProp(this.dataset.pid)">${escHtml(p.direccion||'—')}</span>
             <span style="font-size:0.7rem;padding:2px 9px;border-radius:12px;font-weight:700;background:${badgeBg};color:${badgeColor};">${badgeLabel}</span>
             ${p.tipologia ? `<span style="font-size:0.72rem;color:#888;background:#f3f4f6;padding:2px 7px;border-radius:8px;">${escHtml(p.tipologia)}</span>` : ''}
           </div>
@@ -579,10 +579,10 @@ async function abrirWADesdeActividad(consultaId) {
           <div style="font-size:0.68rem;color:#888;font-weight:600;text-transform:uppercase;margin-bottom:6px;">Atributos</div>
           <div style="font-size:0.68rem;color:#aaa;margin-bottom:10px;">Click para insertar</div>
           ${atributos.map(a=>`
-            <button onclick="insertarAtribWAPropAct('${a.key}')"
+            <button data-attr="${escHtml(a.key)}" onclick="insertarAtribWAPropAct(this.dataset.attr)"
               style="display:block;width:100%;text-align:left;padding:7px 9px;border-radius:7px;border:1px solid #e5e7eb;background:white;cursor:pointer;margin-bottom:6px;"
               onmouseover="this.style.borderColor='#2563EB'" onmouseout="this.style.borderColor='#e5e7eb'">
-              <div style="font-weight:700;color:#2563EB;font-size:0.78rem;">${a.key}</div>
+              <div style="font-weight:700;color:#2563EB;font-size:0.78rem;">${escHtml(a.key)}</div>
               <div style="color:#888;font-size:0.67rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(a.valor||'(vacío)')}</div>
             </button>`).join('')}
         </div>
@@ -655,8 +655,11 @@ function abrirModalInfoPropActividad(pid) {
 }
 
 function abrirFichaLeadDesdeProp(cid) {
+  // Abrir modal completo de edición del lead (mismo que el lápiz)
+  // Necesitamos pasar los datos al modal de leads - usamos evento para comunicar
   const c = PROPS.consultas.find(x => x.id === cid);
   if (!c) return;
+
   const ESTADIO_LABELS = {
     'nuevo':{ label:'Nuevo',color:'#6B7280',bg:'#F3F4F6' },
     'pendiente_visita':{ label:'Pendiente Visita',color:'#7C3AED',bg:'#F5F3FF' },
@@ -665,6 +668,7 @@ function abrirFichaLeadDesdeProp(cid) {
     'visito':{ label:'Visitó ✓',color:'#059669',bg:'#ECFDF5' },
   };
   const est = ESTADIO_LABELS[c.estado] || { label:c.estado, color:'#888', bg:'#f3f4f6' };
+
   let ov = document.getElementById('_leadFichaActOv');
   if (!ov) {
     ov = document.createElement('div');
@@ -672,34 +676,44 @@ function abrirFichaLeadDesdeProp(cid) {
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9100;display:flex;align-items:center;justify-content:center;padding:16px;';
     document.body.appendChild(ov);
   }
+
   ov.innerHTML = `
-    <div style="background:white;border-radius:14px;max-width:460px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,0.22);">
+    <div style="background:white;border-radius:14px;max-width:520px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,0.22);">
       <div style="padding:18px 20px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;">
         <div>
-          <div style="font-weight:700;font-size:1rem;">👤 ${escHtml(c.nombre||'Lead')}</div>
+          <div style="font-weight:700;font-size:1rem;">${escHtml(c.nombre||'Lead')}</div>
           <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap;">
             <span style="font-size:0.72rem;padding:2px 9px;border-radius:12px;font-weight:600;background:${est.bg};color:${est.color};">${est.label}</span>
-            ${c.propiedad_nombre ? `<span style="font-size:0.72px;padding:2px 9px;border-radius:12px;background:#EFF6FF;color:#2563EB;font-weight:600;">🏠 ${escHtml(c.propiedad_nombre)}</span>` : ''}
+            ${c.propiedad_nombre ? `<span style="font-size:0.72rem;padding:2px 9px;border-radius:12px;background:#EFF6FF;color:#2563EB;font-weight:600;">🏠 ${escHtml(c.propiedad_nombre)}</span>` : ''}
           </div>
         </div>
         <button onclick="document.getElementById('_leadFichaActOv').style.display='none'"
           style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#888;">✕</button>
       </div>
-      <div style="padding:16px 20px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div style="padding:16px 20px;display:grid;grid-template-columns:1fr 1fr;gap:10px;border-bottom:1px solid var(--border);">
         ${c.telefono    ? `<div><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Teléfono</div><div style="font-size:0.84rem;">📞 ${escHtml(c.telefono)}</div></div>` : ''}
+        ${c.email       ? `<div><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Email</div><div style="font-size:0.84rem;">✉️ ${escHtml(c.email)}</div></div>` : ''}
         ${c.operacion   ? `<div><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Operación</div><div style="font-size:0.84rem;">${escHtml(c.operacion)}</div></div>` : ''}
+        ${c.canal       ? `<div><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Canal</div><div style="font-size:0.84rem;">${escHtml(c.canal)}</div></div>` : ''}
         ${c.presupuesto ? `<div><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Presupuesto</div><div style="font-size:0.84rem;">💰 ${escHtml(c.presupuesto)}</div></div>` : ''}
-        ${c.zona_interes? `<div><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Zona</div><div style="font-size:0.84rem;">📍 ${escHtml(c.zona_interes)}</div></div>` : ''}
+        ${c.zona_interes? `<div><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Zona interés</div><div style="font-size:0.84rem;">📍 ${escHtml(c.zona_interes)}</div></div>` : ''}
         ${c.fecha_visita? `<div style="grid-column:span 2;"><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Fecha visita</div><div style="font-size:0.84rem;color:#7C3AED;font-weight:600;">📅 ${formatFecha(c.fecha_visita)}</div></div>` : ''}
-        ${c.notas||c.mensaje ? `<div style="grid-column:span 2;"><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:4px;">Notas / Observaciones</div><div style="font-size:0.82rem;background:#f8f9fa;padding:8px;border-radius:6px;border-left:3px solid #d1d5db;white-space:pre-line;">${escHtml(c.notas||c.mensaje)}</div></div>` : ''}
+        <div><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Ingresó</div><div style="font-size:0.84rem;">${formatFecha(c.created_at)}</div></div>
+        ${c.notas||c.mensaje ? `<div style="grid-column:span 2;"><div style="font-size:0.65rem;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:4px;">Notas</div><div style="font-size:0.82rem;background:#f8f9fa;padding:8px;border-radius:6px;border-left:3px solid #d1d5db;white-space:pre-line;">${escHtml(c.notas||c.mensaje)}</div></div>` : ''}
       </div>
-      <div style="padding:12px 20px;border-top:1px solid #e5e7eb;display:flex;gap:8px;justify-content:flex-end;">
-        ${c.telefono ? `<button onclick="document.getElementById('_leadFichaActOv').style.display='none';abrirWADesdeActividad('${c.id}')"
-          style="padding:7px 16px;border-radius:8px;border:none;background:#25D366;color:white;cursor:pointer;font-size:0.84rem;font-weight:600;display:flex;align-items:center;gap:6px;">
-          <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white' width='13' height='13'><path d='M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z'/><path d='M12 0C5.373 0 0 5.373 0 12c0 2.127.556 4.121 1.526 5.851L.057 23.868c-.11.415.271.802.687.702l6.225-1.634A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.027-1.384l-.36-.214-3.714.975.992-3.621-.235-.372A9.818 9.818 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z'/></svg>
+      <div style="padding:12px 20px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <div style="font-size:0.72rem;color:#888;font-weight:600;text-transform:uppercase;width:100%;margin-bottom:4px;">Acciones rápidas</div>
+        ${c.telefono ? `<button data-cid="${c.id}" onclick="document.getElementById('_leadFichaActOv').style.display='none';abrirWADesdeActividad(this.dataset.cid)"
+          style="display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:10px;border:none;background:#25D366;color:white;cursor:pointer;font-size:0.84rem;font-weight:600;">
+          <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white' width='14' height='14'><path d='M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z'/><path d='M12 0C5.373 0 0 5.373 0 12c0 2.127.556 4.121 1.526 5.851L.057 23.868c-.11.415.271.802.687.702l6.225-1.634A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.027-1.384l-.36-.214-3.714.975.992-3.621-.235-.372A9.818 9.818 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z'/></svg>
           WhatsApp</button>` : ''}
+        <div style="flex:1;"></div>
+        <select style="font-size:0.8rem;padding:6px 10px;border-radius:10px;border:1px solid #e5e7eb;cursor:pointer;background:white;"
+          data-cid="${c.id}" onchange="cambiarEstadioActProp(this.dataset.cid,this.value,this)">
+          ${Object.entries(ESTADIO_LABELS).map(([k,v])=>`<option value="${k}" ${c.estado===k?'selected':''}>${v.label}</option>`).join('')}
+        </select>
         <button onclick="document.getElementById('_leadFichaActOv').style.display='none'"
-          style="padding:7px 16px;border-radius:8px;border:none;background:var(--rx-blue);color:white;cursor:pointer;font-size:0.84rem;font-weight:600;">Cerrar</button>
+          style="padding:8px 16px;border-radius:8px;border:none;background:var(--rx-blue);color:white;cursor:pointer;font-size:0.84rem;font-weight:600;">Cerrar</button>
       </div>
     </div>`;
   ov.style.display = 'flex';
