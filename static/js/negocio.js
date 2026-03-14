@@ -202,165 +202,37 @@ function actualizarStatsListing() {
 }
 
 function actualizarContadoresEstado() {
-  // Ahora los contadores se generan dinámicamente en renderEstado
-  renderEstado();
+  const s = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  s('cntPendientes',  NEG.propiedades.filter(p => (p.estado_tasacion||'pendiente') === 'pendiente').length);
+  s('cntEsperando',   NEG.propiedades.filter(p => p.estado_tasacion === 'esperando_respuesta').length);
 }
 
-// ══ ESTADO DE PROPIEDADES — filtros dinámicos con TODOS los estados ══
+// ══ ESTADO DE PROPIEDADES ══
+// Columnas: Dirección · Estadio · Próximo contacto · Último contacto · Observaciones · Acciones
 let _estadioFiltro = 'todos';
-let _respFiltro    = 'todos';
-
-// Todos los estados de tasación posibles
-const TODOS_ESTADOS = [
-  { key:'pendiente',           label:'⏳ Pendiente',           color:'#6B7280', bg:'#F3F4F6' },
-  { key:'esperando_respuesta', label:'📋 Esperando resp.',     color:'#7C3AED', bg:'#F5F3FF' },
-  { key:'captado',             label:'🔷 Captado',             color:'#2563EB', bg:'#EFF6FF' },
-  { key:'publicado',           label:'🟢 Publicado',           color:'#D97706', bg:'#FFFBEB' },
-  { key:'reservado',           label:'🔴 Reservado',           color:'#DC2626', bg:'#FEF2F2' },
-  { key:'cerrado',             label:'✅ Cerrado',             color:'#059669', bg:'#ECFDF5' },
-];
-
-const TODOS_RESP = [
-  { key:'esperando_respuesta', label:'⏳ Esperando resp.',  color:'#D97706', bg:'#FFFBEB' },
-  { key:'aceptado',            label:'✅ Aceptado',         color:'#059669', bg:'#ECFDF5' },
-  { key:'rechazado',           label:'❌ Rechazado',        color:'#DC2626', bg:'#FEF2F2' },
-  { key:'decide_esperar',      label:'🕐 Decide esperar',   color:'#7C3AED', bg:'#F5F3FF' },
-  { key:'vendio_con_otro',     label:'🔄 Vendió con otro',  color:'#6B7280', bg:'#F3F4F6' },
-];
-
-function renderFiltrosBotonesEstado() {
-  const cont = document.getElementById('filtrosBotonesEstado');
-  if (!cont) return;
-  const props = NEG.propiedades;
-
-  // Botón Todos
-  let html = `<button onclick="filtrarEstadioEstado('todos',this)"
-    style="border-radius:20px;padding:5px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;border:none;
-    background:${_estadioFiltro==='todos'?'var(--rx-blue)':'#f3f4f6'};
-    color:${_estadioFiltro==='todos'?'white':'#374151'};">
-    Todos <span style="opacity:0.7;">(${props.length})</span></button>`;
-
-  // Un botón por estado que tenga al menos 1 propiedad
-  TODOS_ESTADOS.forEach(e => {
-    const cnt = props.filter(p => (p.estado_tasacion||'pendiente') === e.key).length;
-    if (cnt === 0) return;
-    const activo = _estadioFiltro === e.key;
-    html += `<button onclick="filtrarEstadioEstado('${e.key}',this)"
-      style="border-radius:20px;padding:5px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;
-      border:1px solid ${e.color}44;
-      background:${activo ? e.color : e.bg};
-      color:${activo ? 'white' : e.color};">
-      ${e.label} <span style="opacity:0.75;">(${cnt})</span></button>`;
-  });
-  cont.innerHTML = html;
-}
-
-function renderFiltrosBotonesResp() {
-  const cont = document.getElementById('filtrosBotonesResp');
-  if (!cont) return;
-  const props = NEG.propiedades;
-
-  let html = `<button onclick="filtrarRespEstado('todos',this)"
-    style="border-radius:20px;padding:5px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;border:none;
-    background:${_respFiltro==='todos'?'var(--rx-blue)':'#f3f4f6'};
-    color:${_respFiltro==='todos'?'white':'#374151'};">
-    Todos</button>`;
-
-  TODOS_RESP.forEach(r => {
-    const cnt = props.filter(p => (p.respuesta_listing||'esperando_respuesta') === r.key).length;
-    if (cnt === 0) return;
-    const activo = _respFiltro === r.key;
-    html += `<button onclick="filtrarRespEstado('${r.key}',this)"
-      style="border-radius:20px;padding:5px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;
-      border:1px solid ${r.color}44;
-      background:${activo ? r.color : r.bg};
-      color:${activo ? 'white' : r.color};">
-      ${r.label} <span style="opacity:0.75;">(${cnt})</span></button>`;
-  });
-  cont.innerHTML = html;
-}
-
-function renderContadoresEstado() {
-  const cont = document.getElementById('estadoCounters');
-  if (!cont) return;
-  const props = NEG.propiedades;
-  cont.innerHTML = TODOS_ESTADOS.map(e => {
-    const cnt = props.filter(p => (p.estado_tasacion||'pendiente') === e.key).length;
-    return `<div class="stat-mini" style="border-left:3px solid ${e.color};min-width:120px;">
-      <div class="stat-mini-label" style="color:${e.color};font-weight:600;font-size:0.7rem;text-transform:uppercase;">${e.label}</div>
-      <div class="stat-mini-num" style="color:${e.color};">${cnt}</div>
-    </div>`;
-  }).join('');
-}
-
-// Cambio #11 — Embudo de listing
-function renderEmbudoListing() {
-  const cont = document.getElementById('embudoListing');
-  if (!cont) return;
-  const props = NEG.propiedades;
-  const total      = props.length;
-  const captadas   = props.filter(p => ['captado','publicado','reservado','cerrado'].includes(p.estado_tasacion||'')).length;
-  const publicadas = props.filter(p => ['publicado','reservado','cerrado'].includes(p.estado_tasacion||'')).length;
-  const reservadas = props.filter(p => ['reservado','cerrado'].includes(p.estado_tasacion||'')).length;
-  const cerradas   = props.filter(p => (p.estado_tasacion||'') === 'cerrado').length;
-
-  const pasos = [
-    { label:'Total cartera', num:total,      color:'#6B7280', icon:'🏘️' },
-    { label:'Captadas',      num:captadas,   color:'#2563EB', icon:'🔷' },
-    { label:'Publicadas',    num:publicadas, color:'#D97706', icon:'🟢' },
-    { label:'Reservadas',    num:reservadas, color:'#DC2626', icon:'🔴' },
-    { label:'Cerradas',      num:cerradas,   color:'#059669', icon:'✅' },
-  ];
-  cont.innerHTML = `
-    <div style="background:var(--cream,#f8f9ff);border-radius:10px;border:1px solid var(--border);padding:14px 16px;margin-bottom:4px;">
-      <div style="font-size:0.72rem;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Embudo de Listing</div>
-      <div style="display:flex;gap:0;align-items:stretch;">
-        ${pasos.map((p,i) => `
-          <div style="flex:1;text-align:center;padding:8px 6px;${i<pasos.length-1?'border-right:1px solid var(--border);':''}">
-            <div style="font-size:1.1rem;margin-bottom:2px;">${p.icon}</div>
-            <div style="font-size:1.4rem;font-weight:700;color:${p.color};">${p.num}</div>
-            <div style="font-size:0.68rem;color:#888;margin-top:1px;">${p.label}</div>
-            ${i>0 && pasos[i-1].num>0 ? `<div style="font-size:0.65rem;color:${p.color};font-weight:600;margin-top:2px;">${Math.round(p.num/pasos[i-1].num*100)}%</div>` : ''}
-          </div>`).join('<div style="display:flex;align-items:center;color:#d1d5db;font-size:1rem;">›</div>')}
-      </div>
-    </div>`;
-}
 
 function filtrarEstadioEstado(est, btn) {
   _estadioFiltro = est;
-  renderFiltrosBotonesEstado();
-  renderEstado();
-}
-
-function filtrarRespEstado(resp, btn) {
-  _respFiltro = resp;
-  renderFiltrosBotonesResp();
+  document.querySelectorAll('#tabEstado .estadio-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
   renderEstado();
 }
 
 function filtrarEstado() { renderEstado(); }
 
 function renderEstado() {
-  renderFiltrosBotonesEstado();
-  renderFiltrosBotonesResp();
-  renderContadoresEstado();
-  renderEmbudoListing();
-
   const q = (document.getElementById('filtroEstadoBuscar')?.value || '').toLowerCase();
   const lista = NEG.propiedades.filter(p => {
-    const est  = p.estado_tasacion || 'pendiente';
-    const resp = p.respuesta_listing || 'esperando_respuesta';
-    const matchEst  = _estadioFiltro === 'todos' || est === _estadioFiltro;
-    const matchResp = _respFiltro   === 'todos' || resp === _respFiltro;
-    const matchQ    = !q || (p.direccion||'').toLowerCase().includes(q) ||
-                           (p.nombre_propietario||'').toLowerCase().includes(q);
-    return matchEst && matchResp && matchQ;
+    const matchEst = _estadioFiltro === 'todos' || p.estado_tasacion === _estadioFiltro || p.estadio === _estadioFiltro;
+    const matchQ   = !q || (p.direccion||'').toLowerCase().includes(q) ||
+                          (p.nombre_propietario||'').toLowerCase().includes(q);
+    return matchEst && matchQ;
   });
 
   const container = document.getElementById('estadoTable');
   if (!container) return;
   if (lista.length === 0) {
-    container.innerHTML = `<div class="empty-state">No hay propiedades con este filtro</div>`; return;
+    container.innerHTML = `<div class="empty-state">No hay propiedades en este estadio</div>`; return;
   }
 
   const hoy = new Date().toISOString().split('T')[0];
@@ -369,8 +241,7 @@ function renderEstado() {
     <table class="table">
       <thead><tr>
         <th>Dirección</th>
-        <th>Estado tasación</th>
-        <th>Respuesta propietario</th>
+        <th>Estadio</th>
         <th>Próximo contacto</th>
         <th>Último contacto</th>
         <th>Observaciones</th>
@@ -378,30 +249,21 @@ function renderEstado() {
       </tr></thead>
       <tbody>
         ${lista.map(p => {
-          const estadoKey = p.estado_tasacion || 'pendiente';
-          const respKey   = p.respuesta_listing || 'esperando_respuesta';
-          const estInfo   = TODOS_ESTADOS.find(e => e.key === estadoKey) || { label: estadoKey, color:'#888', bg:'#f3f4f6' };
-          const respInfo  = TODOS_RESP.find(r => r.key === respKey)     || { label: respKey,   color:'#888', bg:'#f3f4f6' };
-          const proximo   = p.proximo_contacto || '';
-          const vencido   = proximo && proximo < hoy;
-          const hoyFlag   = proximo === hoy;
+          const estadio = p.estado_tasacion || p.estadio || '';
+          const est = ESTADIO_MAP[estadio] || { label: estadio || '—', color: '#888', bg: '#f3f4f6' };
+          const proximo = p.proximo_contacto || '';
+          const vencido = proximo && proximo < hoy;
+          const hoyFlag  = proximo === hoy;
           return `<tr>
             <td>
               <div style="font-weight:600;">${escHtml(p.direccion || '—')}</div>
               ${p.nombre_propietario ? `<div style="font-size:0.75rem;color:#888;">${escHtml(p.nombre_propietario)}</div>` : ''}
             </td>
             <td>
-              <select class="estadio-inline-select" data-pid="${p.id}"
-                onchange="cambiarEstadioDesdeTabla(this.dataset.pid, this.value)"
-                style="font-size:0.75rem;padding:3px 8px;border-radius:12px;border:1px solid ${estInfo.color}44;background:${estInfo.bg};color:${estInfo.color};font-weight:600;cursor:pointer;outline:none;">
-                ${TODOS_ESTADOS.map(e => `<option value="${e.key}" ${estadoKey===e.key?'selected':''}>${e.label}</option>`).join('')}
-              </select>
-            </td>
-            <td>
-              <select class="estadio-inline-select" data-pid="${p.id}"
-                onchange="cambiarRespDesdeTabla(this.dataset.pid, this.value)"
-                style="font-size:0.75rem;padding:3px 8px;border-radius:12px;border:1px solid ${respInfo.color}44;background:${respInfo.bg};color:${respInfo.color};font-weight:600;cursor:pointer;outline:none;">
-                ${TODOS_RESP.map(r => `<option value="${r.key}" ${respKey===r.key?'selected':''}>${r.label}</option>`).join('')}
+              <select class="estadio-inline-select" onchange="cambiarEstadio('${p.id}', this.value)"
+                style="font-size:0.78rem;padding:3px 8px;border-radius:20px;border:1px solid ${est.color}44;background:${est.bg};color:${est.color};font-weight:600;cursor:pointer;outline:none;">
+                <option value="pendiente" ${estadio==='pendiente'?'selected':''}>⏳ Pendiente</option>
+                <option value="esperando_respuesta" ${estadio==='esperando_respuesta'?'selected':''}>📋 Esperando respuesta</option>
               </select>
             </td>
             <td>
@@ -412,9 +274,9 @@ function renderEstado() {
                 : '<span style="color:#ccc;">—</span>'}
             </td>
             <td style="font-size:0.82rem;color:#666;">${formatFecha(p.ultimo_contacto)}</td>
-            <td style="max-width:180px;">
+            <td style="max-width:220px;">
               ${p.observaciones
-                ? `<div style="font-size:0.78rem;color:#666;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:170px;" title="${escHtml(p.observaciones)}">${escHtml(p.observaciones)}</div>`
+                ? `<div style="font-size:0.78rem;color:#666;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px;" title="${escHtml(p.observaciones)}">${escHtml(p.observaciones)}</div>`
                 : '<span style="color:#ccc;">—</span>'}
             </td>
             <td style="text-align:right;white-space:nowrap;">
@@ -426,28 +288,6 @@ function renderEstado() {
         }).join('')}
       </tbody>
     </table>`;
-}
-
-async function cambiarEstadioDesdeTabla(pid, nuevoEstadio) {
-  const p = NEG.propiedades.find(x => x.id === pid);
-  if (!p) return;
-  try {
-    await apiPut(`/api/propiedades/${pid}`, { ...p, estado_tasacion: nuevoEstadio, estadio: nuevoEstadio });
-    p.estado_tasacion = nuevoEstadio; p.estadio = nuevoEstadio;
-    renderEstado(); actualizarStatsListing();
-    showToast('Estado actualizado ✓');
-  } catch(e) { showToast(e.message, 'error'); }
-}
-
-async function cambiarRespDesdeTabla(pid, nuevoResp) {
-  const p = NEG.propiedades.find(x => x.id === pid);
-  if (!p) return;
-  try {
-    await apiPut(`/api/propiedades/${pid}`, { ...p, respuesta_listing: nuevoResp });
-    p.respuesta_listing = nuevoResp;
-    renderEstado();
-    showToast('Respuesta actualizada ✓');
-  } catch(e) { showToast(e.message, 'error'); }
 }
 
 async function cambiarEstadio(id, nuevoEstadio) {
@@ -467,10 +307,14 @@ function abrirNuevaPropiedad() {
     'propPrelisting','propObservaciones'];
   campos.forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
   document.getElementById('propTipologia').value = '';
-  document.getElementById('propEstado').value    = 'pendiente';   // default al crear
-  document.getElementById('propEstadio').value   = 'pendiente';   // default al crear
+  document.getElementById('propEstado').value    = 'pendiente';
   const selResp = document.getElementById('propRespuesta');
-  if (selResp) selResp.value = 'esperando_respuesta';             // default al crear
+  if (selResp) selResp.value = 'esperando_respuesta';
+  // Inicializar listas (#6 y #7)
+  _propietariosList = [];
+  _documentosList   = [];
+  renderPropietariosLista();
+  renderDocumentosLista();
   document.querySelector('#modalPropiedad .modal-footer .btn-primary').textContent = 'Crear propiedad';
   document.getElementById('modalPropTitulo').textContent = 'Nueva propiedad';
   abrirModal('modalPropiedad');
@@ -494,7 +338,7 @@ function editarPropiedad(id) {
   document.getElementById('propPrelisting').value    = p.fecha_prelisting || '';
   document.getElementById('propObservaciones').value = p.observaciones || '';
 
-  // Estado tasación: asignar valor real aunque no esté en el select (solo 2 opciones)
+  // Estado tasación
   const selEstado  = document.getElementById('propEstado');
   const valEstado  = p.estado_tasacion || 'pendiente';
   if (!Array.from(selEstado.options).find(o => o.value === valEstado)) {
@@ -504,18 +348,34 @@ function editarPropiedad(id) {
   }
   selEstado.value = valEstado;
 
-  const selEstadio = document.getElementById('propEstadio');
-  const valEstadio = p.estadio || p.estado_tasacion || 'pendiente';
-  if (!Array.from(selEstadio.options).find(o => o.value === valEstadio)) {
-    const opt = document.createElement('option');
-    opt.value = valEstadio; opt.text = valEstadio; opt.hidden = true;
-    selEstadio.appendChild(opt);
-  }
-  selEstadio.value = valEstadio;
-
   // Respuesta propietario
   const selResp = document.getElementById('propRespuesta');
   if (selResp) selResp.value = p.respuesta_listing || 'esperando_respuesta';
+
+  // Cargar propietarios existentes (#6)
+  _propietariosList = [];
+  if (p.nombre_propietario) {
+    _propietariosList.push({
+      nombre:   p.nombre_propietario,
+      telefono: p.telefono || '',
+      email:    p.email    || '',
+      referido: p.referido || '',
+    });
+  }
+  // Intentar cargar lista JSON si existe
+  try {
+    const pj = p.propietarios_json;
+    if (pj) _propietariosList = JSON.parse(pj);
+  } catch(e) {}
+  renderPropietariosLista();
+
+  // Cargar documentos existentes (#7)
+  _documentosList = [];
+  try {
+    const dj = p.documentos_json;
+    if (dj) _documentosList = JSON.parse(dj);
+  } catch(e) {}
+  renderDocumentosLista();
 
   document.querySelector('#modalPropiedad .modal-footer .btn-primary').textContent = 'Guardar cambios';
   document.getElementById('modalPropTitulo').textContent = 'Editar propiedad';
@@ -527,23 +387,28 @@ async function guardarPropiedad() {
   const dir = document.getElementById('propDireccion').value.trim();
   if (!dir) { showToast('La dirección es requerida', 'error'); return; }
 
+  // Sincronizar campos legacy desde propietarios (#6)
+  const primerProp = _propietariosList[0] || {};
+
   const body = {
     direccion:          dir,
     localidad:          document.getElementById('propLocalidad').value,
     zona:               document.getElementById('propZona').value,
     tipologia:          document.getElementById('propTipologia').value,
-    estado_tasacion:    document.getElementById('propEstado').value || document.getElementById('propEstadio').value,
-    estadio:            document.getElementById('propEstadio').value,
-    nombre_propietario: document.getElementById('propNombre').value,
-    telefono:           document.getElementById('propTelefono').value,
-    email:              document.getElementById('propEmail').value,
-    referido:           document.getElementById('propReferido').value,
+    estado_tasacion:    document.getElementById('propEstado').value,
+    estadio:            document.getElementById('propEstado').value,
+    nombre_propietario: primerProp.nombre   || document.getElementById('propNombre')?.value   || '',
+    telefono:           primerProp.telefono || document.getElementById('propTelefono')?.value || '',
+    email:              primerProp.email    || document.getElementById('propEmail')?.value    || '',
+    referido:           primerProp.referido || document.getElementById('propReferido')?.value || '',
     url:                document.getElementById('propUrl').value,
     ultimo_contacto:    document.getElementById('propUltimo').value,
     proximo_contacto:   document.getElementById('propProximo').value,
     fecha_prelisting:   document.getElementById('propPrelisting').value,
     observaciones:      document.getElementById('propObservaciones').value,
     respuesta_listing:  document.getElementById('propRespuesta')?.value || 'esperando_respuesta',
+    propietarios_json:  document.getElementById('propPropietariosJSON')?.value || '[]',
+    documentos_json:    document.getElementById('propDocumentosJSON')?.value   || '[]',
   };
 
   try {
@@ -1017,4 +882,202 @@ async function cambiarEstadioActividad(id, nuevoEstado, selectEl) {
     if (selectEl) selectEl.value = estadoAnterior;
     showToast(e.message, 'error');
   }
+}
+
+// ══════════════════════════════════════════════════════════
+// ── #6 PROPIETARIOS MÚLTIPLES CON BASE DE CONTACTOS ──
+// ══════════════════════════════════════════════════════════
+
+let _propietariosList = [];  // lista de propietarios de la propiedad actual
+
+function renderPropietariosLista() {
+  const cont = document.getElementById('propietariosLista');
+  if (!cont) return;
+  if (_propietariosList.length === 0) {
+    cont.innerHTML = `<div style="font-size:0.8rem;color:#aaa;text-align:center;padding:12px;">Sin propietarios agregados todavía</div>`;
+    return;
+  }
+  cont.innerHTML = `<div style="display:flex;flex-direction:column;gap:6px;">` +
+    _propietariosList.map((p, i) => `
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#f8f9ff;">
+        <div style="width:32px;height:32px;border-radius:50%;background:#EFF6FF;color:#2563EB;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">
+          ${escHtml((p.nombre||'?')[0].toUpperCase())}
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:0.85rem;">${escHtml(p.nombre||'—')}</div>
+          <div style="font-size:0.75rem;color:#888;display:flex;gap:10px;flex-wrap:wrap;">
+            ${p.telefono ? `<span>📞 ${escHtml(p.telefono)}</span>` : ''}
+            ${p.email    ? `<span>✉️ ${escHtml(p.email)}</span>`    : ''}
+          </div>
+        </div>
+        <button onclick="quitarPropietario(${i})"
+          style="background:none;border:none;cursor:pointer;color:#DC2626;font-size:1rem;padding:4px;" title="Quitar">✕</button>
+      </div>`).join('') + `</div>`;
+  document.getElementById('propPropietariosJSON').value = JSON.stringify(_propietariosList);
+  // Sincronizar campos legacy con el primero
+  if (_propietariosList[0]) {
+    document.getElementById('propNombre').value   = _propietariosList[0].nombre || '';
+    document.getElementById('propTelefono').value = _propietariosList[0].telefono || '';
+    document.getElementById('propEmail').value    = _propietariosList[0].email || '';
+    document.getElementById('propReferido').value = _propietariosList[0].referido || '';
+  }
+}
+
+function quitarPropietario(idx) {
+  _propietariosList.splice(idx, 1);
+  renderPropietariosLista();
+}
+
+function abrirAgregarPropietario() {
+  document.getElementById('buscarContactoProp').value = '';
+  document.getElementById('resultadosBusquedaProp').innerHTML = '';
+  ['newPropNombre','newPropTelefono','newPropEmail','newPropReferido'].forEach(id => {
+    const e = document.getElementById(id); if (e) e.value = '';
+  });
+  switchModoAgregarProp('base');
+  abrirModal('modalAgregarProp');
+}
+
+function switchModoAgregarProp(modo) {
+  document.getElementById('modoBaseContacto').style.display = modo === 'base'  ? '' : 'none';
+  document.getElementById('modoNuevoProp').style.display    = modo === 'nuevo' ? '' : 'none';
+  const btnBase  = document.getElementById('btnDesdeBase');
+  const btnNuevo = document.getElementById('btnNuevoProp');
+  if (btnBase)  { btnBase.style.background  = modo==='base'  ? 'var(--rx-blue)' : 'white'; btnBase.style.color  = modo==='base'  ? 'white' : '#374151'; }
+  if (btnNuevo) { btnNuevo.style.background = modo==='nuevo' ? 'var(--rx-blue)' : 'white'; btnNuevo.style.color = modo==='nuevo' ? 'white' : '#374151'; }
+  if (modo === 'base') setTimeout(() => document.getElementById('buscarContactoProp')?.focus(), 100);
+}
+
+function buscarContactosParaProp(q) {
+  const cont = document.getElementById('resultadosBusquedaProp');
+  if (!cont) return;
+  const term = q.toLowerCase().trim();
+  if (!term) { cont.innerHTML = ''; return; }
+  const resultados = NEG.contactos.filter(c =>
+    (c.nombre||'').toLowerCase().includes(term) ||
+    (c.telefono||'').includes(term) ||
+    (c.email||'').toLowerCase().includes(term)
+  ).slice(0, 8);
+  if (resultados.length === 0) {
+    cont.innerHTML = `<div style="padding:12px;font-size:0.82rem;color:#aaa;text-align:center;">No se encontraron contactos</div>`;
+    return;
+  }
+  cont.innerHTML = resultados.map(c => `
+    <div onclick="seleccionarContactoProp('${c.id}')"
+      style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f3f4f6;display:flex;gap:10px;align-items:center;"
+      onmouseover="this.style.background='#EFF6FF'" onmouseout="this.style.background='white'">
+      <div style="width:30px;height:30px;border-radius:50%;background:#EFF6FF;color:#2563EB;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem;flex-shrink:0;">
+        ${escHtml((c.nombre||'?')[0].toUpperCase())}
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:600;font-size:0.84rem;">${escHtml(c.nombre)}</div>
+        <div style="font-size:0.73rem;color:#888;">
+          ${c.telefono ? escHtml(c.telefono) : ''}${c.email ? ' · ' + escHtml(c.email) : ''}
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function seleccionarContactoProp(ctcId) {
+  const c = NEG.contactos.find(x => x.id === ctcId);
+  if (!c) return;
+  const yaExiste = _propietariosList.find(p => p.contacto_id === ctcId);
+  if (yaExiste) { showToast('Este contacto ya fue agregado', 'error'); return; }
+  _propietariosList.push({
+    contacto_id: c.id,
+    nombre:      c.nombre,
+    telefono:    c.telefono,
+    email:       c.email,
+    referido:    c.referido,
+  });
+  renderPropietariosLista();
+  cerrarModal('modalAgregarProp');
+  showToast(`${c.nombre} agregado como propietario ✓`);
+}
+
+async function confirmarNuevoPropietario() {
+  const nombre = document.getElementById('newPropNombre')?.value.trim();
+  if (!nombre) { showToast('El nombre es requerido', 'error'); return; }
+  const nuevo = {
+    nombre,
+    telefono: document.getElementById('newPropTelefono')?.value || '',
+    email:    document.getElementById('newPropEmail')?.value    || '',
+    referido: document.getElementById('newPropReferido')?.value || '',
+  };
+  // Guardar en base de contactos
+  try {
+    const res = await apiPost('/api/contactos', { ...nuevo, tipo: 'propietario' });
+    if (res.id) nuevo.contacto_id = res.id;
+    await cargarContactos(); // refrescar lista
+  } catch(e) { console.warn('No se pudo guardar en contactos:', e); }
+  _propietariosList.push(nuevo);
+  renderPropietariosLista();
+  cerrarModal('modalAgregarProp');
+  showToast(`${nombre} agregado como propietario ✓`);
+}
+
+// ══════════════════════════════════════════════════════════
+// ── #7 DOCUMENTACIÓN MÚLTIPLE ──
+// ══════════════════════════════════════════════════════════
+
+let _documentosList = [];
+
+function renderDocumentosLista() {
+  const cont = document.getElementById('documentosLista');
+  if (!cont) return;
+  if (_documentosList.length === 0) {
+    cont.innerHTML = `<div style="font-size:0.78rem;color:#aaa;text-align:center;padding:8px;">Sin documentación cargada</div>`;
+    document.getElementById('propDocumentosJSON').value = '[]';
+    return;
+  }
+  const ESTADOS_DOC = ['Pendiente','En trámite','Recibido','Observado'];
+  cont.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
+    <thead><tr style="background:#f3f4f6;">
+      <th style="padding:6px 8px;text-align:left;font-weight:600;color:#374151;">Documento</th>
+      <th style="padding:6px 8px;text-align:left;font-weight:600;color:#374151;">Estado</th>
+      <th style="padding:6px 8px;text-align:left;font-weight:600;color:#374151;">Notas</th>
+      <th style="padding:6px 4px;"></th>
+    </tr></thead>
+    <tbody>
+      ${_documentosList.map((d, i) => `
+        <tr style="border-bottom:1px solid #f3f4f6;">
+          <td style="padding:6px 8px;">
+            <input type="text" value="${escHtml(d.nombre||'')}" placeholder="Nombre doc."
+              onchange="_documentosList[${i}].nombre=this.value;syncDocJSON()"
+              style="border:none;background:transparent;width:100%;font-size:0.8rem;outline:none;color:var(--text-primary);">
+          </td>
+          <td style="padding:6px 8px;">
+            <select onchange="_documentosList[${i}].estado=this.value;syncDocJSON()"
+              style="border:none;background:transparent;font-size:0.78rem;cursor:pointer;color:#2563EB;font-weight:600;">
+              ${ESTADOS_DOC.map(s=>`<option ${d.estado===s?'selected':''}>${s}</option>`).join('')}
+            </select>
+          </td>
+          <td style="padding:6px 8px;">
+            <input type="text" value="${escHtml(d.notas||'')}" placeholder="Notas..."
+              onchange="_documentosList[${i}].notas=this.value;syncDocJSON()"
+              style="border:none;background:transparent;width:100%;font-size:0.78rem;outline:none;color:#888;">
+          </td>
+          <td style="padding:4px;">
+            <button onclick="quitarDocumento(${i})"
+              style="background:none;border:none;cursor:pointer;color:#DC2626;font-size:0.9rem;">✕</button>
+          </td>
+        </tr>`).join('')}
+    </tbody>
+  </table>`;
+  syncDocJSON();
+}
+
+function syncDocJSON() {
+  const el = document.getElementById('propDocumentosJSON');
+  if (el) el.value = JSON.stringify(_documentosList);
+}
+
+function agregarDocumento() {
+  _documentosList.push({ nombre: '', estado: 'Pendiente', notas: '' });
+  renderDocumentosLista();
+}
+
+function quitarDocumento(idx) {
+  _documentosList.splice(idx, 1);
+  renderDocumentosLista();
 }
