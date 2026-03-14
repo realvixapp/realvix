@@ -60,7 +60,7 @@ function copiarTexto(id) {
 function abrirNuevoTexto() {
   ['txtId','txtTitulo','txtContenido'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
   document.getElementById('txtTipo').value = 'whatsapp';
-  document.getElementById('txtCategoria').value = 'general';
+  document.getElementById('txtCategoria').value = 'bienvenida_lead';
   document.getElementById('modalTxtTitulo').textContent = 'Nuevo texto';
   abrirModal('modalTexto');
 }
