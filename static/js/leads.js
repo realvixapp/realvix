@@ -307,8 +307,9 @@ function _buildPropTexto(c) {
   // {propiedad} = nombre + localidad + zona
   // {ficha_propiedad} = URL
   const partes = [c.propiedad_nombre || ''];
-  // Buscar en NEG, LACT, o LEADS propiedades
+  // Buscar en todas las fuentes disponibles: LEADS, NEG, LACT
   const allProps = [
+    ...(LEADS.propiedades || []),
     ...(typeof NEG !== 'undefined' && NEG.propiedades ? NEG.propiedades : []),
     ...(typeof LACT !== 'undefined' && LACT.propiedades ? LACT.propiedades : []),
   ];
