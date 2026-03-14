@@ -75,12 +75,12 @@ function renderListing() {
   }
 
   const RESP_MAP = {
-    '':                   { label: '—',                   color:'#aaa',    bg:'#f9fafb' },
-    'esperando_respuesta':{ label: '⏳ Esperando resp.',  color:'#D97706', bg:'#FFFBEB' },
-    'aceptado':           { label: '✅ Aceptado',         color:'#059669', bg:'#ECFDF5' },
-    'rechazado':          { label: '❌ Rechazado',        color:'#DC2626', bg:'#FEF2F2' },
-    'decide_esperar':     { label: '🕐 Decide esperar',   color:'#7C3AED', bg:'#F5F3FF' },
-    'vendio_con_otro':    { label: '🔄 Vendió con otro',  color:'#6B7280', bg:'#F3F4F6' },
+    '':                   { label: '—',                  color:'#aaa',    bg:'#f9fafb' },
+    'esperando_respuesta':{ label: '⏳ Esperando resp.', color:'#D97706', bg:'#FFFBEB' },
+    'aceptado':           { label: '✅ Aceptado',        color:'#059669', bg:'#ECFDF5' },
+    'rechazado':          { label: '❌ Rechazado',       color:'#DC2626', bg:'#FEF2F2' },
+    'decide_esperar':     { label: '🕐 Decide esperar',  color:'#7C3AED', bg:'#F5F3FF' },
+    'vendio_con_otro':    { label: '🔄 Vendió con otro', color:'#6B7280', bg:'#F3F4F6' },
   };
 
   container.innerHTML = `
@@ -120,14 +120,14 @@ function renderListing() {
               </select>
             </td>
             <td>
-              <select style="font-size:0.75rem;padding:3px 8px;height:auto;border-radius:12px;border:1.5px solid ${rInfo.color}55;background:${rInfo.bg};color:${rInfo.color};font-weight:600;cursor:pointer;outline:none;pointer-events:auto;appearance:auto;-webkit-appearance:auto;min-width:130px;"
+              <select style="font-size:0.75rem;padding:3px 8px;height:auto;border-radius:12px;border:1.5px solid ${rInfo.color}55;background:${rInfo.bg};color:${rInfo.color};font-weight:600;cursor:pointer;outline:none;pointer-events:auto;min-width:130px;"
                 data-pid="${p.id}"
                 onchange="cambiarRespuestaListing(this.dataset.pid, this.value)">
                 <option value="" ${resp===''?'selected':''}>—</option>
                 <option value="esperando_respuesta" ${resp==='esperando_respuesta'?'selected':''}>⏳ Esperando resp.</option>
-                <option value="aceptado"        ${resp==='aceptado'?'selected':''}>✅ Aceptado</option>
-                <option value="rechazado"       ${resp==='rechazado'?'selected':''}>❌ Rechazado</option>
-                <option value="decide_esperar"  ${resp==='decide_esperar'?'selected':''}>🕐 Decide esperar</option>
+                <option value="aceptado"        ${resp==='aceptado'       ?'selected':''}>✅ Aceptado</option>
+                <option value="rechazado"       ${resp==='rechazado'      ?'selected':''}>❌ Rechazado</option>
+                <option value="decide_esperar"  ${resp==='decide_esperar' ?'selected':''}>🕐 Decide esperar</option>
                 <option value="vendio_con_otro" ${resp==='vendio_con_otro'?'selected':''}>🔄 Vendió con otro</option>
               </select>
             </td>
@@ -312,7 +312,7 @@ function abrirNuevaPropiedad() {
   document.getElementById('propTipologia').value = '';
   document.getElementById('propEstado').value    = 'pendiente';
   const selResp = document.getElementById('propRespuesta');
-  if (selResp) selResp.value = 'esperando_respuesta';
+  if (selResp) selResp.value = '';
   // Inicializar listas (#6 y #7)
   _propietariosList = [];
   _documentosList   = [];
@@ -351,9 +351,9 @@ function editarPropiedad(id) {
   }
   selEstado.value = valEstado;
 
-  // Respuesta propietario
+  // Respuesta propietario - carga valor real (vacío si no tiene)
   const selResp = document.getElementById('propRespuesta');
-  if (selResp) selResp.value = p.respuesta_listing || 'esperando_respuesta';
+  if (selResp) selResp.value = p.respuesta_listing || '';
 
   // Cargar propietarios existentes (#6)
   _propietariosList = [];
@@ -569,7 +569,10 @@ function renderContactoRow(ct, TIPO_COLORS) {
     const dias = Math.ceil((proxCum - hoy) / 86400000);
     if (dias <= 30) cumpleBadge = `<span style="font-size:0.68rem;background:#FFF7ED;color:#F97316;border-radius:8px;padding:1px 6px;font-weight:600;">🎂 ${dias === 0 ? '¡Hoy!' : 'en ' + dias + 'd'}</span>`;
   }
-  // Use data-id attribute to avoid quote nesting issues
+  const calColors = { 'A+':'#059669','B':'#2563EB','C':'#D97706','D':'#DC2626' };
+  const calBadge  = ct.calificacion
+    ? `<span style="font-size:0.68rem;padding:1px 7px;border-radius:8px;font-weight:700;background:${calColors[ct.calificacion]||'#888'}22;color:${calColors[ct.calificacion]||'#888'};border:1px solid ${calColors[ct.calificacion]||'#888'}44;">★ ${ct.calificacion}</span>`
+    : '';
   return `
     <div class="card" style="padding:12px 16px;display:flex;align-items:center;gap:14px;margin-bottom:6px;cursor:pointer;"
       data-ctcid="${ct.id}" onclick="editarContacto(this.dataset.ctcid)" title="Click para editar">
@@ -580,17 +583,19 @@ function renderContactoRow(ct, TIPO_COLORS) {
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
           <span style="font-weight:600;font-size:0.9rem;color:var(--rx-blue);text-decoration:underline dotted;">${escHtml(ct.nombre)}</span>
           <span style="font-size:0.68rem;padding:1px 7px;border-radius:10px;font-weight:600;background:${tc.bg};color:${tc.color};">${ct.tipo||'otro'}</span>
-          ${cumpleBadge}
+          ${calBadge}${cumpleBadge}
         </div>
-        <div style="display:flex;gap:14px;margin-top:3px;font-size:0.79rem;color:#666;flex-wrap:wrap;">
+        <div style="display:flex;gap:12px;margin-top:3px;font-size:0.79rem;color:#666;flex-wrap:wrap;">
           ${ct.profesion ? `<span>💼 ${escHtml(ct.profesion)}</span>` : ''}
           ${ct.telefono  ? `<span>📞 ${escHtml(ct.telefono)}</span>`  : ''}
           ${ct.email     ? `<span>✉️ ${escHtml(ct.email)}</span>`     : ''}
           ${ct.localidad ? `<span>📍 ${escHtml(ct.localidad)}</span>` : ''}
+          ${ct.zona      ? `<span>🗺️ ${escHtml(ct.zona)}</span>`      : ''}
+          ${ct.barrio    ? `<span>🏘️ ${escHtml(ct.barrio)}</span>`    : ''}
+          ${ct.referido  ? `<span>🔗 Ref: ${escHtml(ct.referido)}</span>` : ''}
         </div>
-        ${ct.hijos || ct.hobbies ? `<div style="font-size:0.75rem;color:#aaa;margin-top:2px;">${ct.hijos ? '👨‍👧‍👦 ' + escHtml(ct.hijos) : ''}${ct.hijos && ct.hobbies ? ' · ' : ''}${ct.hobbies ? '🎯 ' + escHtml(ct.hobbies) : ''}</div>` : ''}
-        ${ct.gustos ? `<div style="font-size:0.75rem;color:#aaa;">🏠 ${escHtml(ct.gustos)}</div>` : ''}
-        ${ct.notas  ? `<div style="font-size:0.74rem;color:#ccc;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:520px;">${escHtml(ct.notas)}</div>` : ''}
+        ${ct.hobbies ? `<div style="font-size:0.75rem;color:#aaa;margin-top:2px;">🎯 ${escHtml(ct.hobbies)}</div>` : ''}
+        ${ct.notas   ? `<div style="font-size:0.74rem;color:#ccc;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:520px;">${escHtml(ct.notas)}</div>` : ''}
       </div>
       <div style="display:flex;gap:4px;flex-shrink:0;" onclick="event.stopPropagation()">
         ${ct.telefono ? `<button class="btn-icon-sm" data-tel="${escHtml(ct.telefono)}" onclick="event.stopPropagation();window.open(buildWhatsAppUrl(this.dataset.tel,''),'_blank')" title="WhatsApp">💬</button>` : ''}
@@ -602,9 +607,11 @@ function renderContactoRow(ct, TIPO_COLORS) {
 
 function abrirNuevoContacto() {
   ['ctcId','ctcNombre','ctcTelefono','ctcEmail','ctcLocalidad','ctcNotas',
-   'ctcCumple','ctcProfesion','ctcHijos','ctcHobbies','ctcGustos'].forEach(id => {
+   'ctcCumple','ctcProfesion','ctcHobbies','ctcBarrio','ctcReferido'].forEach(id => {
     const e = document.getElementById(id); if (e) e.value = '';
   });
+  const z = document.getElementById('ctcZona');       if (z)   z.value   = '';
+  const cal = document.getElementById('ctcCalificacion'); if (cal) cal.value = '';
   document.getElementById('ctcTipo').value = 'propietario';
   document.getElementById('modalCtcTitulo').textContent = 'Nuevo contacto';
   abrirModal('modalContacto');
@@ -622,9 +629,11 @@ function editarContacto(id) {
   document.getElementById('ctcNotas').value     = c.notas     || '';
   document.getElementById('ctcCumple').value    = c.cumpleanos || '';
   document.getElementById('ctcProfesion').value = c.profesion  || '';
-  document.getElementById('ctcHijos').value     = c.hijos      || '';
   document.getElementById('ctcHobbies').value   = c.hobbies    || '';
-  document.getElementById('ctcGustos').value    = c.gustos     || '';
+  const bEl = document.getElementById('ctcBarrio');      if (bEl) bEl.value = c.barrio    || '';
+  const rEl = document.getElementById('ctcReferido');    if (rEl) rEl.value = c.referido  || '';
+  const zEl = document.getElementById('ctcZona');        if (zEl) zEl.value = c.zona      || '';
+  const cEl = document.getElementById('ctcCalificacion');if (cEl) cEl.value = c.calificacion || '';
   document.getElementById('modalCtcTitulo').textContent = 'Editar contacto';
   abrirModal('modalContacto');
 }
@@ -636,16 +645,18 @@ async function guardarContacto() {
   const cumple = document.getElementById('ctcCumple').value;
   const body = {
     nombre,
-    tipo:       document.getElementById('ctcTipo').value,
-    telefono:   document.getElementById('ctcTelefono').value,
-    email:      document.getElementById('ctcEmail').value,
-    localidad:  document.getElementById('ctcLocalidad').value,
-    notas:      document.getElementById('ctcNotas').value,
-    cumpleanos: cumple,
-    profesion:  document.getElementById('ctcProfesion').value,
-    hijos:      document.getElementById('ctcHijos').value,
-    hobbies:    document.getElementById('ctcHobbies').value,
-    gustos:     document.getElementById('ctcGustos').value,
+    tipo:          document.getElementById('ctcTipo').value,
+    telefono:      document.getElementById('ctcTelefono').value,
+    email:         document.getElementById('ctcEmail').value,
+    localidad:     document.getElementById('ctcLocalidad').value,
+    notas:         document.getElementById('ctcNotas').value,
+    cumpleanos:    cumple,
+    profesion:     document.getElementById('ctcProfesion').value,
+    hobbies:       document.getElementById('ctcHobbies').value,
+    barrio:        document.getElementById('ctcBarrio')?.value       || '',
+    referido:      document.getElementById('ctcReferido')?.value     || '',
+    zona:          document.getElementById('ctcZona')?.value         || '',
+    calificacion:  document.getElementById('ctcCalificacion')?.value || '',
   };
   try {
     if (id) await apiPut(`/api/contactos/${id}`, body);
