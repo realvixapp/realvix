@@ -8,7 +8,7 @@
 <!-- Tabs principales -->
 <div style="display:flex;gap:0;margin-bottom:24px;border-bottom:2px solid var(--border);">
   <button class="tab-btn active" id="tab-listing" onclick="switchTab('listing',this)">🏢 Listing</button>
-  <button class="tab-btn" id="tab-estado" onclick="switchTab('estado',this)">📊 Estado</button>
+  <button class="tab-btn" id="tab-estado" onclick="switchTab('estado',this)">📋 Actividad Listing</button>
   <button class="tab-btn" id="tab-contactos" onclick="switchTab('contactos',this)">👥 Contactos</button>
 </div>
 
@@ -47,20 +47,16 @@
 <div id="tabEstado" style="display:none">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
     <div>
-      <div style="font-size:1rem;font-weight:700;">Estado de Propiedades</div>
-      <div style="font-size:0.78rem;color:var(--text-secondary);">Seguimiento de propiedades publicadas, reservadas y cerradas</div>
+      <div style="font-size:1rem;font-weight:700;">Actividad Listing</div>
+      <div style="font-size:0.78rem;color:var(--text-secondary);">Seguimiento de propiedades por estado de tasación</div>
     </div>
   </div>
 
   <!-- Filtros por estado tasación -->
   <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
     <button class="estadio-btn active" onclick="filtrarEstadioEstado('todos',this)" style="border-radius:20px;padding:6px 16px;font-size:0.82rem;font-weight:600;background:var(--rx-blue);color:white;border:none;cursor:pointer;">Todos</button>
-    <button class="estadio-btn" onclick="filtrarEstadioEstado('nuevo',this)" style="border-radius:20px;padding:6px 14px;font-size:0.82rem;font-weight:600;background:white;border:1px solid #e5e7eb;cursor:pointer;display:flex;align-items:center;gap:5px;">🔵 Nuevo</button>
-    <button class="estadio-btn" onclick="filtrarEstadioEstado('en_tasacion',this)" style="border-radius:20px;padding:6px 14px;font-size:0.82rem;font-weight:600;background:white;border:1px solid #e5e7eb;cursor:pointer;display:flex;align-items:center;gap:5px;">🟣 En tasación</button>
-    <button class="estadio-btn" onclick="filtrarEstadioEstado('captado',this)" style="border-radius:20px;padding:6px 14px;font-size:0.82rem;font-weight:600;background:white;border:1px solid #e5e7eb;cursor:pointer;display:flex;align-items:center;gap:5px;">🔷 Captado</button>
-    <button class="estadio-btn" onclick="filtrarEstadioEstado('publicado',this)" style="border-radius:20px;padding:6px 14px;font-size:0.82rem;font-weight:600;background:white;border:1px solid #e5e7eb;cursor:pointer;display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;background:#059669;border-radius:50%;display:inline-block;"></span> Publicado</button>
-    <button class="estadio-btn" onclick="filtrarEstadioEstado('reservado',this)" style="border-radius:20px;padding:6px 14px;font-size:0.82rem;font-weight:600;background:white;border:1px solid #e5e7eb;cursor:pointer;display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;background:#DC2626;border-radius:50%;display:inline-block;"></span> Reservado</button>
-    <button class="estadio-btn" onclick="filtrarEstadioEstado('cerrado',this)" style="border-radius:20px;padding:6px 14px;font-size:0.82rem;font-weight:600;background:white;border:1px solid #e5e7eb;cursor:pointer;display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;background:#374151;border-radius:4px;display:inline-block;"></span> Cerrado</button>
+    <button class="estadio-btn" onclick="filtrarEstadioEstado('pendiente',this)" style="border-radius:20px;padding:6px 14px;font-size:0.82rem;font-weight:600;background:white;border:1px solid #e5e7eb;cursor:pointer;display:flex;align-items:center;gap:5px;">⏳ Pendiente</button>
+    <button class="estadio-btn" onclick="filtrarEstadioEstado('esperando_respuesta',this)" style="border-radius:20px;padding:6px 14px;font-size:0.82rem;font-weight:600;background:white;border:1px solid #e5e7eb;cursor:pointer;display:flex;align-items:center;gap:5px;">📋 Esperando respuesta</button>
   </div>
 
   <!-- Buscador -->
@@ -187,13 +183,8 @@
         <div class="field">
           <label class="field-label">Estado tasación</label>
           <select id="propEstado" class="input-base">
-            <option value="">— Estado —</option>
-            <option value="nuevo" selected>Nuevo</option>
-            <option value="en_tasacion">En tasación</option>
-            <option value="captado">Captado</option>
-            <option value="publicado">Publicado</option>
-            <option value="reservado">Reservado</option>
-            <option value="cerrado">Cerrado</option>
+            <option value="pendiente" selected>⏳ Pendiente</option>
+            <option value="esperando_respuesta">📋 Esperando respuesta</option>
           </select>
         </div>
         <div class="field" style="grid-column:span 2">
@@ -227,13 +218,8 @@
         <div class="field">
           <label class="field-label">Estadio</label>
           <select id="propEstadio" class="input-base">
-            <option value="">— Estadio —</option>
-            <option value="nuevo" selected>Nuevo</option>
-            <option value="en_tasacion">En tasación</option>
-            <option value="captado">Captado</option>
-            <option value="publicado">Publicado</option>
-            <option value="reservado">Reservado</option>
-            <option value="cerrado">Cerrado</option>
+            <option value="pendiente" selected>⏳ Pendiente</option>
+            <option value="esperando_respuesta">📋 Esperando respuesta</option>
           </select>
         </div>
         <div class="field">
