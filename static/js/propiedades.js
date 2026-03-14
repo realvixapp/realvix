@@ -122,7 +122,7 @@ function renderEstadoProp() {
             </td>
             <td style="text-align:right;white-space:nowrap;">
               ${p.telefono ? `<button class="btn-icon-sm" data-tel="${escHtml(p.telefono)}" data-nom="${escHtml(p.nombre_propietario||'')}" onclick="window.open(buildWhatsAppUrl(this.dataset.tel,'Hola '+this.dataset.nom),'_blank')">💬</button>` : ''}
-              <button class="btn-icon-sm" data-pid="${p.id}" onclick="verMasProp(this.dataset.pid)" title="Ver toda la info">👁️</button>
+              <button class="btn-icon-sm" data-pid="${p.id}" onclick="verMasProp(this.dataset.pid)" title="Ver toda la información">👁️</button>
               <button class="btn-icon-sm" data-pid="${p.id}" onclick="abrirEditarPropModal(this.dataset.pid)" title="Editar">✏️</button>
             </td>
           </tr>`;
@@ -157,8 +157,16 @@ function abrirEditarPropModal(pid) {
   document.getElementById('editPropTelefono').value = p.telefono || '';
   document.getElementById('editPropUrl').value = p.url || '';
   document.getElementById('editPropObs').value = p.observaciones || '';
-  const est = (p.estado_tasacion||'').toLowerCase();
-  document.getElementById('editPropEstadio').value = ['publicado','reservado','cerrado'].includes(est) ? est : 'publicado';
+  const est = (p.estado_tasacion || p.estadio || '').toLowerCase();
+  const selE = document.getElementById('editPropEstadio');
+  if (selE) {
+    const val = p.estado_tasacion || p.estadio || 'captado';
+    if (!Array.from(selE.options).find(o => o.value === val)) {
+      const opt = document.createElement('option');
+      opt.value = val; opt.text = val; selE.appendChild(opt);
+    }
+    selE.value = val;
+  }
   abrirModal('modalEditarProp');
 }
 
@@ -350,7 +358,7 @@ function renderActividadProp() {
               ${consultas.map(c => {
                 const estadio = ESTADIO_LABELS[c.estado] || { label: c.estado, color:'#888', bg:'#f3f4f6' };
                 return `
-                  <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:${estadio.bg}22;border:1px solid ${estadio.color}22;flex-wrap:wrap;">
+                  <div style="display:flex;align-items:flex-start;gap:10px;padding:8px 12px;border-radius:8px;background:${estadio.bg}22;border:1px solid ${estadio.color}22;flex-wrap:wrap;">
                     <div style="flex:1;min-width:0;">
                       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                         <span style="font-weight:600;font-size:0.85rem;">${escHtml(c.nombre||'Sin nombre')}</span>
@@ -358,15 +366,17 @@ function renderActividadProp() {
                         ${c.fecha_visita ? `<span style="font-size:0.68rem;background:#EDE9FE;color:#7C3AED;border-radius:8px;padding:1px 6px;">📅 ${formatFecha(c.fecha_visita)}</span>` : ''}
                       </div>
                       <div style="font-size:0.75rem;color:#888;margin-top:2px;display:flex;gap:10px;flex-wrap:wrap;">
-                        ${c.telefono    ? `<span>📞 ${escHtml(c.telefono)}</span>` : ''}
-                        ${c.presupuesto ? `<span>💰 ${escHtml(c.presupuesto)}</span>` : ''}
-                        ${c.operacion   ? `<span>🔑 ${escHtml(c.operacion)}</span>` : ''}
+                        ${c.telefono  ? `<span>📞 ${escHtml(c.telefono)}</span>` : ''}
+                        ${c.operacion ? `<span>🔑 ${escHtml(c.operacion)}</span>` : ''}
                         <span style="color:#ccc;">${formatFecha(c.created_at)}</span>
                       </div>
+                      ${(c.notas||c.mensaje) ? `<div style="font-size:0.76rem;color:#555;margin-top:4px;background:#f8f9fa;padding:5px 8px;border-radius:6px;border-left:3px solid ${estadio.color}44;">💬 ${escHtml(c.notas||c.mensaje)}</div>` : ''}
                     </div>
-                    <div style="display:flex;gap:4px;flex-shrink:0;">
-                      ${c.telefono ? `<button class="btn-icon-sm" data-tel="${escHtml(c.telefono)}" data-nom="${escHtml(c.nombre||'')}" data-dir="${escHtml(p.direccion||'')}"
-                        onclick="window.open(buildWhatsAppUrl(this.dataset.tel,'Hola '+this.dataset.nom+', te contacto por '+this.dataset.dir),'_blank')">💬</button>` : ''}
+                    <div style="display:flex;gap:4px;flex-shrink:0;align-items:center;">
+                      ${c.telefono ? `<button
+                        data-cid="${c.id}"
+                        onclick="abrirWADesdeActividad(this.dataset.cid)"
+                        style="width:30px;height:30px;border-radius:50%;border:none;background:#25D366;color:white;cursor:pointer;font-size:0.95rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;" title="WhatsApp">💬</button>` : ''}
                       <select class="input-base" style="font-size:0.72rem;padding:3px 6px;height:auto;width:130px;"
                         data-cid="${c.id}"
                         onchange="cambiarEstadioActProp(this.dataset.cid, this.value, this)">
@@ -416,6 +426,160 @@ async function cambiarEstadioActProp(id, nuevoEstado, selEl) {
   }
 }
 
+// ══ WHATSAPP MODAL DESDE ACTIVIDAD PROPIEDADES ══
+let _propActTextosWA = [];
+
+async function abrirWADesdeActividad(consultaId) {
+  const c = PROPS.consultas.find(x => x.id === consultaId);
+  if (!c || !c.telefono) return;
+
+  if (_propActTextosWA.length === 0) {
+    try {
+      const data = await apiGet('/api/textos');
+      _propActTextosWA = (data.textos || []).filter(t => t.tipo === 'whatsapp');
+    } catch(e) { console.error(e); }
+  }
+
+  // Buscar propiedad para {propiedad} y {ficha_propiedad}
+  const propObj = PROPS.propiedades.find(p => p.direccion === c.propiedad_nombre);
+  const propPartes = [c.propiedad_nombre||''];
+  if (propObj?.localidad) propPartes.push(propObj.localidad);
+  if (propObj?.zona)      propPartes.push(propObj.zona);
+  const propTexto    = propPartes.filter(Boolean).join(', ');
+  const fichaUrl     = propObj?.url || '';
+  const propietario  = propObj?.nombre_propietario || '';
+
+  const atributos = [
+    { key: '{nombre}',             label: 'Nombre lead',              valor: c.nombre || '' },
+    { key: '{propiedad}',          label: 'Nombre + localidad + zona', valor: propTexto },
+    { key: '{ficha_propiedad}',    label: 'Link ficha propiedad',     valor: fichaUrl },
+    { key: '{nombre_propietario}', label: 'Nombre propietario',       valor: propietario },
+  ];
+
+  let ov = document.getElementById('_waPropActOv');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = '_waPropActOv';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9500;display:flex;align-items:center;justify-content:center;padding:16px;';
+    document.body.appendChild(ov);
+  }
+
+  const todos = _propActTextosWA;
+  const rowsHTML = (arr) => arr.length > 0
+    ? arr.map(t=>`
+        <div onclick="usarTextoWAPropAct('${t.id}','${consultaId}')"
+          style="padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;cursor:pointer;font-size:0.8rem;background:white;margin-bottom:4px;"
+          onmouseover="this.style.borderColor='#25D366';this.style.background='#f0fff4'"
+          onmouseout="this.style.borderColor='#e5e7eb';this.style.background='white'">
+          <div style="font-weight:600;color:#374151;margin-bottom:2px;">${escHtml(t.titulo)}</div>
+          <div style="color:#888;font-size:0.72rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml((t.contenido||'').substring(0,90))}…</div>
+        </div>`).join('')
+    : '<div style="font-size:0.8rem;color:#aaa;padding:4px 0;">No hay textos guardados.</div>';
+
+  ov.innerHTML = `
+    <div style="background:white;border-radius:14px;max-width:660px;width:100%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,0.25);">
+      <div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;">
+        <div style="width:36px;height:36px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;font-size:1.1rem;">💬</div>
+        <div style="flex:1;">
+          <div style="font-weight:700;font-size:0.95rem;">Enviar WhatsApp</div>
+          <div style="font-size:0.75rem;color:#888;">📞 ${escHtml(c.telefono)} · ${escHtml(c.nombre||'Lead')}${c.propiedad_nombre?' · 🏠 '+escHtml(c.propiedad_nombre):''}</div>
+        </div>
+        <button onclick="document.getElementById('_waPropActOv').style.display='none'"
+          style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#888;">✕</button>
+      </div>
+      <div style="display:flex;flex:1;overflow:hidden;min-height:0;">
+        <div style="flex:1;padding:14px 16px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;">
+          <input id="waPropActFiltro" type="text" placeholder="Buscar por título..."
+            style="font-size:0.82rem;padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;outline:none;width:100%;box-sizing:border-box;"
+            oninput="filtrarWAPropActTitulo(this.value,'${consultaId}')">
+          <div>
+            <div style="font-size:0.7rem;font-weight:600;color:#888;text-transform:uppercase;margin-bottom:6px;">Textos predeterminados</div>
+            <div id="waPropActGrid" style="max-height:190px;overflow-y:auto;">${rowsHTML(todos)}</div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;">
+            <div style="font-size:0.7rem;font-weight:600;color:#888;text-transform:uppercase;margin-bottom:5px;">Mensaje a enviar</div>
+            <textarea id="waPropActMsg" rows="5"
+              style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:10px;font-size:0.85rem;resize:vertical;font-family:inherit;box-sizing:border-box;outline:none;"
+              placeholder="Seleccioná un texto o escribí directamente..."></textarea>
+          </div>
+        </div>
+        <div style="width:175px;flex-shrink:0;border-left:1px solid var(--border);padding:14px 12px;background:#f8f9fa;overflow-y:auto;">
+          <div style="font-size:0.68rem;color:#888;font-weight:600;text-transform:uppercase;margin-bottom:6px;">Atributos</div>
+          <div style="font-size:0.68rem;color:#aaa;margin-bottom:10px;">Click para insertar</div>
+          ${atributos.map(a=>`
+            <button onclick="insertarAtribWAPropAct('${a.key}')"
+              style="display:block;width:100%;text-align:left;padding:7px 9px;border-radius:7px;border:1px solid #e5e7eb;background:white;cursor:pointer;margin-bottom:6px;"
+              onmouseover="this.style.borderColor='#2563EB'" onmouseout="this.style.borderColor='#e5e7eb'">
+              <div style="font-weight:700;color:#2563EB;font-size:0.78rem;">${a.key}</div>
+              <div style="color:#888;font-size:0.67rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(a.valor||'(vacío)')}</div>
+            </button>`).join('')}
+        </div>
+      </div>
+      <div style="padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;align-items:center;">
+        <div style="flex:1;font-size:0.75rem;color:#aaa;">El mensaje se abrirá en WhatsApp Web</div>
+        <button onclick="document.getElementById('_waPropActOv').style.display='none'"
+          style="padding:8px 16px;border-radius:8px;border:1px solid #e5e7eb;background:white;cursor:pointer;font-size:0.84rem;">Cancelar</button>
+        <button onclick="enviarWAPropAct('${escHtml(c.telefono)}')"
+          style="padding:8px 22px;border-radius:8px;border:none;background:#25D366;color:white;cursor:pointer;font-size:0.84rem;font-weight:700;">
+          💬 Abrir WhatsApp
+        </button>
+      </div>
+    </div>`;
+  ov.style.display = 'flex';
+  ov.onclick = e => { if (e.target === ov) ov.style.display = 'none'; };
+}
+
+function filtrarWAPropActTitulo(q, cid) {
+  const t = q.toLowerCase();
+  const f = t ? _propActTextosWA.filter(x => (x.titulo||'').toLowerCase().includes(t)) : _propActTextosWA;
+  const g = document.getElementById('waPropActGrid');
+  if (!g) return;
+  g.innerHTML = f.length > 0
+    ? f.map(x=>`
+        <div onclick="usarTextoWAPropAct('${x.id}','${cid}')"
+          style="padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;cursor:pointer;font-size:0.8rem;background:white;margin-bottom:4px;"
+          onmouseover="this.style.borderColor='#25D366';this.style.background='#f0fff4'"
+          onmouseout="this.style.borderColor='#e5e7eb';this.style.background='white'">
+          <div style="font-weight:600;color:#374151;margin-bottom:2px;">${escHtml(x.titulo)}</div>
+          <div style="color:#888;font-size:0.72rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml((x.contenido||'').substring(0,90))}…</div>
+        </div>`).join('')
+    : '<div style="font-size:0.8rem;color:#aaa;padding:4px 0;">Sin resultados.</div>';
+}
+
+function usarTextoWAPropAct(textoId, cid) {
+  const t = _propActTextosWA.find(x => x.id === textoId);
+  const c = PROPS.consultas.find(x => x.id === cid);
+  if (!t || !c) return;
+  const propObj = PROPS.propiedades.find(p => p.direccion === c.propiedad_nombre);
+  const propPartes = [c.propiedad_nombre||''];
+  if (propObj?.localidad) propPartes.push(propObj.localidad);
+  if (propObj?.zona)      propPartes.push(propObj.zona);
+  let msg = t.contenido || '';
+  msg = msg
+    .replace(/\{nombre\}/gi,             c.nombre || '')
+    .replace(/\{propiedad\}/gi,          propPartes.filter(Boolean).join(', '))
+    .replace(/\{ficha_propiedad\}/gi,    propObj?.url || '')
+    .replace(/\{nombre_propietario\}/gi, propObj?.nombre_propietario || '');
+  const ta = document.getElementById('waPropActMsg');
+  if (ta) { ta.value = msg; ta.focus(); }
+}
+
+function insertarAtribWAPropAct(attr) {
+  const ta = document.getElementById('waPropActMsg');
+  if (!ta) return;
+  const s = ta.selectionStart, e = ta.selectionEnd;
+  ta.value = ta.value.substring(0,s) + attr + ta.value.substring(e);
+  ta.selectionStart = ta.selectionEnd = s + attr.length;
+  ta.focus();
+}
+
+function enviarWAPropAct(tel) {
+  const msg = document.getElementById('waPropActMsg')?.value || '';
+  window.open(buildWhatsAppUrl(tel, msg), '_blank');
+  const ov = document.getElementById('_waPropActOv');
+  if (ov) ov.style.display = 'none';
+}
+
 // ══ VER MÁS INFORMACIÓN DE PROPIEDAD ══
 function verMasProp(pid) {
   const p = PROPS.propiedades.find(x => x.id === pid);
@@ -430,88 +594,77 @@ function verMasProp(pid) {
     'vendio_con_otro':    '🔄 Vendió con otro',
   };
 
-  // Propietarios
   let propietarios = [];
   try { if (p.propietarios_json) propietarios = JSON.parse(p.propietarios_json); } catch(e) {}
   if (propietarios.length === 0 && p.nombre_propietario) {
     propietarios = [{ nombre: p.nombre_propietario, telefono: p.telefono||'', email: p.email||'', referido: p.referido||'' }];
   }
 
-  // Documentos
   let docs = [];
   try { if (p.documentos_json) docs = JSON.parse(p.documentos_json); } catch(e) {}
 
   const fila = (label, valor) => valor
     ? `<div style="display:flex;gap:8px;padding:7px 0;border-bottom:1px solid #f3f4f6;">
-        <div style="font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.3px;min-width:130px;flex-shrink:0;">${label}</div>
-        <div style="font-size:0.85rem;color:#374151;">${valor}</div>
-       </div>`
-    : '';
+        <div style="font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;min-width:130px;flex-shrink:0;">${label}</div>
+        <div style="font-size:0.85rem;color:#374151;flex:1;">${valor}</div>
+       </div>` : '';
 
-  let overlay = document.getElementById('_verMasPropOv');
-  if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.id = '_verMasPropOv';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px;';
-    document.body.appendChild(overlay);
+  let ov = document.getElementById('_verMasPropOv');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = '_verMasPropOv';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px;';
+    document.body.appendChild(ov);
   }
 
-  overlay.innerHTML = `
+  ov.innerHTML = `
     <div style="background:white;border-radius:14px;max-width:580px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,0.2);">
       <div style="padding:18px 22px;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:white;z-index:1;">
         <div>
           <div style="font-weight:700;font-size:1.05rem;">${escHtml(p.direccion||'—')}</div>
-          <div style="font-size:0.78rem;color:#888;margin-top:2px;">${p.localidad||''}${p.zona ? ' · ' + p.zona : ''}</div>
+          <div style="font-size:0.78rem;color:#888;">${p.localidad||''}${p.zona?' · '+p.zona:''}</div>
         </div>
         <button onclick="document.getElementById('_verMasPropOv').style.display='none'"
-          style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#888;padding:4px;">✕</button>
+          style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#888;">✕</button>
       </div>
       <div style="padding:16px 22px;">
-
-        <!-- Datos del inmueble -->
-        <div style="font-size:0.7rem;font-weight:700;color:var(--rx-blue);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;margin-top:4px;">📍 Datos del inmueble</div>
-        ${fila('Dirección', escHtml(p.direccion||''))}
-        ${fila('Localidad', escHtml(p.localidad||''))}
-        ${fila('Zona', escHtml(p.zona||''))}
-        ${fila('Tipología', escHtml(p.tipologia||''))}
-        ${fila('Estado tasación', escHtml(p.estado_tasacion||''))}
-        ${fila('Respuesta propietario', RESP_LABELS[p.respuesta_listing||'']||'—')}
+        <div style="font-size:0.7rem;font-weight:700;color:var(--rx-blue);text-transform:uppercase;margin-bottom:8px;">📍 Datos del inmueble</div>
+        ${fila('Dirección',   escHtml(p.direccion||''))}
+        ${fila('Localidad',   escHtml(p.localidad||''))}
+        ${fila('Zona',        escHtml(p.zona||''))}
+        ${fila('Tipología',   escHtml(p.tipologia||''))}
+        ${fila('Estado',      escHtml(p.estado_tasacion||''))}
+        ${fila('Respuesta',   RESP_LABELS[p.respuesta_listing||'']||'—')}
         ${p.url ? fila('Ficha / Portal', `<a href="${escHtml(p.url)}" target="_blank" style="color:var(--rx-blue);">🔗 ${escHtml(p.url)}</a>`) : ''}
 
-        <!-- Seguimiento -->
-        <div style="font-size:0.7rem;font-weight:700;color:var(--rx-blue);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px;">📅 Seguimiento</div>
+        <div style="font-size:0.7rem;font-weight:700;color:var(--rx-blue);text-transform:uppercase;margin:14px 0 8px;">📅 Seguimiento</div>
         ${fila('Próximo contacto', p.proximo_contacto ? formatFecha(p.proximo_contacto) : '')}
         ${fila('Último contacto',  p.ultimo_contacto  ? formatFecha(p.ultimo_contacto)  : '')}
         ${fila('Fecha prelisting', p.fecha_prelisting ? formatFecha(p.fecha_prelisting) : '')}
         ${p.observaciones ? fila('Observaciones', `<span style="white-space:pre-wrap;">${escHtml(p.observaciones)}</span>`) : ''}
 
-        <!-- Propietarios -->
         ${propietarios.length > 0 ? `
-        <div style="font-size:0.7rem;font-weight:700;color:var(--rx-blue);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px;">👤 Propietarios</div>
-        ${propietarios.map(pr => `
+        <div style="font-size:0.7rem;font-weight:700;color:var(--rx-blue);text-transform:uppercase;margin:14px 0 8px;">👤 Propietarios</div>
+        ${propietarios.map(pr=>`
           <div style="padding:10px 12px;background:#f8f9fa;border-radius:8px;margin-bottom:6px;">
             <div style="font-weight:600;font-size:0.88rem;">${escHtml(pr.nombre||'')}</div>
             <div style="font-size:0.78rem;color:#666;display:flex;gap:12px;flex-wrap:wrap;margin-top:3px;">
-              ${pr.telefono ? `<span>📞 ${escHtml(pr.telefono)}</span>` : ''}
-              ${pr.email    ? `<span>✉️ ${escHtml(pr.email)}</span>`    : ''}
-              ${pr.referido ? `<span>🔗 Ref: ${escHtml(pr.referido)}</span>` : ''}
+              ${pr.telefono?`<span>📞 ${escHtml(pr.telefono)}</span>`:''}
+              ${pr.email?`<span>✉️ ${escHtml(pr.email)}</span>`:''}
+              ${pr.referido?`<span>🔗 Ref: ${escHtml(pr.referido)}</span>`:''}
             </div>
-          </div>`).join('')}
-        ` : ''}
+          </div>`).join('')}` : ''}
 
-        <!-- Documentos -->
         ${docs.length > 0 ? `
-        <div style="font-size:0.7rem;font-weight:700;color:var(--rx-blue);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px;">📁 Documentación</div>
-        ${docs.map(d => `
+        <div style="font-size:0.7rem;font-weight:700;color:var(--rx-blue);text-transform:uppercase;margin:14px 0 8px;">📁 Documentación</div>
+        ${docs.map(d=>`
           <div style="display:flex;align-items:center;gap:8px;padding:7px 12px;background:#f8f9fa;border-radius:8px;margin-bottom:5px;">
             <span>${(d.tipo||'').includes('pdf')?'📄':'📎'}</span>
             <span style="font-size:0.83rem;font-weight:600;flex:1;">${escHtml(d.nombre||'Documento')}</span>
-            ${d.notas ? `<span style="font-size:0.75rem;color:#888;">${escHtml(d.notas)}</span>` : ''}
-            ${d.dataUrl ? `<a href="${d.dataUrl}" target="_blank" style="font-size:0.75rem;color:var(--rx-blue);">👁️ Ver</a>` : ''}
-            ${d.dataUrl ? `<a href="${d.dataUrl}" download="${escHtml(d.nombre||'doc')}" style="font-size:0.75rem;color:#059669;">⬇️</a>` : ''}
-          </div>`).join('')}
-        ` : ''}
-
+            ${d.notas?`<span style="font-size:0.75rem;color:#888;">${escHtml(d.notas)}</span>`:''}
+            ${d.dataUrl?`<a href="${d.dataUrl}" target="_blank" style="font-size:0.75rem;color:var(--rx-blue);">👁️</a>`:''}
+            ${d.dataUrl?`<a href="${d.dataUrl}" download="${escHtml(d.nombre||'doc')}" style="font-size:0.75rem;color:#059669;">⬇️</a>`:''}
+          </div>`).join('')}` : ''}
       </div>
       <div style="padding:14px 22px;border-top:1px solid #f3f4f6;display:flex;justify-content:flex-end;gap:10px;">
         <button onclick="document.getElementById('_verMasPropOv').style.display='none';abrirEditarPropModal('${p.id}')"
@@ -520,7 +673,6 @@ function verMasProp(pid) {
           style="padding:8px 18px;border-radius:8px;border:none;background:var(--rx-blue);color:white;cursor:pointer;font-size:0.85rem;font-weight:600;">Cerrar</button>
       </div>
     </div>`;
-
-  overlay.style.display = 'flex';
-  overlay.onclick = e => { if (e.target === overlay) overlay.style.display = 'none'; };
+  ov.style.display = 'flex';
+  ov.onclick = e => { if (e.target === ov) ov.style.display = 'none'; };
 }
